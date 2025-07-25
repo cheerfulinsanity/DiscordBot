@@ -1,23 +1,6 @@
-name: Debug Environment Variables
+import os
 
-on:
-  workflow_dispatch:
-
-jobs:
-  debug-secrets:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Run environment debug script
-        env:
-          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
-          GIST_ID: ${{ secrets.GIST_ID }}
-        run: python debug-env.py
+print("🔍 Dumping environment variables containing 'GIST' or 'TOKEN'...\n")
+for key, value in os.environ.items():
+    if "GIST" in key or "TOKEN" in key:
+        print(f"{key} = {value[:6]}... (truncated)")
