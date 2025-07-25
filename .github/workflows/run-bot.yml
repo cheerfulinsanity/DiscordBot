@@ -1,10 +1,12 @@
-name: Debug Gist Access
+name: Run OpenDota Discord Bot
 
 on:
-  workflow_dispatch:        # Run manually from GitHub Actions tab
+  schedule:
+    - cron: "*/15 * * * *"  # Every 15 minutes
+  workflow_dispatch:        # Allow manual trigger from GitHub UI
 
 jobs:
-  run-debug:
+  run-bot:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,8 +18,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install requests package
-        run: pip install requests
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Run Gist Debug Script
-        run: python debug-gist.py
+      - name: Run bot script
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+        run: python main.py
