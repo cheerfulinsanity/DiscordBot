@@ -17,4 +17,7 @@ jobs:
           python-version: '3.11'
 
       - name: Run environment debug script
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
         run: python debug-env.py
