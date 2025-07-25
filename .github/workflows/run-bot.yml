@@ -1,12 +1,10 @@
-name: Run STRATZ Match Bot
+name: Debug Gist Access
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"  # Every 15 minutes
-  workflow_dispatch:        # Optional: lets you run it manually
+  workflow_dispatch:        # Run manually from GitHub Actions tab
 
 jobs:
-  run-bot:
+  run-debug:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,9 +16,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install requests package
+        run: pip install requests
 
-      - name: Run bot
-        run: python main.py
-
+      - name: Run Gist Debug Script
+        run: python debug-gist.py
