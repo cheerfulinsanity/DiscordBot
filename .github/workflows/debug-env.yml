@@ -1,0 +1,20 @@
+name: Debug Environment Variables
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug-secrets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Run environment debug script
+        run: python debug-env.py
