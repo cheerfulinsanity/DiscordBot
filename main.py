@@ -7,7 +7,7 @@ import os
 with open("config.json", "r") as f:
     config = json.load(f)
 
-# ENV: GitHub Actions secrets
+# ENV from GitHub Secrets
 GIST_TOKEN = os.getenv("GIST_TOKEN")
 GIST_ID = os.getenv("GIST_ID")
 
@@ -64,7 +64,6 @@ def post_to_discord(message):
     if config.get("test_mode", False):
         print("TEST MODE ENABLED — would have posted:\n", message)
         return
-
     payload = {"content": message}
     r = requests.post(config['webhook_url'], json=payload)
     if r.status_code not in [200, 204]:
@@ -78,12 +77,11 @@ for name, steam_id in config['players'].items():
     match = get_latest_match(steam_id)
     if not match:
         continue
-
     last_id = state.get(str(steam_id))
     if match['match_id'] != last_id:
         message = format_message(name, match)
         post_to_discord(message)
         state[str(steam_id)] = match['match_id']
 
-# Save updated state
+# Save updated state to Gist
 save_state(state)
