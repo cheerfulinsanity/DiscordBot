@@ -13,57 +13,25 @@ try:
 except FileNotFoundError:
     state = {}
 
-GRAPHQL_URL = "https://api.stratz.com/graphql"
-HEADERS = {
-    "Authorization": f"Bearer {config['stratz_api_key']}",
-    "Content-Type": "application/json"
-}
-
 def get_latest_match(steam_id32):
-    query = {
-        "query": """
-        query ($steamId: Int!) {
-            player(steamAccountId: $steamId) {
-                matches(request: { take: 1 }) {
-                    id
-                    didWin
-                    durationSeconds
-                    hero {
-                        displayName
-                    }
-                    stats {
-                        kills
-                        deaths
-                        assists
-                    }
-                }
-            }
-        }
-        """,
-        "variables": {
-            "steamId": steam_id32
-        }
-    }
-
-    res = requests.post(GRAPHQL_URL, headers=HEADERS, json=query)
+    url = f"https://api.opendota.com/api/players/{steam_id32}/recentMatches"
+    res = requests.get(url)
     if res.status_code != 200:
         print(f"Error fetching match for {steam_id32}: {res.text}")
         return None
 
     data = res.json()
-    matches = data.get("data", {}).get("player", {}).get("matches", [])
-    if not matches:
+    if not data:
         return None
-    return matches[0]
+    return data[0]
 
 def format_message(name, match):
-    duration = time.strftime("%Mm%Ss", time.gmtime(match['durationSeconds']))
-    result = "Win" if match['didWin'] else "Loss"
-    kda = f"{match['stats']['kills']}/{match['stats']['deaths']}/{match['stats']['assists']}"
-    hero = match['hero']['displayName']
-    match_url = f"https://stratz.com/match/{match['id']}"
-
-    return f"🕹️ **{name}** just played **{hero}** – `{kda}` – **{result}** – {duration}\n{match_url}"
+    kda = f"{match['kills']}/{match['deaths']}/{match['assists']}"
+    result = "Win" if match['radiant_win'] == (match['player_slot'] < 128) else "Loss"
+    duration = time.strftime("%Mm%Ss", time.gmtime(match['duration']))
+    match_url = f"https://www.opendota.com/matches/{match['match_id']}"
+    
+    return f"🕹️ **{name}** just played match `{match['match_id']}` – `{kda}` – **{result}** – {duration}\n{match_url}"
 
 def post_to_discord(message):
     payload = {"content": message}
@@ -78,10 +46,10 @@ for name, steam_id in config['players'].items():
         continue
 
     last_id = state.get(str(steam_id))
-    if match['id'] != last_id:
+    if match['match_id'] != last_id:
         message = format_message(name, match)
         post_to_discord(message)
-        state[str(steam_id)] = match['id']
+        state[str(steam_id)] = match['match_id']
 
 # Save updated state
 with open("state.json", "w") as f:
