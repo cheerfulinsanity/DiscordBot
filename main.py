@@ -104,7 +104,11 @@ def get_latest_full_match(steam_id32):
         return None
     match_data = res.json()
 
-    player_data = next((p for p in match_data["players"] if p["account_id"] == steam_id32), None)
+    if "players" not in match_data:
+        print(f"⚠️ No player data found in match {match_id}")
+        return None
+
+    player_data = next((p for p in match_data["players"] if p.get("account_id") == steam_id32), None)
     if not player_data:
         print(f"Player {steam_id32} not found in match {match_id}")
         return None
