@@ -121,18 +121,21 @@ def extract_player_summary(player_data, match_data):
     }
 
 def format_group_message(match_data, guild_players):
+    single = len(guild_players) == 1
     duration = time.strftime("%Mm%Ss", time.gmtime(match_data["duration"]))
     match_url = f"https://www.opendota.com/matches/{match_data['match_id']}"
     result_icon = "🟢" if match_data["radiant_win"] else "🔴"
 
-    msg = f"{result_icon} **Guild Squad {'Victory!' if match_data['radiant_win'] else 'Defeat.'}** (Match {match_data['match_id']}) | ⏱ {duration}\n{match_url}\n"
+    msg = f"{result_icon} **{'Guild Member' if single else 'Guild Squad'} {'Victory!' if match_data['radiant_win'] else 'Defeat.'}** (Match {match_data['match_id']}) | ⏱ {duration}\n{match_url}\n"
 
     for p in guild_players:
         tag = get_score_tag(p['kills'], p['deaths'], p['assists'], p['won'])
         flavor = FEEDBACK_LIBRARY.get(f"tag_{tag.lower()}")
         line = random.choice(flavor["lines"][0]) if flavor else "played a game."
         name = next(k for k, v in config["players"].items() if v == p["account_id"])
-        msg += f"\n**{name}** went `{p['kills']}/{p['deaths']}/{p['assists']}` — {line}"
+        msg += f"
+
+📌 **{name}** went `{p['kills']}/{p['deaths']}/{p['assists']}` — {line}"
 
     msg += "\n\n🎯 **Stats vs Avg**"
     for p in guild_players:
@@ -143,7 +146,9 @@ def format_group_message(match_data, guild_players):
         stats = {k: p[k] for k in ["kills", "deaths", "assists", "last_hits", "denies", "gpm", "xpm"]}
         feedback = generate_feedback(stats, baseline, roles)
         name = next(k for k, v in config["players"].items() if v == p["account_id"])
-        msg += f"\n{name} ({p['hero_name']})"
+        msg += f"
+
+{name} ({p['hero_name']})"
         for line in feedback.get("lines", []):
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
             msg += f"\n- {short}"
