@@ -33,35 +33,33 @@ def generate_feedback(player_stats, hero_baseline, roles):
         "denies": pct_diff(dn, base["denies"]),
     }
 
-    # Pattern matching (simple rules for now)
     pattern = None
 
-    if all(val < -0.5 for val in deltas.values()):
-        pattern = "invisible_game"
-
-    elif "support" in roles:
-        if deltas["kills"] > 1.0 and deltas["assists"] < -0.4:
+    if "support" in roles:
+        if deltas["kills"] > 0.5 and deltas["assists"] < -0.3:
             pattern = "support_ks"
-        elif deltas["assists"] < -0.5:
-            pattern = "support_invisible"
+        elif deltas["assists"] < -0.5 and deltas["kills"] < -0.3:
+            pattern = "invisible_support"
 
     elif "carry" in roles:
-        if deltas["last_hits"] > 0.25 and (k + a) < (base["kills"] + base["assists"]) * 0.5:
-            pattern = "carry_afk_farmer"
-        elif deltas["last_hits"] < -0.4:
-            pattern = "carry_no_farm"
+        if deltas["last_hits"] < -0.4:
+            pattern = "low_lh_carry"
+        elif deltas["kills"] < -0.3 and deltas["deaths"] > 0.5:
+            pattern = "feeder_carry"
+
+    elif "mid" in roles:
+        if deltas["kills"] > 0.3 and deltas["last_hits"] < -0.4:
+            pattern = "no_farm_mid"
 
     elif "offlane" in roles:
         if deltas["deaths"] > 0.4 and (a + k) < (base["assists"] + base["kills"]) * 0.6:
             pattern = "offlane_feed"
 
-    elif "mid" in roles:
-        if (k + a) < (base["kills"] + base["assists"]) * 0.5:
-            pattern = "mid_afk"
-
-    # Fallback if no match
-    if pattern is None:
+    if not pattern and all(val < -0.5 for val in deltas.values()):
         pattern = "invisible_game"
+
+    if not pattern:
+        pattern = random.choice(list(FEEDBACK_LIBRARY.keys()))
 
     block = FEEDBACK_LIBRARY[pattern]
     burn = random.choice(block["burns"])
