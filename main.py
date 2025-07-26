@@ -102,12 +102,14 @@ def get_latest_match_id(steam_id32):
     return data[0]["match_id"] if data else None
 
 def extract_player_summary(player_data, match_data):
+    is_turbo = match_data.get("game_mode") == 23
     hero_id = player_data["hero_id"]
     hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
     is_radiant = player_data["player_slot"] < 128
     won = (match_data["radiant_win"] and is_radiant) or (not match_data["radiant_win"] and not is_radiant)
     return {
         "account_id": player_data["account_id"],
+        "is_turbo": is_turbo,
         "hero_name": hero_name,
         "kills": player_data["kills"],
         "deaths": player_data["deaths"],
@@ -126,7 +128,7 @@ def format_group_message(match_data, guild_players):
     match_url = f"https://www.opendota.com/matches/{match_data['match_id']}"
     result_icon = "🟢" if match_data["radiant_win"] else "🔴"
 
-    msg = f"{result_icon} **{'Guild Member' if single else 'Guild Squad'} {'Victory!' if match_data['radiant_win'] else 'Defeat.'}** (Match {match_data['match_id']}) | ⏱ {duration}\n{match_url}\n"
+    msg = f"{result_icon} **{'Guild Member' if single else 'Guild Squad'} {'Victory!' if match_data['radiant_win'] else 'Defeat.'}** ({'Turbo' if match_data.get('game_mode') == 23 else 'Match'} {match_data['match_id']}) | ⏱ {duration}\n{match_url}\n"
 
     for p in guild_players:
         tag = get_score_tag(p['kills'], p['deaths'], p['assists'], p['won'])
@@ -150,6 +152,8 @@ def format_group_message(match_data, guild_players):
 
 {name} ({p['hero_name']})"
         for line in feedback.get("lines", []):
+            if ('GPM' in line or 'XPM' in line) and p.get("is_turbo"):
+                continue
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
             msg += f"\n- {short}"
         if feedback.get("advice"):
