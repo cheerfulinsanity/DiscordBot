@@ -29,6 +29,20 @@ GIST_HEADERS = {
     "Accept": "application/vnd.github.v3+json"
 }
 
+# Load hero ID to name map from OpenDota
+HERO_ID_TO_NAME = {}
+
+def load_hero_names():
+    global HERO_ID_TO_NAME
+    try:
+        response = requests.get("https://api.opendota.com/api/heroStats")
+        for h in response.json():
+            HERO_ID_TO_NAME[h["id"]] = h["localized_name"]
+    except Exception as e:
+        print("⚠️ Failed to load hero names:", e)
+
+load_hero_names()
+
 TAG_MESSAGES = {
     "Smashed": [
         "smashed it.", "had damage numbers you screenshot.",
@@ -254,6 +268,7 @@ for name, steam_id in config['players'].items():
     match_id = match['match_id']
     if str(steam_id) in state and state[str(steam_id)] == match_id:
         continue
+    match["hero_name"] = HERO_ID_TO_NAME.get(match["hero_id"])  # 🧠 Inject hero name here
     k, d, a = match['kills'], match['deaths'], match['assists']
     is_radiant = match['player_slot'] < 128
     won = (match['radiant_win'] and is_radiant) or (not match['radiant_win'] and not is_radiant)
