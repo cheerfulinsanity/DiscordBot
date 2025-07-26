@@ -144,7 +144,7 @@ def format_message(name, match, is_turbo, is_group=False):
 
     header = f"{'🟢' if match['won'] else '🔴'} 📌 **{name}** went `{k}/{d}/{a}` — {tag_line}" if is_group else f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}"
     result_line = f"**{'Guild Squad' if is_group else 'Guild Member'} {'Victory!' if match['won'] else 'Defeat.'} ({'Turbo ' if is_turbo else ''}Match {match['match_id']})**"
-    
+
     msg = f"{header}\n{result_line} | ⏱ {duration}\n🔗 {match_url}"
 
     hero_name = match['hero_name']
@@ -182,8 +182,9 @@ def post_to_discord(message):
 
 # Main loop
 state = load_state()
-match_groups = {}
+recent_matches = {}
 
+# First pass: collect latest matches for each player
 for name, steam_id in config["players"].items():
     match = get_latest_full_match(steam_id)
     if not match:
@@ -191,19 +192,19 @@ for name, steam_id in config["players"].items():
     match_id = str(match["match_id"])
     if str(steam_id) in state and state[str(steam_id)] == match_id:
         continue
-    if match_id not in match_groups:
-        match_groups[match_id] = []
-    match_groups[match_id].append((name, steam_id, match))
+    if match_id not in recent_matches:
+        recent_matches[match_id] = []
+    recent_matches[match_id].append((name, steam_id, match))
 
-for match_id, players in match_groups.items():
+# Second pass: format and post messages
+for match_id, players in recent_matches.items():
     is_turbo = players[0][2]["game_mode"] == 23
     is_group = len(players) > 1
-    messages = []
-    for name, _, match in players:
-        msg = format_message(name, match, is_turbo, is_group)
-        messages.append(msg)
-        state[str(match["player_slot"])] = match["match_id"]
-    full_message = "\n\n".join(messages)
+    message_blocks = []
+    for name, steam_id, match in players:
+        message_blocks.append(format_message(name, match, is_turbo, is_group))
+        state[str(steam_id)] = match_id
+    full_message = "\n\n".join(message_blocks)
     post_to_discord(full_message)
 
 save_state(state)
