@@ -150,7 +150,7 @@ def format_group_message(match_data, guild_players):
         name = next(k for k, v in config["players"].items() if v == p["account_id"])
         msg += f"
 
-{name} ({p['hero_name']})"
+{name} ({p['hero_name']})""
         for line in feedback.get("lines", []):
             if ('GPM' in line or 'XPM' in line) and p.get("is_turbo"):
                 continue
