@@ -3,10 +3,21 @@ import json
 import time
 import os
 import random
+from feedback_engine import generate_feedback
+from feedback_catalog import FEEDBACK_LIBRARY
 
 # Load config
 with open("config.json", "r") as f:
     config = json.load(f)
+
+# Load hero role and baseline data
+with open("hero_roles.json", "r") as f:
+    HERO_ROLES = json.load(f)
+
+with open("hero_baselines.json", "r") as f:
+    HERO_BASELINES = json.load(f)
+
+HERO_BASELINE_MAP = {h["hero"]: h for h in HERO_BASELINES}
 
 # ENV from GitHub Secrets
 GIST_TOKEN = os.getenv("GIST_TOKEN")
@@ -116,18 +127,6 @@ GROUP_FLAVOR_LINES = {
     ]
 }
 
-def get_hero_name(hero_id):
-    try:
-        res = requests.get("https://api.opendota.com/api/heroes")
-        if res.status_code != 200:
-            return "Unknown Hero"
-        heroes = res.json()
-        hero_map = {h["id"]: h["localized_name"] for h in heroes}
-        return hero_map.get(hero_id, "Unknown Hero")
-    except Exception as e:
-        print("⚠️ Error fetching hero name:", e)
-        return "Unknown Hero"
-
 def get_score_tag(k, d, a, won):
     if (k + a >= 30 and d <= 5) or (k >= 20 and d <= 3):
         return "Smashed"
@@ -221,19 +220,33 @@ def format_message(name, match):
 
     tag = get_score_tag(k, d, a, won)
     tag_line = random.choice(TAG_MESSAGES[tag])
-    hero_name = match.get("hero_name", "Unknown Hero")
 
-    return (
-        f"{result_emoji} **{name}** went `{k}/{d}/{a}` as {hero_name} — {tag_line}\n"
+    msg = (
+        f"{result_emoji} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
         f"**{result_text}** | ⏱ {duration}\n"
         f"🔗 {match_url}"
     )
+
+    hero_name = match.get("hero_name")
+    baseline = HERO_BASELINE_MAP.get(hero_name)
+    roles = HERO_ROLES.get(hero_name, [])
+    if baseline and roles:
+        player_stats = {
+            "kills": k,
+            "deaths": d,
+            "assists": a,
+            "last_hits": match.get("last_hits", 0),
+            "denies": match.get("denies", 0)
+        }
+        feedback = generate_feedback(player_stats, baseline, roles)
+        msg += f"\n\n{feedback['title']}\n" + "\n".join(f"- {line}" for line in feedback['lines'])
+
+    return msg
 
 # Main loop
 state = load_state()
 matches = {}
 
-# First pass: collect match data
 for name, steam_id in config['players'].items():
     match = get_latest_match(steam_id)
     if not match:
@@ -241,7 +254,6 @@ for name, steam_id in config['players'].items():
     match_id = match['match_id']
     if str(steam_id) in state and state[str(steam_id)] == match_id:
         continue
-    match["hero_name"] = get_hero_name(match["hero_id"])  # ← inject hero name here
     k, d, a = match['kills'], match['deaths'], match['assists']
     is_radiant = match['player_slot'] < 128
     won = (match['radiant_win'] and is_radiant) or (not match['radiant_win'] and not is_radiant)
@@ -252,7 +264,6 @@ for name, steam_id in config['players'].items():
     }
     matches.setdefault(match_id, []).append(entry)
 
-# Second pass: format & send messages
 for match_id, players in matches.items():
     if len(players) == 1:
         p = players[0]
@@ -265,8 +276,7 @@ for match_id, players in matches.items():
         lines = []
         for p in players:
             result_emoji = "🟢" if p['won'] else "🔴"
-            hero = p['match'].get('hero_name', 'Unknown Hero')
-            line = f"{result_emoji} **{p['name']}** went `{p['k']}/{p['d']}/{p['a']}` as {hero} — {random.choice(TAG_MESSAGES[p['tag']])}"
+            line = f"{result_emoji} **{p['name']}** went `{p['k']}/{p['d']}/{p['a']}` — {random.choice(TAG_MESSAGES[p['tag']])}"
             lines.append(line)
         flavor = group_flavor(players)
         match_url = f"https://www.opendota.com/matches/{match_id}"
