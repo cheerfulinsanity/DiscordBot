@@ -123,6 +123,9 @@ def get_latest_full_match(steam_id32):
         "denies": player_data["denies"],
         "gpm": player_data["gold_per_min"],
         "xpm": player_data["xp_per_min"],
+        "hero_damage": player_data["hero_damage"],
+        "tower_damage": player_data["tower_damage"],
+        "hero_healing": player_data["hero_healing"],
         "player_slot": player_data["player_slot"],
         "radiant_win": match_data["radiant_win"],
         "duration": match_data["duration"],
@@ -167,16 +170,16 @@ def format_message(name, match):
             "last_hits": match.get("last_hits", 0),
             "denies": match.get("denies", 0),
             "gpm": match.get("gpm", 0),
-            "xpm": match.get("xpm", 0)
+            "xpm": match.get("xpm", 0),
+            "hero_damage": match.get("hero_damage", 0),
+            "tower_damage": match.get("tower_damage", 0),
+            "hero_healing": match.get("hero_healing", 0)
         }
         feedback = generate_feedback(player_stats, baseline, roles)
-        msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
-        for line in feedback.get("lines", []):
-            short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
-            msg += f"- {short}\n"
-        if "advice" in feedback and feedback["advice"]:
-            msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
-    return msg.strip()
+        msg += f"\n\n🎯 **Stat Breakdown**\n" + "\n".join(f"- {line}" for line in feedback.get("lines", []))
+        if "advice" in feedback:
+            msg += f"\n\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
+    return msg
 
 # Main loop
 state = load_state()
