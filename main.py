@@ -160,8 +160,6 @@ def format_message(name, match):
     match_type_label = f"{'Victory!' if match['won'] else 'Defeat.'}"
     if is_turbo:
         match_type_label += " (Turbo Match)"
-    else:
-        match_type_label += f""
 
     msg = (
         f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
@@ -182,11 +180,9 @@ def format_message(name, match):
             "gpm": match.get("gpm", 0),
             "xpm": match.get("xpm", 0)
         }
-        if is_turbo:
-            del player_stats["gpm"]
-            del player_stats["xpm"]
 
-        feedback = generate_feedback(player_stats, baseline, roles)
+        feedback = generate_feedback(player_stats, baseline, roles, is_turbo=is_turbo)
+
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
