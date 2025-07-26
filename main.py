@@ -126,14 +126,22 @@ def get_latest_full_match(steam_id32):
         "player_slot": player_data["player_slot"],
         "radiant_win": match_data["radiant_win"],
         "duration": match_data["duration"],
-        "game_mode": match_data["game_mode"],
         "hero_name": hero_name,
         "won": won
     }
 
     return match_summary
 
-def format_message(name, match, is_turbo, is_group=False):
+def post_to_discord(message):
+    if config.get("test_mode", False):
+        print("TEST MODE ENABLED — would have posted:\n", message)
+        return
+    payload = {"content": message}
+    r = requests.post(config['webhook_url'], json=payload)
+    if r.status_code not in [200, 204]:
+        print("⚠️ Failed to send message to Discord:", r.text)
+
+def format_message(name, match):
     k, d, a = match['kills'], match['deaths'], match['assists']
     duration = time.strftime("%Mm%Ss", time.gmtime(match['duration']))
     match_url = f"https://www.opendota.com/matches/{match['match_id']}"
@@ -142,10 +150,11 @@ def format_message(name, match, is_turbo, is_group=False):
     flavor_block = FEEDBACK_LIBRARY.get(f"tag_{tag.lower()}")
     tag_line = random.choice(flavor_block["lines"][0]) if flavor_block else "did something."
 
-    header = f"{'🟢' if match['won'] else '🔴'} 📌 **{name}** went `{k}/{d}/{a}` — {tag_line}" if is_group else f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}"
-    result_line = f"**{'Guild Squad' if is_group else 'Guild Member'} {'Victory!' if match['won'] else 'Defeat.'} ({'Turbo ' if is_turbo else ''}Match {match['match_id']})**"
-
-    msg = f"{header}\n{result_line} | ⏱ {duration}\n🔗 {match_url}"
+    msg = (
+        f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
+        f"**{'Victory!' if match['won'] else 'Defeat.'}** | ⏱ {duration}\n"
+        f"🔗 {match_url}"
+    )
 
     hero_name = match['hero_name']
     baseline = HERO_BASELINE_MAP.get(hero_name)
@@ -163,48 +172,23 @@ def format_message(name, match, is_turbo, is_group=False):
         feedback = generate_feedback(player_stats, baseline, roles)
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
-            if is_turbo and ("GPM" in line or "XPM" in line):
-                continue
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
             msg += f"- {short}\n"
         if "advice" in feedback and feedback["advice"]:
             msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
     return msg.strip()
 
-def post_to_discord(message):
-    if config.get("test_mode", False):
-        print("TEST MODE ENABLED — would have posted:\n", message)
-        return
-    payload = {"content": message}
-    r = requests.post(config['webhook_url'], json=payload)
-    if r.status_code not in [200, 204]:
-        print("⚠️ Failed to send message to Discord:", r.text)
-
 # Main loop
 state = load_state()
-recent_matches = {}
-
-# First pass: collect latest matches for each player
 for name, steam_id in config["players"].items():
     match = get_latest_full_match(steam_id)
     if not match:
         continue
-    match_id = str(match["match_id"])
+    match_id = match["match_id"]
     if str(steam_id) in state and state[str(steam_id)] == match_id:
         continue
-    if match_id not in recent_matches:
-        recent_matches[match_id] = []
-    recent_matches[match_id].append((name, steam_id, match))
-
-# Second pass: format and post messages
-for match_id, players in recent_matches.items():
-    is_turbo = players[0][2]["game_mode"] == 23
-    is_group = len(players) > 1
-    message_blocks = []
-    for name, steam_id, match in players:
-        message_blocks.append(format_message(name, match, is_turbo, is_group))
-        state[str(steam_id)] = match_id
-    full_message = "\n\n".join(message_blocks)
-    post_to_discord(full_message)
+    msg = format_message(name, match)
+    post_to_discord(msg)
+    state[str(steam_id)] = match_id
 
 save_state(state)
