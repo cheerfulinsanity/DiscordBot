@@ -116,6 +116,18 @@ GROUP_FLAVOR_LINES = {
     ]
 }
 
+def get_hero_name(hero_id):
+    try:
+        res = requests.get("https://api.opendota.com/api/heroes")
+        if res.status_code != 200:
+            return "Unknown Hero"
+        heroes = res.json()
+        hero_map = {h["id"]: h["localized_name"] for h in heroes}
+        return hero_map.get(hero_id, "Unknown Hero")
+    except Exception as e:
+        print("⚠️ Error fetching hero name:", e)
+        return "Unknown Hero"
+
 def get_score_tag(k, d, a, won):
     if (k + a >= 30 and d <= 5) or (k >= 20 and d <= 3):
         return "Smashed"
@@ -209,9 +221,10 @@ def format_message(name, match):
 
     tag = get_score_tag(k, d, a, won)
     tag_line = random.choice(TAG_MESSAGES[tag])
+    hero_name = match.get("hero_name", "Unknown Hero")
 
     return (
-        f"{result_emoji} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
+        f"{result_emoji} **{name}** went `{k}/{d}/{a}` as {hero_name} — {tag_line}\n"
         f"**{result_text}** | ⏱ {duration}\n"
         f"🔗 {match_url}"
     )
@@ -228,6 +241,7 @@ for name, steam_id in config['players'].items():
     match_id = match['match_id']
     if str(steam_id) in state and state[str(steam_id)] == match_id:
         continue
+    match["hero_name"] = get_hero_name(match["hero_id"])  # ← inject hero name here
     k, d, a = match['kills'], match['deaths'], match['assists']
     is_radiant = match['player_slot'] < 128
     won = (match['radiant_win'] and is_radiant) or (not match['radiant_win'] and not is_radiant)
@@ -251,7 +265,8 @@ for match_id, players in matches.items():
         lines = []
         for p in players:
             result_emoji = "🟢" if p['won'] else "🔴"
-            line = f"{result_emoji} **{p['name']}** went `{p['k']}/{p['d']}/{p['a']}` — {random.choice(TAG_MESSAGES[p['tag']])}"
+            hero = p['match'].get('hero_name', 'Unknown Hero')
+            line = f"{result_emoji} **{p['name']}** went `{p['k']}/{p['d']}/{p['a']}` as {hero} — {random.choice(TAG_MESSAGES[p['tag']])}"
             lines.append(line)
         flavor = group_flavor(players)
         match_url = f"https://www.opendota.com/matches/{match_id}"
