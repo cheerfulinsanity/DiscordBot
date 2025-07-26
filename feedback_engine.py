@@ -1,7 +1,7 @@
 import random
 from feedback_catalog import FEEDBACK_LIBRARY
 
-def generate_feedback(player_stats, hero_baseline, roles):
+def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False):
     def pct_diff(player, avg):
         return round((player - avg) / (avg or 1), 3)
 
@@ -17,6 +17,9 @@ def generate_feedback(player_stats, hero_baseline, roles):
     # Compare stat deltas and build breakdown
     stat_deltas = {}
     for key in keys:
+        if is_turbo and key in ("gpm", "xpm"):
+            continue  # Skip GPM/XPM in turbo games
+
         p_val = player_stats.get(key, 0)
         avg_val = hero_baseline.get(key, 0)
         delta = pct_diff(p_val, avg_val)
@@ -35,25 +38,28 @@ def generate_feedback(player_stats, hero_baseline, roles):
 
     # Composite tags
     if any(r in roles for r in ["carry"]):
-        if stat_deltas["last_hits"] < -0.3:
+        if stat_deltas.get("last_hits", 0) < -0.3:
             pull_catalog("carry_no_farm", 3)
-        elif stat_deltas["gpm"] > 0.1 and (stat_deltas["kills"] + stat_deltas["assists"] < -0.3):
+        elif stat_deltas.get("gpm", 0) > 0.1 and (stat_deltas.get("kills", 0) + stat_deltas.get("assists", 0) < -0.3):
             pull_catalog("carry_afk_farmer", 3)
 
     if any(r in roles for r in ["mid"]):
-        if (stat_deltas["kills"] + stat_deltas["assists"] < -0.4):
+        if (stat_deltas.get("kills", 0) + stat_deltas.get("assists", 0) < -0.4):
             pull_catalog("mid_afk", 3)
 
     if any(r in roles for r in ["offlane"]):
-        if stat_deltas["deaths"] > 0.3 and stat_deltas["assists"] < -0.25:
+        if stat_deltas.get("deaths", 0) > 0.3 and stat_deltas.get("assists", 0) < -0.25:
             pull_catalog("offlane_feed", 3)
 
-    if stat_deltas["kills"] < -0.3 and stat_deltas["assists"] < -0.3 and stat_deltas["last_hits"] < -0.3:
+    if stat_deltas.get("kills", 0) < -0.3 and stat_deltas.get("assists", 0) < -0.3 and stat_deltas.get("last_hits", 0) < -0.3:
         pull_catalog("invisible_game", 3)
 
     # Stat-based inline advice
     for key in keys:
-        delta = stat_deltas[key]
+        if is_turbo and key in ("gpm", "xpm"):
+            continue
+
+        delta = stat_deltas.get(key, 0)
         pct = abs(int(delta * 100))
         p_val = player_stats.get(key, 0)
 
