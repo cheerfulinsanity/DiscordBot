@@ -117,6 +117,7 @@ def get_latest_full_match(steam_id32):
     hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
     is_radiant = player_data["player_slot"] < 128
     won = (match_data["radiant_win"] and is_radiant) or (not match_data["radiant_win"] and not is_radiant)
+    is_turbo = match_data.get("game_mode") == 23
 
     match_summary = {
         "match_id": match_id,
@@ -131,7 +132,8 @@ def get_latest_full_match(steam_id32):
         "radiant_win": match_data["radiant_win"],
         "duration": match_data["duration"],
         "hero_name": hero_name,
-        "won": won
+        "won": won,
+        "is_turbo": is_turbo
     }
 
     return match_summary
@@ -149,14 +151,21 @@ def format_message(name, match):
     k, d, a = match['kills'], match['deaths'], match['assists']
     duration = time.strftime("%Mm%Ss", time.gmtime(match['duration']))
     match_url = f"https://www.opendota.com/matches/{match['match_id']}"
+    is_turbo = match.get("is_turbo", False)
 
     tag = get_score_tag(k, d, a, match["won"])
     flavor_block = FEEDBACK_LIBRARY.get(f"tag_{tag.lower()}")
     tag_line = random.choice(flavor_block["lines"][0]) if flavor_block else "did something."
 
+    match_type_label = f"{'Victory!' if match['won'] else 'Defeat.'}"
+    if is_turbo:
+        match_type_label += " (Turbo Match)"
+    else:
+        match_type_label += f""
+
     msg = (
         f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
-        f"**{'Victory!' if match['won'] else 'Defeat.'}** | ⏱ {duration}\n"
+        f"**{match_type_label}** | ⏱ {duration}\n"
         f"🔗 {match_url}"
     )
 
@@ -173,6 +182,10 @@ def format_message(name, match):
             "gpm": match.get("gpm", 0),
             "xpm": match.get("xpm", 0)
         }
+        if is_turbo:
+            del player_stats["gpm"]
+            del player_stats["xpm"]
+
         feedback = generate_feedback(player_stats, baseline, roles)
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
