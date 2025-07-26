@@ -86,31 +86,36 @@ def save_state(state):
     except Exception as e:
         print("⚠️ Error saving to Gist:", e)
 
-def get_match_data(match_id):
-    url = f"https://api.opendota.com/api/matches/{match_id}"
-    res = requests.get(url)
+def get_latest_full_match(steam_id32):
+    recent_url = f"https://api.opendota.com/api/players/{steam_id32}/recentMatches"
+    res = requests.get(recent_url)
     if res.status_code != 200:
-        return None
-    return res.json()
-
-def get_latest_match_id(steam_id32):
-    url = f"https://api.opendota.com/api/players/{steam_id32}/recentMatches"
-    res = requests.get(url)
-    if res.status_code != 200:
+        print(f"Error fetching recent matches for {steam_id32}: {res.text}")
         return None
     data = res.json()
-    return data[0]["match_id"] if data else None
+    if not data:
+        return None
+    match_id = data[0]["match_id"]
 
-def extract_player_summary(player_data, match_data):
-    is_turbo = match_data.get("game_mode") == 23
+    match_url = f"https://api.opendota.com/api/matches/{match_id}"
+    res = requests.get(match_url)
+    if res.status_code != 200:
+        print(f"Error fetching match {match_id}: {res.text}")
+        return None
+    match_data = res.json()
+
+    player_data = next((p for p in match_data["players"] if p["account_id"] == steam_id32), None)
+    if not player_data:
+        print(f"Player {steam_id32} not found in match {match_id}")
+        return None
+
     hero_id = player_data["hero_id"]
     hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
     is_radiant = player_data["player_slot"] < 128
     won = (match_data["radiant_win"] and is_radiant) or (not match_data["radiant_win"] and not is_radiant)
-    return {
-        "account_id": player_data["account_id"],
-        "is_turbo": is_turbo,
-        "hero_name": hero_name,
+
+    match_summary = {
+        "match_id": match_id,
         "kills": player_data["kills"],
         "deaths": player_data["deaths"],
         "assists": player_data["assists"],
@@ -119,89 +124,86 @@ def extract_player_summary(player_data, match_data):
         "gpm": player_data["gold_per_min"],
         "xpm": player_data["xp_per_min"],
         "player_slot": player_data["player_slot"],
+        "radiant_win": match_data["radiant_win"],
+        "duration": match_data["duration"],
+        "game_mode": match_data["game_mode"],
+        "hero_name": hero_name,
         "won": won
     }
 
-def format_group_message(match_data, guild_players):
-    single = len(guild_players) == 1
-    duration = time.strftime("%Mm%Ss", time.gmtime(match_data["duration"]))
-    match_url = f"https://www.opendota.com/matches/{match_data['match_id']}"
-    result_icon = "🟢" if match_data["radiant_win"] else "🔴"
+    return match_summary
 
-    msg = f"{result_icon} **{'Guild Member' if single else 'Guild Squad'} {'Victory!' if match_data['radiant_win'] else 'Defeat.'}** ({'Turbo' if match_data.get('game_mode') == 23 else 'Match'} {match_data['match_id']}) | ⏱ {duration}\n{match_url}\n"
+def format_message(name, match, is_turbo, is_group=False):
+    k, d, a = match['kills'], match['deaths'], match['assists']
+    duration = time.strftime("%Mm%Ss", time.gmtime(match['duration']))
+    match_url = f"https://www.opendota.com/matches/{match['match_id']}"
 
-    for p in guild_players:
-        tag = get_score_tag(p['kills'], p['deaths'], p['assists'], p['won'])
-        flavor = FEEDBACK_LIBRARY.get(f"tag_{tag.lower()}")
-        line = random.choice(flavor["lines"][0]) if flavor else "played a game."
-        name = next(k for k, v in config["players"].items() if v == p["account_id"])
-        msg += f"
+    tag = get_score_tag(k, d, a, match["won"])
+    flavor_block = FEEDBACK_LIBRARY.get(f"tag_{tag.lower()}")
+    tag_line = random.choice(flavor_block["lines"][0]) if flavor_block else "did something."
 
-📌 **{name}** went `{p['kills']}/{p['deaths']}/{p['assists']}` — {line}"
+    header = f"{'🟢' if match['won'] else '🔴'} 📌 **{name}** went `{k}/{d}/{a}` — {tag_line}" if is_group else f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}"
+    result_line = f"**{'Guild Squad' if is_group else 'Guild Member'} {'Victory!' if match['won'] else 'Defeat.'} ({'Turbo ' if is_turbo else ''}Match {match['match_id']})**"
+    
+    msg = f"{header}\n{result_line} | ⏱ {duration}\n🔗 {match_url}"
 
-    msg += "\n\n🎯 **Stats vs Avg**"
-    for p in guild_players:
-        baseline = HERO_BASELINE_MAP.get(p['hero_name'])
-        roles = HERO_ROLES.get(p['hero_name'], [])
-        if not baseline:
-            continue
-        stats = {k: p[k] for k in ["kills", "deaths", "assists", "last_hits", "denies", "gpm", "xpm"]}
-        feedback = generate_feedback(stats, baseline, roles)
-        name = next(k for k, v in config["players"].items() if v == p["account_id"])
-        msg += f"
-
-{name} ({p['hero_name']})""
+    hero_name = match['hero_name']
+    baseline = HERO_BASELINE_MAP.get(hero_name)
+    roles = HERO_ROLES.get(hero_name, [])
+    if baseline and roles:
+        player_stats = {
+            "kills": k,
+            "deaths": d,
+            "assists": a,
+            "last_hits": match.get("last_hits", 0),
+            "denies": match.get("denies", 0),
+            "gpm": match.get("gpm", 0),
+            "xpm": match.get("xpm", 0)
+        }
+        feedback = generate_feedback(player_stats, baseline, roles)
+        msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
-            if ('GPM' in line or 'XPM' in line) and p.get("is_turbo"):
+            if is_turbo and ("GPM" in line or "XPM" in line):
                 continue
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
-            msg += f"\n- {short}"
-        if feedback.get("advice"):
-            msg += f"\n🛠️ Advice"
-            for tip in feedback["advice"]:
-                msg += f"\n- {tip}"
-
+            msg += f"- {short}\n"
+        if "advice" in feedback and feedback["advice"]:
+            msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
     return msg.strip()
 
 def post_to_discord(message):
     if config.get("test_mode", False):
         print("TEST MODE ENABLED — would have posted:\n", message)
         return
-    r = requests.post(config['webhook_url'], json={"content": message})
+    payload = {"content": message}
+    r = requests.post(config['webhook_url'], json=payload)
     if r.status_code not in [200, 204]:
         print("⚠️ Failed to send message to Discord:", r.text)
 
-# Main Logic
+# Main loop
 state = load_state()
-latest_matches = {}
+match_groups = {}
 
 for name, steam_id in config["players"].items():
-    match_id = get_latest_match_id(steam_id)
-    if not match_id:
+    match = get_latest_full_match(steam_id)
+    if not match:
         continue
+    match_id = str(match["match_id"])
     if str(steam_id) in state and state[str(steam_id)] == match_id:
         continue
-    latest_matches.setdefault(match_id, []).append(steam_id)
+    if match_id not in match_groups:
+        match_groups[match_id] = []
+    match_groups[match_id].append((name, steam_id, match))
 
-for match_id, player_ids in latest_matches.items():
-    if len(player_ids) < 1:
-        continue
-    match_data = get_match_data(match_id)
-    if not match_data:
-        continue
-
-    guild_players = []
-    for p in match_data["players"]:
-        if p.get("account_id") in player_ids:
-            guild_players.append(extract_player_summary(p, match_data))
-
-    if not guild_players:
-        continue
-
-    message = format_group_message(match_data, guild_players)
-    post_to_discord(message)
-
-    for p in guild_players:
-        state[str(p["account_id"])] = match_id
+for match_id, players in match_groups.items():
+    is_turbo = players[0][2]["game_mode"] == 23
+    is_group = len(players) > 1
+    messages = []
+    for name, _, match in players:
+        msg = format_message(name, match, is_turbo, is_group)
+        messages.append(msg)
+        state[str(match["player_slot"])] = match["match_id"]
+    full_message = "\n\n".join(messages)
+    post_to_discord(full_message)
 
 save_state(state)
