@@ -183,7 +183,7 @@ for match_id, player_ids in latest_matches.items():
 
     guild_players = []
     for p in match_data["players"]:
-        if p["account_id"] in player_ids:
+        if p.get("account_id") in player_ids:
             guild_players.append(extract_player_summary(p, match_data))
 
     if not guild_players:
