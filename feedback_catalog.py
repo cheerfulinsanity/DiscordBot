@@ -1,5 +1,4 @@
 FEEDBACK_LIBRARY = {
-
   # === SUPPORT: Too many kills, not enough assists ===
   "support_ks": {
     "burns": [
@@ -178,5 +177,77 @@ FEEDBACK_LIBRARY = {
         "If you want to learn, start by getting involved."
       ]
     ]
+  },
+
+  # === TAG-BASED FLAVOR LINES (from main.py) ===
+  "tag_smashed": {
+    "burns": [],
+    "lines": [[
+      "smashed it.", "had damage numbers you screenshot.",
+      "ran the game like a smurf.", "deleted cores for fun.",
+      "queued to grief the enemy.", "should probably calm down.",
+      "made space... for the morgue.", "styled on them. Pure ego gameplay."
+    ]]
+  },
+
+  "tag_did_work": {
+    "burns": [],
+    "lines": [[
+      "put in solid work.", "held the line.", "delivered the goods.",
+      "showed up and clocked in.", "played like an adult.",
+      "brought lunch and packed wards.", "kept it tidy.", "did their 20%. Respect."
+    ]]
+  },
+
+  "tag_got_carried": {
+    "burns": [],
+    "lines": [[
+      "got carried harder than a divine 5 in herald queue.",
+      "watched the team win.", "still doesn't know what happened, but it’s a W.",
+      "survived long enough to see victory.", "was emotional support.",
+      "won by being present. Technically.", "contributed moral encouragement.",
+      "rode the MMR elevator straight up."
+    ]]
+  },
+
+  "tag_fed": {
+    "burns": [],
+    "lines": [[
+      "fed like they were getting paid for it.", "kept the enemy carry well-fed.",
+      "had more deaths than creeps.", "died for every ward and then some.",
+      "looked like a turbo player in ranked.", "became part of the jungle rotation — for the enemy.",
+      "was reverse couriering gold all game.", "had a direct portal to the fountain."
+    ]]
+  },
+
+  "tag_support_mvp": {
+    "burns": [],
+    "lines": [[
+      "babysat like a professional nanny.", "put wards in every bush in the game.",
+      "played the game on hard mode — support.", "kept the cores alive and ungrateful.",
+      "set up every kill and took none.", "healed, stunned, died — support life.",
+      "had more map awareness than the rest of the team combined.",
+      "made the enemy jungle feel like a warzone."
+    ]]
+  },
+
+  "tag_invisible": {
+    "burns": [],
+    "lines": [[
+      "played with their monitor off.", "still loading into the game.",
+      "took a vow of non-intervention.", "was on mute — and not just comms.",
+      "queued up, got lost, came back post-game.", "farmed clarity potions in base.",
+      "took the observer role literally.", "entered spectator mode mid-match."
+    ]]
+  },
+
+  "tag_even_game": {
+    "burns": [],
+    "lines": [[
+      "played an honest match.", "was neither the problem nor the solution.",
+      "kept things balanced.", "had a mid-tier performance. Literally.",
+      "showed up and clicked buttons.", "participated meaningfully. Kinda.",
+      "made plays. Also made mistakes.", "was present and accounted for."
+    ]]
   }
 }
