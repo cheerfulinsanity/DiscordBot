@@ -168,6 +168,10 @@ def format_message(name, match):
     team_role_line = ""
     summary_line = ""
 
+    above = []
+    below = []
+    raw = []
+
     if baseline and roles:
         player_stats = {
             "kills": k,
@@ -205,6 +209,22 @@ def format_message(name, match):
                 if flavor_block:
                     tag_line = random.choice(flavor_block["lines"][0])
 
+        for line in feedback.get("lines", []):
+            if "→" not in line:
+                raw.append(line)
+                continue
+            pct = line.split("(")[-1].strip(")%")
+            try:
+                delta = int(pct.replace("+", "").replace("-", ""))
+                if "-" in line:
+                    if delta >= 5:
+                        below.append(line)
+                elif "+" in line:
+                    if delta >= 5:
+                        above.append(line)
+            except:
+                continue
+
     msg = f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}`"
     if team_role_line:
         msg += f" — {team_role_line}"
@@ -213,12 +233,21 @@ def format_message(name, match):
     msg += f"\n**{match_type_label}** | ⏱ {duration}\n🔗 {match_url}"
 
     if baseline and roles:
-        msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
-        for line in feedback.get("lines", []):
-            short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
-            msg += f"- {short}\n"
+        msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**"
+        if below:
+            msg += f"\n**📉 Below Average:**"
+            for line in below:
+                msg += f"\n- {line}"
+        if above:
+            msg += f"\n**📈 Above Average:**"
+            for line in above:
+                msg += f"\n- {line}"
+        if raw:
+            msg += f"\n**🔢 Raw Stats (Turbo Mode):**"
+            for line in raw:
+                msg += f"\n- {line}"
         if "advice" in feedback and feedback["advice"]:
-            msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
+            msg += f"\n\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
 
     if summary_line:
         msg += f"\n\n{summary_line}"
