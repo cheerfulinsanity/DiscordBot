@@ -129,7 +129,7 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False, team_s
         avg_val = hero_baseline.get(key, 0)
 
         if is_turbo and key in ("gpm", "xpm"):
-            lines.append(f"{key.upper()}: {p_val} (Turbo mode — no comparison)")
+            lines.append(f"{key.upper()}: {p_val}")
             continue
 
         delta = pct_diff(p_val, avg_val)
