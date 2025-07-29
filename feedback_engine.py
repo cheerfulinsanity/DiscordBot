@@ -70,10 +70,13 @@ def evaluate_team_context(player_id, player_stats, team_stats):
     }
 
     for p in team_stats:
+        account_id = p.get("account_id")
+        if account_id is None:
+            continue  # Skip bot or anonymous slot
         impact = net_impact(p)
-        ranks["impact"].append((p["account_id"], impact))
-        ranks["gpm"].append((p["account_id"], p["gpm"]))
-        ranks["xpm"].append((p["account_id"], p["xpm"]))
+        ranks["impact"].append((account_id, impact))
+        ranks["gpm"].append((account_id, p.get("gpm", 0)))
+        ranks["xpm"].append((account_id, p.get("xpm", 0)))
 
     for key in ranks:
         ranks[key].sort(key=lambda x: x[1], reverse=True)
@@ -87,7 +90,7 @@ def evaluate_team_context(player_id, player_stats, team_stats):
     rank_gpm = get_rank(player_id, ranks["gpm"])
     rank_xpm = get_rank(player_id, ranks["xpm"])
     rank_impact = get_rank(player_id, ranks["impact"])
-    total_players = len(team_stats)
+    total_players = len(ranks["impact"])
 
     tag = "Filler"
     summary = "Performance was there, but not game-changing."
@@ -218,7 +221,6 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False, team_s
 
     performance = calculate_performance_score(player_stats, hero_baseline, roles, is_turbo)
 
-    # === Tone-aware filtering ===
     tone_mood = {
         "Excellent": "praise",
         "Solid": "light",
