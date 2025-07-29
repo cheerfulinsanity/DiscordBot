@@ -108,15 +108,29 @@ def get_latest_full_match(steam_id32):
         print(f"⚠️ No player data found in match {match_id}")
         return None
 
-    player_data = next((p for p in match_data["players"] if p.get("account_id") == steam_id32), None)
+    player_data = next(
+        (p for p in match_data["players"]
+         if "account_id" in p and p["account_id"] == steam_id32),
+        None
+    )
+
     if not player_data:
-        print(f"Player {steam_id32} not found in match {match_id}")
-        return None
+        print(f"⚠️ Player {steam_id32} not found in match {match_id}")
+        return {"match_id": match_id, "invalid": True}
+
+    if player_data.get("leaver_status", 0) != 0:
+        print(f"⚠️ Player left early — leaver_status = {player_data['leaver_status']}")
+        return {"match_id": match_id, "invalid": True}
+
+    player_slot = player_data["player_slot"]
+    is_radiant = player_slot < 128
+    radiant_win = match_data.get("radiant_win")
+    won = (radiant_win and is_radiant) or (not radiant_win and not is_radiant)
+
+    print(f"📊 Match {match_id} | Slot: {player_slot} | RadiantWin: {radiant_win} → Won: {won}")
 
     hero_id = player_data["hero_id"]
     hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
-    is_radiant = player_data["player_slot"] < 128
-    won = (match_data["radiant_win"] and is_radiant) or (not match_data["radiant_win"] and not is_radiant)
     is_turbo = match_data.get("game_mode") == 23
 
     match_summary = {
@@ -128,12 +142,13 @@ def get_latest_full_match(steam_id32):
         "denies": player_data["denies"],
         "gpm": player_data["gold_per_min"],
         "xpm": player_data["xp_per_min"],
-        "player_slot": player_data["player_slot"],
-        "radiant_win": match_data["radiant_win"],
+        "player_slot": player_slot,
+        "radiant_win": radiant_win,
         "duration": match_data["duration"],
         "hero_name": hero_name,
         "won": won,
-        "is_turbo": is_turbo
+        "is_turbo": is_turbo,
+        "invalid": False
     }
 
     return match_summary
@@ -198,7 +213,7 @@ def run_bot():
     state = load_state()
     for name, steam_id in config["players"].items():
         match = get_latest_full_match(steam_id)
-        if not match:
+        if not match or match.get("invalid"):
             continue
         match_id = match["match_id"]
         if str(steam_id) in state and state[str(steam_id)] == match_id:
