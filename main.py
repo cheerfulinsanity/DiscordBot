@@ -82,10 +82,16 @@ def get_latest_full_match(steam_id32):
             continue
 
         match_data = detail.json()
-        player_data = next((p for p in match_data["players"] if p["account_id"] == steam_id32), None)
 
-        if not player_data:
-            print(f"⚠️ Player {steam_id32} not found in match {match_id}")
+        # ✅ Safe extraction of player data
+        player_data = None
+        for p in match_data["players"]:
+            if p.get("account_id") == steam_id32:
+                player_data = p
+                break
+
+        if player_data is None:
+            print(f"⚠️ Player {steam_id32} not found or missing account_id in match {match_id}")
             continue
 
         if player_data.get("leaver_status", 0) != 0:
