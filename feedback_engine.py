@@ -60,8 +60,6 @@ def calculate_performance_score(player_stats, hero_baseline, roles, is_turbo=Fal
     }
 
 def evaluate_team_context(player_id, player_stats, team_stats):
-    def safe_div(x, y): return x / y if y != 0 else 0
-
     def net_impact(p):
         return p["kills"] + 0.5 * p["assists"] - 2 * p["deaths"]
 
@@ -218,10 +216,39 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False, team_s
             if key == "deaths" and delta < 0 and p_val <= 3:
                 raw_advice.append((0, "Very few deaths — your positioning and awareness paid off."))
 
-    raw_advice.sort(key=lambda x: -x[0])
-    advice = [a for _, a in raw_advice[:3]]
-
     performance = calculate_performance_score(player_stats, hero_baseline, roles, is_turbo)
+
+    # === Tone-aware filtering ===
+    tone_mood = {
+        "Excellent": "praise",
+        "Solid": "light",
+        "Neutral": "balanced",
+        "Underperformed": "critical"
+    }.get(performance["tier"], "balanced")
+
+    max_advice = {
+        "praise": 1,
+        "light": 1,
+        "balanced": 3,
+        "critical": 3
+    }[tone_mood]
+
+    filtered_advice = []
+    for priority, tip in raw_advice:
+        if tone_mood == "praise" and priority >= 1:
+            continue
+        if tone_mood == "light" and priority > 1:
+            continue
+        filtered_advice.append((priority, tip))
+
+    filtered_advice.sort(key=lambda x: -x[0])
+    advice = [tip for _, tip in filtered_advice[:max_advice]]
+
+    if tone_mood == "praise" and not advice:
+        praise_pool = FEEDBACK_LIBRARY.get("tag_excellent", {}).get("lines", [[]])[0]
+        if praise_pool:
+            advice = [f"You {random.choice(praise_pool)}"]
+
     team_context = None
     if team_stats and steam_id:
         team_context = evaluate_team_context(steam_id, player_stats, team_stats)
