@@ -168,9 +168,6 @@ def format_message(name, match):
             "gpm": match.get("gpm", 0),
             "xpm": match.get("xpm", 0)
         }
-        if is_turbo:
-            del player_stats["gpm"]
-            del player_stats["xpm"]
 
         feedback = generate_feedback(
             player_stats,
@@ -207,6 +204,12 @@ def format_message(name, match):
             msg += f"- {short}\n"
         if "advice" in feedback and feedback["advice"]:
             msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
+
+    if "team_context" in feedback and feedback["team_context"]:
+        ctx = feedback["team_context"]
+        msg += f"\n\n🛡️ **Team Role**: {ctx['tag']}\n"
+        msg += f"Impact Rank: {ctx['impact_rank']} | GPM Rank: {ctx['gpm_rank']} | XPM Rank: {ctx['xpm_rank']}\n"
+        msg += f"💬 *{ctx['summary_line']}*"
 
     return msg.strip()
 
