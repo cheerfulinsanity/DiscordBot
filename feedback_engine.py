@@ -75,11 +75,13 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False):
     # Compare stat deltas and build breakdown
     stat_deltas = {}
     for key in keys:
-        if is_turbo and key in ("gpm", "xpm"):
-            continue
-
         p_val = player_stats.get(key, 0)
         avg_val = hero_baseline.get(key, 0)
+
+        if is_turbo and key in ("gpm", "xpm"):
+            lines.append(f"{key.upper()}: {p_val} (Turbo mode — no comparison)")
+            continue
+
         delta = pct_diff(p_val, avg_val)
         pct = abs(int(delta * 100))
         stat_deltas[key] = delta
