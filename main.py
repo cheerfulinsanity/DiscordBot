@@ -148,6 +148,7 @@ def get_latest_full_match(steam_id32):
 
     match_summary = {
         "match_id": match_id,
+        "account_id": steam_id32,
         "kills": player_data["kills"],
         "deaths": player_data["deaths"],
         "assists": player_data["assists"],
@@ -213,13 +214,29 @@ def format_message(name, match):
             del player_stats["gpm"]
             del player_stats["xpm"]
 
-        feedback = generate_feedback(player_stats, baseline, roles, is_turbo=is_turbo)
+        feedback = generate_feedback(
+            player_stats,
+            baseline,
+            roles,
+            is_turbo=is_turbo,
+            team_stats=match.get("team_stats"),
+            steam_id=match.get("account_id")
+        )
+
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
             msg += f"- {short}\n"
+
+        team_context = feedback.get("team_context")
+        if team_context:
+            msg += f"\n\n🏅 **Team Role**: {team_context['tag']}"
+            msg += f"\n🔍 Impact Rank: {team_context['impact_rank']} | GPM Rank: {team_context['gpm_rank']} | XPM Rank: {team_context['xpm_rank']}"
+            msg += f"\n💬 *{team_context['summary_line']}*"
+
         if "advice" in feedback and feedback["advice"]:
-            msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
+            msg += f"\n\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
+
     return msg.strip()
 
 def run_bot():
