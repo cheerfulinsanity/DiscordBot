@@ -163,7 +163,11 @@ def format_message(name, match):
     baseline = HERO_BASELINE_MAP.get(hero_name)
     roles = HERO_ROLES.get(hero_name, [])
 
+    feedback = None
     tag_line = "did something."
+    team_role_line = ""
+    summary_line = ""
+
     if baseline and roles:
         player_stats = {
             "kills": k,
@@ -184,24 +188,30 @@ def format_message(name, match):
             steam_id=match.get("account_id")
         )
 
-        tier = feedback.get("tier", "").lower()
-        tier_tag = {
-            "excellent": "smashed",
-            "solid": "did_work",
-            "neutral": "even_game",
-            "underperformed": "fed"
-        }.get(tier)
+        ctx = feedback.get("team_context")
+        if ctx:
+            team_role_line = f"🛡️ Team Role: {ctx['tag']} | Impact Rank: {ctx['impact_rank']} | GPM Rank: {ctx['gpm_rank']} | XPM Rank: {ctx['xpm_rank']}"
+            summary_line = f"💬 *{ctx['summary_line']}*"
+        else:
+            tier = feedback.get("tier", "").lower()
+            tier_tag = {
+                "excellent": "smashed",
+                "solid": "did_work",
+                "neutral": "even_game",
+                "underperformed": "fed"
+            }.get(tier)
+            if tier_tag:
+                flavor_block = FEEDBACK_LIBRARY.get(f"tag_{tier_tag}")
+                if flavor_block:
+                    tag_line = random.choice(flavor_block["lines"][0])
 
-        if tier_tag:
-            flavor_block = FEEDBACK_LIBRARY.get(f"tag_{tier_tag}")
-            if flavor_block:
-                tag_line = random.choice(flavor_block["lines"][0])
-
-    msg = (
-        f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
-        f"**{match_type_label}** | ⏱ {duration}\n"
-        f"🔗 {match_url}"
-    )
+    # 📌 New header with team role merged in
+    msg = f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}`"
+    if team_role_line:
+        msg += f" — {team_role_line}"
+    else:
+        msg += f" — {tag_line}"
+    msg += f"\n**{match_type_label}** | ⏱ {duration}\n🔗 {match_url}"
 
     if baseline and roles:
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
@@ -211,11 +221,8 @@ def format_message(name, match):
         if "advice" in feedback and feedback["advice"]:
             msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
 
-    if "team_context" in feedback and feedback["team_context"]:
-        ctx = feedback["team_context"]
-        msg += f"\n\n🛡️ **Team Role**: {ctx['tag']}\n"
-        msg += f"Impact Rank: {ctx['impact_rank']} | GPM Rank: {ctx['gpm_rank']} | XPM Rank: {ctx['xpm_rank']}\n"
-        msg += f"💬 *{ctx['summary_line']}*"
+    if summary_line:
+        msg += f"\n\n{summary_line}"
 
     return msg.strip()
 
