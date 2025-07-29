@@ -72,7 +72,7 @@ def evaluate_team_context(player_id, player_stats, team_stats):
     for p in team_stats:
         account_id = p.get("account_id")
         if account_id is None:
-            continue  # Skip bot or anonymous slot
+            continue
         impact = net_impact(p)
         ranks["impact"].append((account_id, impact))
         ranks["gpm"].append((account_id, p.get("gpm", 0)))
@@ -122,9 +122,9 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False, team_s
 
     lines = []
     raw_advice = []
-
     keys = ["kills", "deaths", "assists", "last_hits", "denies", "gpm", "xpm"]
     stat_deltas = {}
+
     for key in keys:
         p_val = player_stats.get(key, 0)
         avg_val = hero_baseline.get(key, 0)
