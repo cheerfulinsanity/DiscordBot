@@ -19,7 +19,7 @@ with open("hero_baselines.json", "r") as f:
 
 HERO_BASELINE_MAP = {h["hero"]: h for h in HERO_BASELINES}
 
-# ENV from GitHub Secrets
+# ENV from GitHub Secrets or Railway
 GIST_TOKEN = os.getenv("GIST_TOKEN")
 GIST_ID = os.getenv("GIST_ID")
 
@@ -180,9 +180,11 @@ def format_message(name, match):
             "gpm": match.get("gpm", 0),
             "xpm": match.get("xpm", 0)
         }
+        if is_turbo:
+            del player_stats["gpm"]
+            del player_stats["xpm"]
 
-        feedback = generate_feedback(player_stats, baseline, roles, is_turbo=is_turbo)
-
+        feedback = generate_feedback(player_stats, baseline, roles)
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
@@ -191,17 +193,20 @@ def format_message(name, match):
             msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
     return msg.strip()
 
-# Main loop
-state = load_state()
-for name, steam_id in config["players"].items():
-    match = get_latest_full_match(steam_id)
-    if not match:
-        continue
-    match_id = match["match_id"]
-    if str(steam_id) in state and state[str(steam_id)] == match_id:
-        continue
-    msg = format_message(name, match)
-    post_to_discord(msg)
-    state[str(steam_id)] = match_id
+# === Callable main logic ===
+def run_bot():
+    state = load_state()
+    for name, steam_id in config["players"].items():
+        match = get_latest_full_match(steam_id)
+        if not match:
+            continue
+        match_id = match["match_id"]
+        if str(steam_id) in state and state[str(steam_id)] == match_id:
+            continue
+        msg = format_message(name, match)
+        post_to_discord(msg)
+        state[str(steam_id)] = match_id
+    save_state(state)
 
-save_state(state)
+if __name__ == "__main__":
+    run_bot()
