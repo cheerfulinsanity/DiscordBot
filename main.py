@@ -231,15 +231,20 @@ def run_bot():
     load_hero_names()
     state = load_state()
     for name, steam_id in config["players"].items():
-        match = get_latest_full_match(steam_id)
-        if not match or match.get("invalid"):
-            continue
-        match_id = match["match_id"]
-        if str(steam_id) in state and state[str(steam_id)] == match_id:
-            continue
-        msg = format_message(name, match)
-        post_to_discord(msg)
-        state[str(steam_id)] = match_id
+        try:
+            match = get_latest_full_match(steam_id)
+            if not match or match.get("invalid"):
+                print(f"Skipping {name} — no valid match")
+                continue
+            match_id = match["match_id"]
+            if str(steam_id) in state and state[str(steam_id)] == match_id:
+                print(f"{name} already posted match {match_id}")
+                continue
+            msg = format_message(name, match)
+            post_to_discord(msg)
+            state[str(steam_id)] = match_id
+        except Exception as e:
+            print(f"❌ Error processing {name} ({steam_id}): {e}")
     save_state(state)
 
 if __name__ == "__main__":
