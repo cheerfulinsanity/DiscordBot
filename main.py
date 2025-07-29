@@ -36,137 +36,103 @@ def load_hero_names():
     global HERO_ID_TO_NAME
     try:
         response = requests.get("https://api.opendota.com/api/heroStats")
-        for h in response.json():
-            HERO_ID_TO_NAME[h["id"]] = h["localized_name"]
+        if response.status_code == 200:
+            for hero in response.json():
+                HERO_ID_TO_NAME[hero["id"]] = hero["localized_name"]
+        else:
+            print("⚠️ Failed to fetch hero names:", response.text)
     except Exception as e:
-        print("⚠️ Failed to load hero names:", e)
-
-load_hero_names()
-
-def get_score_tag(k, d, a, won):
-    if (k + a >= 30 and d <= 5) or (k >= 20 and d <= 3):
-        return "Smashed"
-    elif (k + a >= 18 and d <= 8):
-        return "Did Work"
-    elif won and (k + a <= 5) and d >= 10:
-        return "Got Carried"
-    elif d >= 12 and (k + a) <= 8:
-        return "Fed"
-    elif a >= 18 and k < 5 and d <= 6:
-        return "Support MVP"
-    elif k == 0 and a == 0 and d <= 3:
-        return "Invisible"
-    else:
-        return "Even Game"
+        print("⚠️ Exception fetching hero names:", str(e))
 
 def load_state():
-    try:
-        res = requests.get(GIST_API_URL, headers=GIST_HEADERS)
-        if res.status_code != 200:
-            print("⚠️ Failed to fetch state.json from Gist.")
-            return {}
-        content = res.json()["files"]["state.json"]["content"]
-        return json.loads(content)
-    except Exception as e:
-        print("⚠️ Error loading state.json:", e)
+    r = requests.get(GIST_API_URL, headers=GIST_HEADERS)
+    if r.status_code == 200:
+        return json.loads(r.json()["files"]["state.json"]["content"])
+    else:
+        print("⚠️ Could not load state.json from Gist")
         return {}
 
 def save_state(state):
-    try:
-        payload = {
-            "files": {
-                "state.json": {
-                    "content": json.dumps(state, indent=2)
-                }
+    payload = {
+        "files": {
+            "state.json": {
+                "content": json.dumps(state, indent=2)
             }
         }
-        res = requests.patch(GIST_API_URL, headers=GIST_HEADERS, json=payload)
-        if res.status_code != 200:
-            print("⚠️ Failed to update Gist:", res.text)
-    except Exception as e:
-        print("⚠️ Error saving to Gist:", e)
+    }
+    r = requests.patch(GIST_API_URL, headers=GIST_HEADERS, json=payload)
+    if r.status_code != 200:
+        print("⚠️ Failed to update Gist state:", r.text)
 
 def get_latest_full_match(steam_id32):
-    recent_url = f"https://api.opendota.com/api/players/{steam_id32}/recentMatches"
-    res = requests.get(recent_url)
-    if res.status_code != 200:
-        print(f"Error fetching recent matches for {steam_id32}: {res.text}")
-        return None
-    data = res.json()
-    if not data:
-        return None
-    match_id = data[0]["match_id"]
-
-    match_url = f"https://api.opendota.com/api/matches/{match_id}"
-    res = requests.get(match_url)
-    if res.status_code != 200:
-        print(f"Error fetching match {match_id}: {res.text}")
-        return None
-    match_data = res.json()
-
-    if "players" not in match_data:
-        print(f"⚠️ No player data found in match {match_id}")
+    url = f"https://api.opendota.com/api/players/{steam_id32}/recentMatches"
+    r = requests.get(url)
+    if r.status_code != 200:
+        print(f"⚠️ Error fetching matches for {steam_id32}")
         return None
 
-    player_data = next(
-        (p for p in match_data["players"]
-         if "account_id" in p and p["account_id"] == steam_id32),
-        None
-    )
+    matches = r.json()
+    if not matches:
+        return None
 
-    if not player_data:
-        print(f"⚠️ Player {steam_id32} not found in match {match_id}")
-        return {"match_id": match_id, "invalid": True}
+    for match in matches:
+        match_id = match["match_id"]
+        detail = requests.get(f"https://api.opendota.com/api/matches/{match_id}")
+        if detail.status_code != 200:
+            continue
 
-    if player_data.get("leaver_status", 0) != 0:
-        print(f"⚠️ Player left early — leaver_status = {player_data['leaver_status']}")
-        return {"match_id": match_id, "invalid": True}
+        match_data = detail.json()
+        player_data = next((p for p in match_data["players"] if p["account_id"] == steam_id32), None)
 
-    player_slot = player_data["player_slot"]
-    is_radiant = player_slot < 128
-    radiant_win = match_data.get("radiant_win")
-    won = (radiant_win and is_radiant) or (not radiant_win and not is_radiant)
+        if not player_data:
+            print(f"⚠️ Player {steam_id32} not found in match {match_id}")
+            continue
 
-    print(f"📊 Match {match_id} | Slot: {player_slot} | RadiantWin: {radiant_win} → Won: {won}")
+        if player_data.get("leaver_status", 0) != 0:
+            print(f"⚠️ Player left early — leaver_status = {player_data['leaver_status']}")
+            continue
 
-    hero_id = player_data["hero_id"]
-    hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
-    is_turbo = match_data.get("game_mode") == 23
+        player_slot = player_data["player_slot"]
+        is_radiant = player_slot < 128
+        radiant_win = match_data.get("radiant_win")
+        won = (radiant_win and is_radiant) or (not radiant_win and not is_radiant)
 
-    # Extract stats for player's team
-    team_stats = []
-    for p in match_data["players"]:
-        if (p["player_slot"] < 128) == is_radiant:
-            team_stats.append({
-                "account_id": p.get("account_id", 0),
-                "kills": p.get("kills", 0),
-                "deaths": p.get("deaths", 0),
-                "assists": p.get("assists", 0),
-                "gpm": p.get("gold_per_min", 0),
-                "xpm": p.get("xp_per_min", 0)
-            })
+        hero_id = player_data["hero_id"]
+        hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
+        is_turbo = match_data.get("game_mode") == 23
 
-    match_summary = {
-        "match_id": match_id,
-        "account_id": steam_id32,
-        "kills": player_data["kills"],
-        "deaths": player_data["deaths"],
-        "assists": player_data["assists"],
-        "last_hits": player_data["last_hits"],
-        "denies": player_data["denies"],
-        "gpm": player_data["gold_per_min"],
-        "xpm": player_data["xp_per_min"],
-        "player_slot": player_slot,
-        "radiant_win": radiant_win,
-        "duration": match_data["duration"],
-        "hero_name": hero_name,
-        "won": won,
-        "is_turbo": is_turbo,
-        "invalid": False,
-        "team_stats": team_stats
-    }
+        # Extract stats for player's team
+        team_stats = []
+        for p in match_data["players"]:
+            if (p["player_slot"] < 128) == is_radiant:
+                team_stats.append({
+                    "account_id": p.get("account_id", 0),
+                    "kills": p.get("kills", 0),
+                    "deaths": p.get("deaths", 0),
+                    "assists": p.get("assists", 0),
+                    "gpm": p.get("gold_per_min", 0),
+                    "xpm": p.get("xp_per_min", 0)
+                })
 
-    return match_summary
+        return {
+            "match_id": match_id,
+            "account_id": steam_id32,
+            "kills": player_data["kills"],
+            "deaths": player_data["deaths"],
+            "assists": player_data["assists"],
+            "last_hits": player_data["last_hits"],
+            "denies": player_data["denies"],
+            "gpm": player_data["gold_per_min"],
+            "xpm": player_data["xp_per_min"],
+            "player_slot": player_slot,
+            "radiant_win": radiant_win,
+            "duration": match_data["duration"],
+            "hero_name": hero_name,
+            "won": won,
+            "is_turbo": is_turbo,
+            "invalid": False,
+            "team_stats": team_stats
+        }
 
 def post_to_discord(message):
     if config.get("test_mode", False):
@@ -183,23 +149,15 @@ def format_message(name, match):
     match_url = f"https://www.opendota.com/matches/{match['match_id']}"
     is_turbo = match.get("is_turbo", False)
 
-    tag = get_score_tag(k, d, a, match["won"])
-    flavor_block = FEEDBACK_LIBRARY.get(f"tag_{tag.lower()}")
-    tag_line = random.choice(flavor_block["lines"][0]) if flavor_block else "did something."
-
     match_type_label = f"{'Victory!' if match['won'] else 'Defeat.'}"
     if is_turbo:
         match_type_label += " (Turbo Match)"
 
-    msg = (
-        f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
-        f"**{match_type_label}** | ⏱ {duration}\n"
-        f"🔗 {match_url}"
-    )
-
     hero_name = match['hero_name']
     baseline = HERO_BASELINE_MAP.get(hero_name)
     roles = HERO_ROLES.get(hero_name, [])
+
+    tag_line = "did something."
     if baseline and roles:
         player_stats = {
             "kills": k,
@@ -223,23 +181,38 @@ def format_message(name, match):
             steam_id=match.get("account_id")
         )
 
+        tier = feedback.get("tier", "").lower()
+        tier_tag = {
+            "excellent": "smashed",
+            "solid": "did_work",
+            "neutral": "even_game",
+            "underperformed": "fed"
+        }.get(tier)
+
+        if tier_tag:
+            flavor_block = FEEDBACK_LIBRARY.get(f"tag_{tier_tag}")
+            if flavor_block:
+                tag_line = random.choice(flavor_block["lines"][0])
+
+    msg = (
+        f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}` — {tag_line}\n"
+        f"**{match_type_label}** | ⏱ {duration}\n"
+        f"🔗 {match_url}"
+    )
+
+    if baseline and roles:
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
             msg += f"- {short}\n"
-
-        team_context = feedback.get("team_context")
-        if team_context:
-            msg += f"\n\n🏅 **Team Role**: {team_context['tag']}"
-            msg += f"\n🔍 Impact Rank: {team_context['impact_rank']} | GPM Rank: {team_context['gpm_rank']} | XPM Rank: {team_context['xpm_rank']}"
-            msg += f"\n💬 *{team_context['summary_line']}*"
-
         if "advice" in feedback and feedback["advice"]:
-            msg += f"\n\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
+            msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
 
     return msg.strip()
 
+# === Callable main logic ===
 def run_bot():
+    load_hero_names()
     state = load_state()
     for name, steam_id in config["players"].items():
         match = get_latest_full_match(steam_id)
