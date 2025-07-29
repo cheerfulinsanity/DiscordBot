@@ -133,6 +133,19 @@ def get_latest_full_match(steam_id32):
     hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
     is_turbo = match_data.get("game_mode") == 23
 
+    # Extract stats for player's team
+    team_stats = []
+    for p in match_data["players"]:
+        if (p["player_slot"] < 128) == is_radiant:
+            team_stats.append({
+                "account_id": p.get("account_id", 0),
+                "kills": p.get("kills", 0),
+                "deaths": p.get("deaths", 0),
+                "assists": p.get("assists", 0),
+                "gpm": p.get("gold_per_min", 0),
+                "xpm": p.get("xp_per_min", 0)
+            })
+
     match_summary = {
         "match_id": match_id,
         "kills": player_data["kills"],
@@ -148,7 +161,8 @@ def get_latest_full_match(steam_id32):
         "hero_name": hero_name,
         "won": won,
         "is_turbo": is_turbo,
-        "invalid": False
+        "invalid": False,
+        "team_stats": team_stats
     }
 
     return match_summary
@@ -199,7 +213,7 @@ def format_message(name, match):
             del player_stats["gpm"]
             del player_stats["xpm"]
 
-        feedback = generate_feedback(player_stats, baseline, roles)
+        feedback = generate_feedback(player_stats, baseline, roles, is_turbo=is_turbo)
         msg += f"\n\n🎯 **Stats vs Avg ({hero_name})**\n"
         for line in feedback.get("lines", []):
             short = line.replace("Your ", "").replace(" was ", ": ").replace(" vs avg ", " vs ")
@@ -208,7 +222,6 @@ def format_message(name, match):
             msg += f"\n🛠️ **Advice**\n" + "\n".join(f"- {tip}" for tip in feedback["advice"])
     return msg.strip()
 
-# === Callable main logic ===
 def run_bot():
     state = load_state()
     for name, steam_id in config["players"].items():
