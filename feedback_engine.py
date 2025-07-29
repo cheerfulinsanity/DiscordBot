@@ -59,20 +59,70 @@ def calculate_performance_score(player_stats, hero_baseline, roles, is_turbo=Fal
         "weights": weights
     }
 
-def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False):
+def evaluate_team_context(player_id, player_stats, team_stats):
+    def safe_div(x, y): return x / y if y != 0 else 0
+
+    def net_impact(p):
+        return p["kills"] + 0.5 * p["assists"] - 2 * p["deaths"]
+
+    ranks = {
+        "impact": [],
+        "gpm": [],
+        "xpm": []
+    }
+
+    for p in team_stats:
+        impact = net_impact(p)
+        ranks["impact"].append((p["account_id"], impact))
+        ranks["gpm"].append((p["account_id"], p["gpm"]))
+        ranks["xpm"].append((p["account_id"], p["xpm"]))
+
+    for key in ranks:
+        ranks[key].sort(key=lambda x: x[1], reverse=True)
+
+    def get_rank(account_id, sorted_list):
+        for i, (pid, _) in enumerate(sorted_list):
+            if pid == account_id:
+                return i + 1
+        return None
+
+    rank_gpm = get_rank(player_id, ranks["gpm"])
+    rank_xpm = get_rank(player_id, ranks["xpm"])
+    rank_impact = get_rank(player_id, ranks["impact"])
+    total_players = len(team_stats)
+
+    tag = "Filler"
+    summary = "Performance was there, but not game-changing."
+
+    if rank_impact == 1:
+        tag = "Backpack Carrier"
+        summary = "You had the highest impact on your team. Clutch."
+    elif rank_gpm == 1 and rank_xpm == 1:
+        tag = "Top Farmer"
+        summary = "You farmed better than anyone on your team."
+    elif rank_impact == total_players:
+        tag = "Deadweight"
+        summary = "Rough one — your stats were bottom of the team."
+    elif rank_impact <= total_players // 2:
+        tag = "Did Their Bit"
+        summary = "Solid contribution, middle of the board."
+
+    return {
+        "tag": tag,
+        "impact_rank": rank_impact,
+        "gpm_rank": rank_gpm,
+        "xpm_rank": rank_xpm,
+        "summary_line": summary
+    }
+
+def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False, team_stats=None, steam_id=None):
     def pct_diff(player, avg):
         return round((player - avg) / (avg or 1), 3)
 
     lines = []
     raw_advice = []
 
-    keys = [
-        "kills", "deaths", "assists",
-        "last_hits", "denies", "gpm",
-        "xpm"
-    ]
-
-    # Compare stat deltas and build breakdown
+    keys = ["kills", "deaths", "assists", "last_hits", "denies", "gpm", "xpm"]
     stat_deltas = {}
     for key in keys:
         p_val = player_stats.get(key, 0)
@@ -85,10 +135,8 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False):
         delta = pct_diff(p_val, avg_val)
         pct = abs(int(delta * 100))
         stat_deltas[key] = delta
-
         lines.append(f"{key.upper()}: {p_val} → {avg_val}  ({'-' if delta < 0 else '+'}{pct}%)")
 
-    # --- Catalog Tags ---
     def pull_catalog(tag, priority):
         block = FEEDBACK_LIBRARY.get(tag)
         if block:
@@ -96,7 +144,6 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False):
             for line in lineset:
                 raw_advice.append((priority, line))
 
-    # Composite tags
     if any(r in roles for r in ["carry"]):
         if stat_deltas.get("last_hits", 0) < -0.3:
             pull_catalog("carry_no_farm", 3)
@@ -114,7 +161,6 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False):
     if stat_deltas.get("kills", 0) < -0.3 and stat_deltas.get("assists", 0) < -0.3 and stat_deltas.get("last_hits", 0) < -0.3:
         pull_catalog("invisible_game", 3)
 
-    # Stat-based inline advice
     for key in keys:
         if is_turbo and key in ("gpm", "xpm"):
             continue
@@ -176,10 +222,14 @@ def generate_feedback(player_stats, hero_baseline, roles, is_turbo=False):
     advice = [a for _, a in raw_advice[:3]]
 
     performance = calculate_performance_score(player_stats, hero_baseline, roles, is_turbo)
+    team_context = None
+    if team_stats and steam_id:
+        team_context = evaluate_team_context(steam_id, player_stats, team_stats)
 
     return {
         "lines": lines,
         "advice": advice if advice else [],
         "score": performance["score"],
-        "tier": performance["tier"]
+        "tier": performance["tier"],
+        "team_context": team_context
     }
