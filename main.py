@@ -83,7 +83,6 @@ def get_latest_full_match(steam_id32):
 
         match_data = detail.json()
 
-        # ✅ Safe extraction of player data
         player_data = None
         for p in match_data["players"]:
             if p.get("account_id") == steam_id32:
@@ -107,7 +106,6 @@ def get_latest_full_match(steam_id32):
         hero_name = HERO_ID_TO_NAME.get(hero_id, "Unknown Hero")
         is_turbo = match_data.get("game_mode") == 23
 
-        # Extract stats for player's team
         team_stats = []
         for p in match_data["players"]:
             if (p["player_slot"] < 128) == is_radiant:
@@ -143,11 +141,13 @@ def get_latest_full_match(steam_id32):
 def post_to_discord(message):
     if config.get("test_mode", False):
         print("TEST MODE ENABLED — would have posted:\n", message)
-        return
+        return True
     payload = {"content": message}
     r = requests.post(config['webhook_url'], json=payload)
-    if r.status_code not in [200, 204]:
-        print("⚠️ Failed to send message to Discord:", r.text)
+    if r.status_code in [200, 204]:
+        return True
+    print("⚠️ Failed to send message to Discord:", r.text)
+    return False
 
 def format_message(name, match):
     k, d, a = match['kills'], match['deaths'], match['assists']
@@ -205,7 +205,6 @@ def format_message(name, match):
                 if flavor_block:
                     tag_line = random.choice(flavor_block["lines"][0])
 
-    # 📌 New header with team role merged in
     msg = f"{'🟢' if match['won'] else '🔴'} **{name}** went `{k}/{d}/{a}`"
     if team_role_line:
         msg += f" — {team_role_line}"
@@ -241,8 +240,11 @@ def run_bot():
                 print(f"{name} already posted match {match_id}")
                 continue
             msg = format_message(name, match)
-            post_to_discord(msg)
-            state[str(steam_id)] = match_id
+            success = post_to_discord(msg)
+            if success:
+                state[str(steam_id)] = match_id
+            else:
+                print(f"⚠️ Not recording match {match_id} for {name} due to failed post.")
         except Exception as e:
             print(f"❌ Error processing {name} ({steam_id}): {e}")
     save_state(state)
