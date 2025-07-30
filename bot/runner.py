@@ -1,60 +1,62 @@
+# bot/runner.py
+
 import os
 import json
 import time
-from bot.stratz import fetch_recent_match
-from bot.formatter import format_match_summary
+import requests
+
+from bot.fetch import get_latest_full_match
+from bot.formatter import format_message
 from bot.gist_state import load_state, save_state
-from data.config import CONFIG
+
+# Load static data
+with open("data/config.json") as f:
+    config = json.load(f)
+
+with open("data/hero_roles.json") as f:
+    HERO_ROLES = json.load(f)
+
+with open("data/hero_baselines.json") as f:
+    raw_baselines = json.load(f)
+    HERO_BASELINE_MAP = {entry["hero"]: entry for entry in raw_baselines}
+
+def post_to_discord(message):
+    if config.get("test_mode", False):
+        print("TEST MODE — would have posted:\n", message)
+        return True
+    try:
+        r = requests.post(config["webhook_url"], json={"content": message})
+        if r.status_code in [200, 204]:
+            return True
+        print("⚠️ Failed to send to Discord:", r.text)
+    except Exception as e:
+        print("⚠️ Exception during Discord post:", e)
+    return False
 
 def run_bot():
-    print("🤖 Starting GuildBot...\n")
-    config = CONFIG
+    print("🔁 Running GuildBot...")
     state = load_state()
 
-    for player in config["players"]:
-        name = player["name"]
-        steam_id = player["steam_id"]
-        print(f"🔍 Checking recent match for {name}...")
-
+    for name, steam_id in config["players"].items():
         try:
-            match = fetch_recent_match(steam_id)
-        except Exception as e:
-            print(f"⚠️ Failed to fetch match for {name}: {e}")
-            continue
-
-        match_id = match.get("match_id")
-        if not match_id:
-            print(f"⚠️ No match ID for {name}, skipping.")
-            continue
-
-        if str(match_id) == str(state.get(str(steam_id))):
-            print(f"⏭️ Skipping {name} — already posted")
-            continue
-
-        try:
-            message = format_match_summary(name, match)
-        except Exception as e:
-            print(f"⚠️ Failed to format match for {name}: {e}")
-            continue
-
-        # Send message to Discord or test print
-        if config["test_mode"]:
-            print("\n" + message + "\n")
-        else:
-            import requests
-            webhook_url = config["webhook_url"]
-            response = requests.post(
-                webhook_url,
-                json={"content": message},
-                headers={"Content-Type": "application/json"},
-            )
-            if response.status_code != 204:
-                print(f"⚠️ Failed to send to Discord: {response.text}")
+            match = get_latest_full_match(steam_id)
+            if not match or match.get("invalid"):
+                print(f"⏭️ Skipping {name} — no valid match")
                 continue
 
-        state[str(steam_id)] = match_id
-        time.sleep(2)  # Throttle to avoid Discord 429
-        print(f"✅ Posted match for {name}")
+            match_id = str(match["match_id"])
+            if str(steam_id) in state and state[str(steam_id)] == match_id:
+                print(f"✅ {name} already posted match {match_id}")
+                continue
+
+            msg = format_message(name, match, HERO_ROLES, HERO_BASELINE_MAP)
+            if post_to_discord(msg):
+                state[str(steam_id)] = match_id
+            else:
+                print(f"⚠️ Failed to post for {name}, not updating state.")
+        except Exception as e:
+            print(f"❌ Error processing {name} ({steam_id}): {e}")
+
+        time.sleep(1.0)  # avoid Discord and Stratz rate limits
 
     save_state(state)
-    print("\n✅ Done.\n")
