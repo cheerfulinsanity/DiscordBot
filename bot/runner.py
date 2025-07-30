@@ -31,10 +31,11 @@ def build_hero_id_map():
 
 def post_to_discord(message):
     if config.get("test_mode", False):
-        print("TEST MODE — would have posted:\n", message)
+        print("🧪 TEST MODE — would have posted:\n", message)
         return True
     try:
         r = requests.post(config["webhook_url"], json={"content": message})
+        print(f"📤 Discord POST status: {r.status_code}")
         if r.status_code in [200, 204]:
             return True
         print("⚠️ Failed to send to Discord:", r.text)
@@ -72,7 +73,7 @@ def run_bot():
     hero_id_to_name = build_hero_id_map()
     state = load_state()
 
-    # First pass: get latest match IDs
+    # First pass: identify new matches
     pending = []
     for name, steam_id in config["players"].items():
         latest_id = get_latest_match_id(steam_id)
@@ -82,6 +83,7 @@ def run_bot():
         if str(steam_id) in state and state[str(steam_id)] == str(latest_id):
             print(f"✅ {name} already posted match {latest_id}")
             continue
+        print(f"📥 Queued for fetch: {name} ({latest_id})")
         pending.append((name, steam_id, latest_id))
 
     print(f"📋 {len(pending)} players have new matches")
@@ -97,15 +99,13 @@ def run_bot():
             msg = format_message(name, match, HERO_ROLES, HERO_BASELINE_MAP)
             if post_to_discord(msg):
                 state[str(steam_id)] = str(match_id)
-                print(f"✅ Posted new match for {name} ({match_id})")
+                print(f"✅ Posted match {match_id} for {name}")
             else:
                 print(f"⚠️ Failed to post for {name}, not updating state.")
         except Exception as e:
             print(f"❌ Error processing {name} ({steam_id}): {e}")
 
-        # Sleep every 10 full fetches to avoid rate limit
         if (i + 1) % 10 == 0:
             time.sleep(2)
 
-    # ✅ Save updated match IDs to Gist state.json
     save_state(state)
