@@ -1,62 +1,51 @@
-# bot/runner.py
-
-import os
-import json
-import time
 import requests
+import sys
 
-from bot.fetch import get_latest_full_match
-from bot.formatter import format_message
-from bot.gist_state import load_state, save_state
+def test_stratz_fetch(steam32_id):
+    url = "https://api.stratz.com/graphql"
+    query = """
+    query ($accountId: Int!) {
+      player(accountId: $accountId) {
+        steamAccount {
+          id
+          name
+        }
+        recentMatches {
+          id
+          startDateTime
+          durationSeconds
+          kills
+          deaths
+          assists
+        }
+      }
+    }
+    """
+    variables = {"accountId": steam32_id}
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "query": query,
+        "variables": variables,
+    }
 
-# Load static data
-with open("data/config.json") as f:
-    config = json.load(f)
-
-with open("data/hero_roles.json") as f:
-    HERO_ROLES = json.load(f)
-
-with open("data/hero_baselines.json") as f:
-    raw_baselines = json.load(f)
-    HERO_BASELINE_MAP = {entry["hero"]: entry for entry in raw_baselines}
-
-def post_to_discord(message):
-    if config.get("test_mode", False):
-        print("TEST MODE — would have posted:\n", message)
-        return True
     try:
-        r = requests.post(config["webhook_url"], json={"content": message})
-        if r.status_code in [200, 204]:
-            return True
-        print("⚠️ Failed to send to Discord:", r.text)
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        if response.headers.get("Content-Type", "").startswith("application/json"):
+            data = response.json()
+            print(f"✅ Success fetching data for player {steam32_id}:\n{data}")
+        else:
+            print(f"❌ Blocked or HTML received for player {steam32_id}:\n{response.text[:300]}")
     except Exception as e:
-        print("⚠️ Exception during Discord post:", e)
-    return False
+        print(f"❌ Error fetching data for player {steam32_id}: {e}")
 
-def run_bot():
-    print("🔁 Running GuildBot...")
-    state = load_state()
+if __name__ == "__main__":
+    # Replace this Steam32 ID with your target player for test
+    test_player_id = 1051062040
 
-    for name, steam_id in config["players"].items():
-        try:
-            match = get_latest_full_match(steam_id)
-            if not match or match.get("invalid"):
-                print(f"⏭️ Skipping {name} — no valid match")
-                continue
-
-            match_id = str(match["match_id"])
-            if str(steam_id) in state and state[str(steam_id)] == match_id:
-                print(f"✅ {name} already posted match {match_id}")
-                continue
-
-            msg = format_message(name, match, HERO_ROLES, HERO_BASELINE_MAP)
-            if post_to_discord(msg):
-                state[str(steam_id)] = match_id
-            else:
-                print(f"⚠️ Failed to post for {name}, not updating state.")
-        except Exception as e:
-            print(f"❌ Error processing {name} ({steam_id}): {e}")
-
-        time.sleep(1.0)  # avoid Discord and Stratz rate limits
-
-    save_state(state)
+    print(f"Starting minimal fetch for one player: {test_player_id}")
+    test_stratz_fetch(test_player_id)
+    print("Finished minimal fetch, exiting.")
+    sys.exit(0)
