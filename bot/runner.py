@@ -21,7 +21,6 @@ with open("data/hero_baselines.json") as f:
     raw_baselines = json.load(f)
     HERO_BASELINE_MAP = {entry["hero"]: entry for entry in raw_baselines}
 
-# Build hero_id → localized_name map
 def build_hero_id_map():
     hero_id_to_name = {}
     heroes = fetch_hero_stats()
@@ -43,20 +42,6 @@ def post_to_discord(message):
         print("⚠️ Exception during Discord post:", e)
     return False
 
-def get_latest_match_id(steam_id):
-    try:
-        url = f"https://api.opendota.com/api/players/{steam_id}/recentMatches"
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200:
-            return None
-        matches = r.json()
-        if not matches:
-            return None
-        return matches[0].get("match_id")
-    except Exception as e:
-        print(f"⚠️ Failed to get recent match for {steam_id}: {e}")
-        return None
-
 def is_valid_match(match):
     if not match:
         return False
@@ -73,43 +58,30 @@ def run_bot():
     hero_id_to_name = build_hero_id_map()
     state = load_state()
 
-    # First pass: identify new matches
-    pending = []
     for name, steam_id in config["players"].items():
-        latest_id = get_latest_match_id(steam_id)
-        if not latest_id:
-            print(f"⏭️ Skipping {name} — no recent match")
-            continue
-        if str(steam_id) in state and state[str(steam_id)] == str(latest_id):
-            print(f"✅ {name} already posted match {latest_id}")
-            continue
-        print(f"📥 Queued for fetch: {name} ({latest_id})")
-        pending.append((name, steam_id))
-
-    print(f"📋 {len(pending)} players have new matches")
-
-    # Second pass: fetch and post full matches
-    for i, (name, steam_id) in enumerate(pending):
         try:
             match = get_latest_full_match(steam_id, hero_id_to_name)
             if not is_valid_match(match):
-                print(f"⏭️ Skipping {name} — match invalid or too short")
+                print(f"⏭️ Skipping {name} — invalid or too short")
                 continue
 
-            msg = format_message(name, match, HERO_ROLES, HERO_BASELINE_MAP)
-            if post_to_discord(msg):
-                state[str(steam_id)] = str(match["match_id"])  # ✅ store correct ID
-                print(f"✅ Posted match {match['match_id']} for {name}")
+            match_id = str(match["match_id"])
+            if state.get(str(steam_id)) == match_id:
+                print(f"✅ {name} already posted match {match_id}")
+                continue
+
+            print(f"📥 New match for {name}: {match_id}")
+            message = format_message(name, match, HERO_ROLES, HERO_BASELINE_MAP)
+
+            if post_to_discord(message):
+                state[str(steam_id)] = match_id
+                print(f"✅ Posted match for {name}")
             else:
-                print(f"⚠️ Failed to post for {name}, not updating state.")
+                print(f"⚠️ Failed to post for {name}, skipping state update.")
         except Exception as e:
             print(f"❌ Error processing {name} ({steam_id}): {e}")
 
-        if (i + 1) % 10 == 0:
-            time.sleep(2)
-
-    # 🔬 Dummy entry to test Gist patching
+    # Dummy entry to confirm save still works
     state["999999999"] = "1234567890"
 
-    # ✅ Save updated match IDs to Gist state.json
     save_state(state)
