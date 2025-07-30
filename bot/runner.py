@@ -1,90 +1,73 @@
-import requests
-import sys
 import os
+import requests
 
-TOKEN = os.getenv("TOKEN")  # Use your 'TOKEN' env var
+TOKEN = os.getenv("TOKEN")  # your Stratz API token
 
-def test_stratz_fetch_one_player(steam32_id):
+def run_bot():
+    steam_id = 1051062040  # example Steam32 ID for test
+
     url = "https://api.stratz.com/graphql"
-    query = """
-    query ($steamAccountId: Int!) {
-      player(steamAccountId: $steamAccountId) {
-        matches(request: {take: 1}) {
-          id
-          durationSeconds
-          gameMode
-          startDateTime
-          players {
-            steamAccountId
-            isVictory
-            hero {
-              displayName
-            }
-            kills
-            deaths
-            assists
-            numLastHits
-            numDenies
-            goldPerMinute
-            experiencePerMinute
-          }
-        }
-      }
-    }
-    """
-    variables = {"steamAccountId": steam32_id}
     headers = {
         "Authorization": f"Bearer {TOKEN}",
-        "Content-Type": "application/json",
-        "User-Agent": "GuildBot/1.0",
+        "Content-Type": "application/json"
     }
-    payload = {
-        "query": query,
-        "variables": variables,
-    }
-
-    try:
-        r = requests.post(url, json=payload, headers=headers, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        matches = data.get("data", {}).get("player", {}).get("matches", [])
-        if not matches:
-            print(f"No matches found for player {steam32_id}")
-            return
-        match = matches[0]
-        players = match.get("players", [])
-        player_data = next((p for p in players if p.get("steamAccountId") == steam32_id), None)
-        if not player_data:
-            print(f"Player data not found in match for {steam32_id}")
-            return
-
-        output = {
-            "match_id": match.get("id"),
-            "duration": match.get("durationSeconds"),
-            "won": player_data.get("isVictory"),
-            "hero_name": player_data.get("hero", {}).get("displayName"),
-            "kills": player_data.get("kills"),
-            "deaths": player_data.get("deaths"),
-            "assists": player_data.get("assists"),
-            "last_hits": player_data.get("numLastHits"),
-            "denies": player_data.get("numDenies"),
-            "gpm": player_data.get("goldPerMinute"),
-            "xpm": player_data.get("experiencePerMinute"),
-            "is_turbo": match.get("gameMode") == "TURBO",
-            "account_id": player_data.get("steamAccountId"),
-            "team_stats": players,
+    query = {
+        "query": """
+        query($steamId: Int!) {
+          player(steamAccountId: $steamId) {
+            matches(request: {take: 1}) {
+              id
+              durationSeconds
+              gameMode
+              startDateTime
+              players {
+                steamAccountId
+                isVictory
+                hero {
+                  displayName
+                }
+                kills
+                deaths
+                assists
+                numLastHits
+                numDenies
+                goldPerMinute
+                experiencePerMinute
+              }
+            }
+          }
         }
+        """,
+        "variables": {"steamId": steam_id}
+    }
 
-        print(f"✅ Fetched and flattened match data for player {steam32_id}:\n{output}")
+    response = requests.post(url, json=query, headers=headers)
+    if response.status_code != 200:
+        print(f"Failed to fetch data: HTTP {response.status_code}")
+        print(response.text)
+        return
 
-    except requests.HTTPError as e:
-        print(f"❌ HTTP error: {e.response.status_code} - {e.response.text[:300]}")
+    data = response.json()
+    try:
+        match = data["data"]["player"]["matches"][0]
+        player_data = next(p for p in match["players"] if p["steamAccountId"] == steam_id)
+        flattened = {
+            "match_id": match["id"],
+            "duration": match["durationSeconds"],
+            "won": player_data["isVictory"],
+            "hero_name": player_data["hero"]["displayName"],
+            "kills": player_data["kills"],
+            "deaths": player_data["deaths"],
+            "assists": player_data["assists"],
+            "last_hits": player_data["numLastHits"],
+            "denies": player_data["numDenies"],
+            "gpm": player_data["goldPerMinute"],
+            "xpm": player_data["experiencePerMinute"],
+            "is_turbo": match["gameMode"] == "TURBO",
+            "account_id": steam_id,
+            "team_stats": match["players"]
+        }
+        print("Fetched player match data:")
+        print(flattened)
     except Exception as e:
-        print(f"❌ Error during fetch: {e}")
-
-if __name__ == "__main__":
-    test_player_id = 1051062040
-    print(f"Starting fetch test for player {test_player_id}")
-    test_stratz_fetch_one_player(test_player_id)
-    print("Fetch test complete. Exiting.")
-    sys.exit(0)
+        print(f"Error processing data: {e}")
