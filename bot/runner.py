@@ -84,12 +84,12 @@ def run_bot():
             print(f"✅ {name} already posted match {latest_id}")
             continue
         print(f"📥 Queued for fetch: {name} ({latest_id})")
-        pending.append((name, steam_id, latest_id))
+        pending.append((name, steam_id))
 
     print(f"📋 {len(pending)} players have new matches")
 
     # Second pass: fetch and post full matches
-    for i, (name, steam_id, match_id) in enumerate(pending):
+    for i, (name, steam_id) in enumerate(pending):
         try:
             match = get_latest_full_match(steam_id, hero_id_to_name)
             if not is_valid_match(match):
@@ -98,8 +98,8 @@ def run_bot():
 
             msg = format_message(name, match, HERO_ROLES, HERO_BASELINE_MAP)
             if post_to_discord(msg):
-                state[str(steam_id)] = str(match_id)
-                print(f"✅ Posted match {match_id} for {name}")
+                state[str(steam_id)] = str(match["match_id"])  # ✅ store correct ID
+                print(f"✅ Posted match {match['match_id']} for {name}")
             else:
                 print(f"⚠️ Failed to post for {name}, not updating state.")
         except Exception as e:
@@ -108,4 +108,8 @@ def run_bot():
         if (i + 1) % 10 == 0:
             time.sleep(2)
 
+    # 🔬 Dummy entry to test Gist patching
+    state["999999999"] = "1234567890"
+
+    # ✅ Save updated match IDs to Gist state.json
     save_state(state)
