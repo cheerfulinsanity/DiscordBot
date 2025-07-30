@@ -97,6 +97,7 @@ def run_bot():
             msg = format_message(name, match, HERO_ROLES, HERO_BASELINE_MAP)
             if post_to_discord(msg):
                 state[str(steam_id)] = str(match_id)
+                print(f"✅ Posted new match for {name} ({match_id})")
             else:
                 print(f"⚠️ Failed to post for {name}, not updating state.")
         except Exception as e:
@@ -106,4 +107,5 @@ def run_bot():
         if (i + 1) % 10 == 0:
             time.sleep(2)
 
+    # ✅ Save updated match IDs to Gist state.json
     save_state(state)
