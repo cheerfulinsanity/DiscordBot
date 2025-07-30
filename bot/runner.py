@@ -5,8 +5,7 @@ import json
 import time
 import requests
 
-from bot.opendota import fetch_hero_stats
-from bot.fetch import get_latest_full_match
+from bot.stratz import fetch_recent_match
 from bot.formatter import format_message
 from bot.gist_state import load_state, save_state
 
@@ -20,13 +19,6 @@ with open("data/hero_roles.json") as f:
 with open("data/hero_baselines.json") as f:
     raw_baselines = json.load(f)
     HERO_BASELINE_MAP = {entry["hero"]: entry for entry in raw_baselines}
-
-def build_hero_id_map():
-    hero_id_to_name = {}
-    heroes = fetch_hero_stats()
-    for hero in heroes:
-        hero_id_to_name[hero["id"]] = hero["localized_name"]
-    return hero_id_to_name
 
 def post_to_discord(message):
     if config.get("test_mode", False):
@@ -45,22 +37,17 @@ def post_to_discord(message):
 def is_valid_match(match):
     if not match:
         return False
-    if match.get("invalid") or match.get("duration", 0) < 300:
-        return False
-    if match.get("lobby_type") == 7:  # practice bot
-        return False
-    if match.get("game_mode") not in {1, 2, 22, 23}:  # AP, CM, Turbo, etc.
+    if match.get("duration", 0) < 300:
         return False
     return True
 
 def run_bot():
     print("🔁 Running GuildBot...")
-    hero_id_to_name = build_hero_id_map()
     state = load_state()
 
     for name, steam_id in config["players"].items():
         try:
-            match = get_latest_full_match(steam_id, hero_id_to_name)
+            match = fetch_recent_match(steam_id)
             if not is_valid_match(match):
                 print(f"⏭️ Skipping {name} — invalid or too short")
                 continue
