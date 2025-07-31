@@ -1,5 +1,3 @@
-# feedback/engine.py
-
 from typing import Dict, Any
 
 LOW_DELTA_THRESHOLD = -0.25   # Underperforming by 25% or more
