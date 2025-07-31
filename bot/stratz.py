@@ -42,9 +42,16 @@ def fetch_latest_match(steam_id: int, token: str) -> dict | None:
             timeout=10
         )
         data = res.json()
-        matches = data["data"]["player"]["matches"]
-        if not matches:
+
+        if "errors" in data:
+            print(f"❌ Stratz error: {json.dumps(data['errors'], indent=2)}")
             return None
+
+        player_data = data.get("data", {}).get("player")
+        if not player_data or not player_data.get("matches"):
+            return None
+
+        matches = player_data["matches"]
         match = matches[0]
         player = next(p for p in match["players"] if p["steamAccountId"] == steam_id)
         return {
