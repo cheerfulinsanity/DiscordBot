@@ -7,28 +7,23 @@ baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
 roles_path = Path(__file__).parent / "../data/hero_roles.json"
 
 with open(baseline_path, "r") as f:
-    HERO_BASELINES_LIST = json.load(f)
+    HERO_BASELINES = json.load(f)
 
 with open(roles_path, "r") as f:
     HERO_ROLES = json.load(f)
 
-# Normalize and rebuild baseline lookup
 def normalize_hero_name(raw_name: str) -> str:
     if raw_name.startswith("npc_dota_hero_"):
         raw_name = raw_name.replace("npc_dota_hero_", "")
-    return raw_name.replace("_", " ").title()
-
-HERO_BASELINES = {
-    normalize_hero_name(entry["hero"]).lower(): entry
-    for entry in HERO_BASELINES_LIST if "hero" in entry
-}
+    return raw_name.lower()
 
 def get_role(hero_name):
     normalized = normalize_hero_name(hero_name)
-    return HERO_ROLES.get(normalized, "unknown")
+    roles = HERO_ROLES.get(normalized, [])
+    return roles[0] if roles else "unknown"
 
 def get_baseline(hero_name, role):
-    normalized = normalize_hero_name(hero_name).lower()
+    normalized = normalize_hero_name(hero_name)
     return HERO_BASELINES.get(normalized)
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
@@ -91,7 +86,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     # Compose log
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆 Win" if won else "💀 Loss"
-    short_name = normalize_hero_name(hero_name).split()[-1].lower()
+    short_name = normalize_hero_name(hero_name).split("_")[-1]
     header = f"🧙 {player_name} — {short_name}: {kda} — {win_emoji} (Match ID: {match_id})"
     summary = f"📈 Score: {round(result['score'], 2)}"
 
