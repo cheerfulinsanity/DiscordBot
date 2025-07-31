@@ -12,19 +12,8 @@ with open(roles_path, "r") as f:
     HERO_ROLES = json.load(f)
 
 with open(baselines_path, "r") as f:
-    RAW_BASELINES = json.load(f)
+    HERO_BASELINES = json.load(f)
 
-# Reformat baselines into dict[hero][role]
-HERO_BASELINES = {}
-for entry in RAW_BASELINES:
-    hero = entry["hero"]
-    if hero not in HERO_BASELINES:
-        HERO_BASELINES[hero] = {}
-    for role in HERO_ROLES.get(hero, ["unknown"]):
-        HERO_BASELINES[hero][role] = {
-            k: entry[k] for k in ["kills", "deaths", "assists", "gpm", "xpm"]
-            if k in entry
-        }
 
 def get_role(hero_name: str) -> str:
     roles = HERO_ROLES.get(hero_name, [])
@@ -35,8 +24,10 @@ def get_role(hero_name: str) -> str:
             return "support"
     return "core"
 
+
 def get_baseline(hero_name: str, role: str) -> dict:
     return HERO_BASELINES.get(hero_name, {}).get(role)
+
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
     match_id = full_match.get("id")
