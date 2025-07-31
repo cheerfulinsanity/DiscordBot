@@ -1,6 +1,5 @@
-[
-  {
-    "hero": "Abaddon",
+{
+  "abaddon": {
     "kills": 5,
     "deaths": 6,
     "assists": 16,
@@ -9,8 +8,7 @@
     "last_hits": 176,
     "denies": 6
   },
-  {
-    "hero": "Alchemist",
+  "alchemist": {
     "kills": 5,
     "deaths": 7,
     "assists": 12,
@@ -19,8 +17,7 @@
     "last_hits": 274,
     "denies": 4
   },
-  {
-    "hero": "Ancient Apparition",
+  "ancient_apparition": {
     "kills": 5,
     "deaths": 9,
     "assists": 20,
@@ -29,8 +26,7 @@
     "last_hits": 81,
     "denies": 3
   },
-  {
-    "hero": "Anti-Mage",
+  "antimage": {
     "kills": 9,
     "deaths": 5,
     "assists": 9,
@@ -39,8 +35,7 @@
     "last_hits": 364,
     "denies": 12
   },
-  {
-    "hero": "Arc Warden",
+  "arc_warden": {
     "kills": 9,
     "deaths": 7,
     "assists": 11,
@@ -49,8 +44,7 @@
     "last_hits": 289,
     "denies": 9
   },
-  {
-    "hero": "Axe",
+  "axe": {
     "kills": 11,
     "deaths": 9,
     "assists": 14,
@@ -59,8 +53,7 @@
     "last_hits": 205,
     "denies": 7
   },
-  {
-    "hero": "Bane",
+  "bane": {
     "kills": 4,
     "deaths": 8,
     "assists": 19,
@@ -69,8 +62,7 @@
     "last_hits": 50,
     "denies": 4
   },
-  {
-    "hero": "Batrider",
+  "batrider": {
     "kills": 8,
     "deaths": 9,
     "assists": 15,
@@ -79,8 +71,7 @@
     "last_hits": 147,
     "denies": 4
   },
-  {
-    "hero": "Beastmaster",
+  "beastmaster": {
     "kills": 8,
     "deaths": 8,
     "assists": 13,
@@ -89,8 +80,7 @@
     "last_hits": 253,
     "denies": 7
   },
-  {
-    "hero": "Bloodseeker",
+  "bloodseeker": {
     "kills": 9,
     "deaths": 7,
     "assists": 14,
@@ -99,8 +89,7 @@
     "last_hits": 273,
     "denies": 12
   },
-  {
-    "hero": "Bounty Hunter",
+  "bounty_hunter": {
     "kills": 5,
     "deaths": 9,
     "assists": 19,
@@ -109,8 +98,7 @@
     "last_hits": 75,
     "denies": 2
   },
-  {
-    "hero": "Brewmaster",
+  "brewmaster": {
     "kills": 7,
     "deaths": 7,
     "assists": 15,
@@ -119,8 +107,7 @@
     "last_hits": 214,
     "denies": 8
   },
-  {
-    "hero": "Bristleback",
+  "bristleback": {
     "kills": 6,
     "deaths": 9,
     "assists": 14,
@@ -129,8 +116,7 @@
     "last_hits": 233,
     "denies": 7
   },
-  {
-    "hero": "Broodmother",
+  "broodmother": {
     "kills": 10,
     "deaths": 6,
     "assists": 13,
@@ -139,8 +125,7 @@
     "last_hits": 288,
     "denies": 8
   },
-  {
-    "hero": "Centaur Warrunner",
+  "centaur": {
     "kills": 5,
     "deaths": 8,
     "assists": 18,
@@ -149,8 +134,7 @@
     "last_hits": 227,
     "denies": 9
   },
-  {
-    "hero": "Chaos Knight",
+  "chaos_knight": {
     "kills": 9,
     "deaths": 7,
     "assists": 11,
@@ -159,8 +143,7 @@
     "last_hits": 227,
     "denies": 9
   },
-  {
-    "hero": "Chen",
+  "chen": {
     "kills": 2,
     "deaths": 7,
     "assists": 18,
@@ -169,8 +152,7 @@
     "last_hits": 88,
     "denies": 3
   },
-  {
-    "hero": "Clinkz",
+  "clinkz": {
     "kills": 10,
     "deaths": 8,
     "assists": 13,
@@ -179,8 +161,7 @@
     "last_hits": 225,
     "denies": 13
   },
-  {
-    "hero": "Clockwerk",
+  "rattletrap": {
     "kills": 5,
     "deaths": 10,
     "assists": 20,
@@ -189,8 +170,7 @@
     "last_hits": 75,
     "denies": 3
   },
-  {
-    "hero": "Crystal Maiden",
+  "crystal_maiden": {
     "kills": 4,
     "deaths": 9,
     "assists": 19,
@@ -199,8 +179,7 @@
     "last_hits": 81,
     "denies": 2
   },
-  {
-    "hero": "Dark Seer",
+  "dark_seer": {
     "kills": 5,
     "deaths": 7,
     "assists": 18,
@@ -209,8 +188,7 @@
     "last_hits": 220,
     "denies": 3
   },
-  {
-    "hero": "Dark Willow",
+  "dark_willow": {
     "kills": 7,
     "deaths": 9,
     "assists": 18,
@@ -219,8 +197,7 @@
     "last_hits": 78,
     "denies": 4
   },
-  {
-    "hero": "Dawnbreaker",
+  "dawnbreaker": {
     "kills": 7,
     "deaths": 7,
     "assists": 18,
@@ -229,8 +206,7 @@
     "last_hits": 245,
     "denies": 7
   },
-  {
-    "hero": "Dazzle",
+  "dazzle": {
     "kills": 4,
     "deaths": 8,
     "assists": 19,
@@ -239,8 +215,7 @@
     "last_hits": 93,
     "denies": 4
   },
-  {
-    "hero": "Death Prophet",
+  "death_prophet": {
     "kills": 9,
     "deaths": 7,
     "assists": 13,
@@ -249,8 +224,7 @@
     "last_hits": 240,
     "denies": 6
   },
-  {
-    "hero": "Disruptor",
+  "disruptor": {
     "kills": 3,
     "deaths": 9,
     "assists": 24,
@@ -259,8 +233,7 @@
     "last_hits": 47,
     "denies": 2
   },
-  {
-    "hero": "Doom",
+  "doom_bringer": {
     "kills": 7,
     "deaths": 8,
     "assists": 13,
@@ -269,8 +242,7 @@
     "last_hits": 229,
     "denies": 7
   },
-  {
-    "hero": "Dragon Knight",
+  "dragon_knight": {
     "kills": 8,
     "deaths": 6,
     "assists": 12,
@@ -279,8 +251,7 @@
     "last_hits": 271,
     "denies": 10
   },
-  {
-    "hero": "Drow Ranger",
+  "drow_ranger": {
     "kills": 9,
     "deaths": 6,
     "assists": 11,
@@ -289,8 +260,7 @@
     "last_hits": 328,
     "denies": 13
   },
-  {
-    "hero": "Earth Spirit",
+  "earth_spirit": {
     "kills": 7,
     "deaths": 9,
     "assists": 19,
@@ -299,8 +269,7 @@
     "last_hits": 120,
     "denies": 4
   },
-  {
-    "hero": "Earthshaker",
+  "earthshaker": {
     "kills": 7,
     "deaths": 8,
     "assists": 17,
@@ -309,8 +278,7 @@
     "last_hits": 199,
     "denies": 5
   },
-  {
-    "hero": "Elder Titan",
+  "elder_titan": {
     "kills": 6,
     "deaths": 8,
     "assists": 17,
@@ -319,8 +287,7 @@
     "last_hits": 111,
     "denies": 5
   },
-  {
-    "hero": "Ember Spirit",
+  "ember_spirit": {
     "kills": 10,
     "deaths": 7,
     "assists": 16,
@@ -329,8 +296,7 @@
     "last_hits": 242,
     "denies": 7
   },
-  {
-    "hero": "Enchantress",
+  "enchantress": {
     "kills": 6,
     "deaths": 7,
     "assists": 13,
@@ -339,8 +305,7 @@
     "last_hits": 107,
     "denies": 5
   },
-  {
-    "hero": "Enigma",
+  "enigma": {
     "kills": 4,
     "deaths": 9,
     "assists": 18,
@@ -349,8 +314,7 @@
     "last_hits": 155,
     "denies": 5
   },
-  {
-    "hero": "Faceless Void",
+  "faceless_void": {
     "kills": 8,
     "deaths": 6,
     "assists": 12,
@@ -359,8 +323,7 @@
     "last_hits": 291,
     "denies": 10
   },
-  {
-    "hero": "Grimstroke",
+  "grimstroke": {
     "kills": 4,
     "deaths": 9,
     "assists": 21,
@@ -369,8 +332,7 @@
     "last_hits": 81,
     "denies": 2
   },
-  {
-    "hero": "Gyrocopter",
+  "gyrocopter": {
     "kills": 8,
     "deaths": 8,
     "assists": 13,
@@ -379,8 +341,7 @@
     "last_hits": 281,
     "denies": 8
   },
-  {
-    "hero": "Hoodwink",
+  "hoodwink": {
     "kills": 6,
     "deaths": 7,
     "assists": 18,
@@ -389,8 +350,7 @@
     "last_hits": 134,
     "denies": 4
   },
-  {
-    "hero": "Huskar",
+  "huskar": {
     "kills": 10,
     "deaths": 9,
     "assists": 9,
@@ -399,8 +359,7 @@
     "last_hits": 200,
     "denies": 14
   },
-  {
-    "hero": "Invoker",
+  "invoker": {
     "kills": 9,
     "deaths": 7,
     "assists": 15,
@@ -409,8 +368,7 @@
     "last_hits": 181,
     "denies": 8
   },
-  {
-    "hero": "Io",
+  "wisp": {
     "kills": 2,
     "deaths": 7,
     "assists": 20,
@@ -419,8 +377,7 @@
     "last_hits": 44,
     "denies": 4
   },
-  {
-    "hero": "Jakiro",
+  "jakiro": {
     "kills": 4,
     "deaths": 9,
     "assists": 18,
@@ -429,8 +386,7 @@
     "last_hits": 106,
     "denies": 3
   },
-  {
-    "hero": "Juggernaut",
+  "juggernaut": {
     "kills": 10,
     "deaths": 6,
     "assists": 10,
@@ -439,8 +395,7 @@
     "last_hits": 344,
     "denies": 11
   },
-  {
-    "hero": "Keeper of the Light",
+  "keeper_of_the_light": {
     "kills": 7,
     "deaths": 6,
     "assists": 16,
@@ -449,8 +404,7 @@
     "last_hits": 210,
     "denies": 2
   },
-  {
-    "hero": "Kez",
+  "kez": {
     "kills": 11,
     "deaths": 8,
     "assists": 11,
@@ -459,8 +413,7 @@
     "last_hits": 265,
     "denies": 11
   },
-  {
-    "hero": "Kunkka",
+  "kunkka": {
     "kills": 7,
     "deaths": 7,
     "assists": 17,
@@ -469,8 +422,7 @@
     "last_hits": 286,
     "denies": 6
   },
-  {
-    "hero": "Legion Commander",
+  "legion_commander": {
     "kills": 9,
     "deaths": 8,
     "assists": 14,
@@ -479,8 +431,7 @@
     "last_hits": 196,
     "denies": 9
   },
-  {
-    "hero": "Leshrac",
+  "leshrac": {
     "kills": 11,
     "deaths": 8,
     "assists": 14,
@@ -489,8 +440,7 @@
     "last_hits": 236,
     "denies": 6
   },
-  {
-    "hero": "Lich",
+  "lich": {
     "kills": 5,
     "deaths": 10,
     "assists": 20,
@@ -499,8 +449,7 @@
     "last_hits": 75,
     "denies": 3
   },
-  {
-    "hero": "Lifestealer",
+  "life_stealer": {
     "kills": 8,
     "deaths": 5,
     "assists": 12,
@@ -509,8 +458,7 @@
     "last_hits": 310,
     "denies": 21
   },
-  {
-    "hero": "Lina",
+  "lina": {
     "kills": 9,
     "deaths": 8,
     "assists": 11,
@@ -519,8 +467,7 @@
     "last_hits": 284,
     "denies": 7
   },
-  {
-    "hero": "Lion",
+  "lion": {
     "kills": 6,
     "deaths": 10,
     "assists": 16,
@@ -529,8 +476,7 @@
     "last_hits": 60,
     "denies": 3
   },
-  {
-    "hero": "Lone Druid",
+  "lone_druid": {
     "kills": 7,
     "deaths": 5,
     "assists": 10,
@@ -539,8 +485,7 @@
     "last_hits": 257,
     "denies": 11
   },
-  {
-    "hero": "Luna",
+  "luna": {
     "kills": 8,
     "deaths": 6,
     "assists": 11,
@@ -549,8 +494,7 @@
     "last_hits": 388,
     "denies": 8
   },
-  {
-    "hero": "Lycan",
+  "lycan": {
     "kills": 7,
     "deaths": 5,
     "assists": 14,
@@ -559,8 +503,7 @@
     "last_hits": 267,
     "denies": 9
   },
-  {
-    "hero": "Magnus",
+  "magnataur": {
     "kills": 5,
     "deaths": 8,
     "assists": 19,
@@ -569,8 +512,7 @@
     "last_hits": 175,
     "denies": 6
   },
-  {
-    "hero": "Marci",
+  "marci": {
     "kills": 9,
     "deaths": 9,
     "assists": 14,
@@ -579,8 +521,7 @@
     "last_hits": 148,
     "denies": 6
   },
-  {
-    "hero": "Mars",
+  "mars": {
     "kills": 6,
     "deaths": 7,
     "assists": 17,
@@ -589,8 +530,7 @@
     "last_hits": 208,
     "denies": 9
   },
-  {
-    "hero": "Medusa",
+  "medusa": {
     "kills": 6,
     "deaths": 4,
     "assists": 12,
@@ -599,8 +539,7 @@
     "last_hits": 420,
     "denies": 10
   },
-  {
-    "hero": "Meepo",
+  "meepo": {
     "kills": 10,
     "deaths": 6,
     "assists": 8,
@@ -609,8 +548,7 @@
     "last_hits": 328,
     "denies": 7
   },
-  {
-    "hero": "Mirana",
+  "mirana": {
     "kills": 5,
     "deaths": 7,
     "assists": 19,
@@ -619,8 +557,7 @@
     "last_hits": 128,
     "denies": 3
   },
-  {
-    "hero": "Monkey King",
+  "monkey_king": {
     "kills": 9,
     "deaths": 8,
     "assists": 12,
@@ -629,8 +566,7 @@
     "last_hits": 256,
     "denies": 12
   },
-  {
-    "hero": "Morphling",
+  "morphling": {
     "kills": 8,
     "deaths": 5,
     "assists": 8,
@@ -639,8 +575,7 @@
     "last_hits": 322,
     "denies": 12
   },
-  {
-    "hero": "Muerta",
+  "muerta": {
     "kills": 8,
     "deaths": 7,
     "assists": 13,
@@ -649,8 +584,7 @@
     "last_hits": 283,
     "denies": 11
   },
-  {
-    "hero": "Naga Siren",
+  "naga_siren": {
     "kills": 4,
     "deaths": 6,
     "assists": 15,
@@ -659,8 +593,7 @@
     "last_hits": 253,
     "denies": 3
   },
-  {
-    "hero": "Nature's Prophet",
+  "furion": {
     "kills": 10,
     "deaths": 8,
     "assists": 18,
@@ -669,8 +602,7 @@
     "last_hits": 314,
     "denies": 7
   },
-  {
-    "hero": "Necrophos",
+  "necrolyte": {
     "kills": 10,
     "deaths": 7,
     "assists": 12,
@@ -679,8 +611,7 @@
     "last_hits": 294,
     "denies": 9
   },
-  {
-    "hero": "Night Stalker",
+  "night_stalker": {
     "kills": 8,
     "deaths": 7,
     "assists": 13,
@@ -689,8 +620,7 @@
     "last_hits": 189,
     "denies": 11
   },
-  {
-    "hero": "Nyx Assassin",
+  "nyx_assassin": {
     "kills": 9,
     "deaths": 9,
     "assists": 16,
@@ -699,8 +629,7 @@
     "last_hits": 79,
     "denies": 4
   },
-  {
-    "hero": "Ogre Magi",
+  "ogre_magi": {
     "kills": 5,
     "deaths": 8,
     "assists": 18,
@@ -709,8 +638,7 @@
     "last_hits": 112,
     "denies": 5
   },
-  {
-    "hero": "Omniknight",
+  "omniknight": {
     "kills": 6,
     "deaths": 7,
     "assists": 14,
@@ -719,8 +647,7 @@
     "last_hits": 167,
     "denies": 8
   },
-  {
-    "hero": "Oracle",
+  "oracle": {
     "kills": 5,
     "deaths": 8,
     "assists": 19,
@@ -729,8 +656,7 @@
     "last_hits": 53,
     "denies": 2
   },
-  {
-    "hero": "Outworld Destroyer",
+  "obsidian_destroyer": {
     "kills": 11,
     "deaths": 6,
     "assists": 9,
@@ -739,8 +665,7 @@
     "last_hits": 245,
     "denies": 15
   },
-  {
-    "hero": "Pangolier",
+  "pangolier": {
     "kills": 8,
     "deaths": 7,
     "assists": 15,
@@ -749,8 +674,7 @@
     "last_hits": 248,
     "denies": 8
   },
-  {
-    "hero": "Phantom Assassin",
+  "phantom_assassin": {
     "kills": 10,
     "deaths": 7,
     "assists": 10,
@@ -759,8 +683,7 @@
     "last_hits": 319,
     "denies": 8
   },
-  {
-    "hero": "Phantom Lancer",
+  "phantom_lancer": {
     "kills": 9,
     "deaths": 5,
     "assists": 9,
@@ -769,8 +692,7 @@
     "last_hits": 332,
     "denies": 8
   },
-  {
-    "hero": "Phoenix",
+  "phoenix": {
     "kills": 7,
     "deaths": 8,
     "assists": 19,
@@ -779,8 +701,7 @@
     "last_hits": 146,
     "denies": 3
   },
-  {
-    "hero": "Primal Beast",
+  "primal_beast": {
     "kills": 7,
     "deaths": 8,
     "assists": 17,
@@ -789,8 +710,7 @@
     "last_hits": 197,
     "denies": 6
   },
-  {
-    "hero": "Puck",
+  "puck": {
     "kills": 9,
     "deaths": 6,
     "assists": 14,
@@ -799,8 +719,7 @@
     "last_hits": 264,
     "denies": 6
   },
-  {
-    "hero": "Pudge",
+  "pudge": {
     "kills": 7,
     "deaths": 9,
     "assists": 17,
@@ -809,8 +728,7 @@
     "last_hits": 121,
     "denies": 4
   },
-  {
-    "hero": "Pugna",
+  "pugna": {
     "kills": 5,
     "deaths": 8,
     "assists": 17,
@@ -819,8 +737,7 @@
     "last_hits": 107,
     "denies": 3
   },
-  {
-    "hero": "Queen of Pain",
+  "queenofpain": {
     "kills": 11,
     "deaths": 7,
     "assists": 15,
@@ -829,8 +746,7 @@
     "last_hits": 230,
     "denies": 10
   },
-  {
-    "hero": "Razor",
+  "razor": {
     "kills": 9,
     "deaths": 8,
     "assists": 14,
@@ -839,8 +755,7 @@
     "last_hits": 264,
     "denies": 12
   },
-  {
-    "hero": "Riki",
+  "riki": {
     "kills": 10,
     "deaths": 8,
     "assists": 14,
@@ -849,8 +764,7 @@
     "last_hits": 216,
     "denies": 7
   },
-  {
-    "hero": "Ringmaster",
+  "ringmaster": {
     "kills": 4,
     "deaths": 8,
     "assists": 20,
@@ -859,8 +773,7 @@
     "last_hits": 62,
     "denies": 2
   },
-  {
-    "hero": "Rubick",
+  "rubick": {
     "kills": 6,
     "deaths": 8,
     "assists": 19,
@@ -869,8 +782,7 @@
     "last_hits": 128,
     "denies": 4
   },
-  {
-    "hero": "Sand King",
+  "sand_king": {
     "kills": 7,
     "deaths": 9,
     "assists": 16,
@@ -879,8 +791,7 @@
     "last_hits": 226,
     "denies": 4
   },
-  {
-    "hero": "Shadow Demon",
+  "shadow_demon": {
     "kills": 5,
     "deaths": 9,
     "assists": 19,
@@ -889,8 +800,7 @@
     "last_hits": 79,
     "denies": 2
   },
-  {
-    "hero": "Shadow Fiend",
+  "nevermore": {
     "kills": 10,
     "deaths": 6,
     "assists": 11,
@@ -899,8 +809,7 @@
     "last_hits": 331,
     "denies": 11
   },
-  {
-    "hero": "Shadow Shaman",
+  "shadow_shaman": {
     "kills": 3,
     "deaths": 9,
     "assists": 19,
@@ -909,8 +818,7 @@
     "last_hits": 75,
     "denies": 3
   },
-  {
-    "hero": "Silencer",
+  "silencer": {
     "kills": 5,
     "deaths": 9,
     "assists": 21,
@@ -919,8 +827,7 @@
     "last_hits": 83,
     "denies": 4
   },
-  {
-    "hero": "Skywrath Mage",
+  "skywrath_mage": {
     "kills": 7,
     "deaths": 8,
     "assists": 17,
@@ -929,8 +836,7 @@
     "last_hits": 73,
     "denies": 3
   },
-  {
-    "hero": "Slardar",
+  "slardar": {
     "kills": 8,
     "deaths": 8,
     "assists": 14,
@@ -939,8 +845,7 @@
     "last_hits": 196,
     "denies": 9
   },
-  {
-    "hero": "Slark",
+  "slark": {
     "kills": 9,
     "deaths": 7,
     "assists": 12,
@@ -949,8 +854,7 @@
     "last_hits": 237,
     "denies": 10
   },
-  {
-    "hero": "Snapfire",
+  "snapfire": {
     "kills": 7,
     "deaths": 8,
     "assists": 17,
@@ -959,8 +863,7 @@
     "last_hits": 139,
     "denies": 5
   },
-  {
-    "hero": "Sniper",
+  "sniper": {
     "kills": 10,
     "deaths": 7,
     "assists": 15,
@@ -969,8 +872,7 @@
     "last_hits": 246,
     "denies": 11
   },
-  {
-    "hero": "Spectre",
+  "spectre": {
     "kills": 11,
     "deaths": 6,
     "assists": 16,
@@ -979,8 +881,7 @@
     "last_hits": 259,
     "denies": 8
   },
-  {
-    "hero": "Spirit Breaker",
+  "spirit_breaker": {
     "kills": 6,
     "deaths": 9,
     "assists": 21,
@@ -989,8 +890,7 @@
     "last_hits": 111,
     "denies": 3
   },
-  {
-    "hero": "Storm Spirit",
+  "storm_spirit": {
     "kills": 10,
     "deaths": 6,
     "assists": 13,
@@ -999,8 +899,7 @@
     "last_hits": 268,
     "denies": 7
   },
-  {
-    "hero": "Sven",
+  "sven": {
     "kills": 10,
     "deaths": 6,
     "assists": 9,
@@ -1009,8 +908,7 @@
     "last_hits": 382,
     "denies": 8
   },
-  {
-    "hero": "Techies",
+  "techies": {
     "kills": 7,
     "deaths": 11,
     "assists": 17,
@@ -1019,8 +917,7 @@
     "last_hits": 138,
     "denies": 1
   },
-  {
-    "hero": "Templar Assassin",
+  "templar_assassin": {
     "kills": 10,
     "deaths": 6,
     "assists": 10,
@@ -1029,8 +926,7 @@
     "last_hits": 343,
     "denies": 13
   },
-  {
-    "hero": "Terrorblade",
+  "terrorblade": {
     "kills": 8,
     "deaths": 6,
     "assists": 9,
@@ -1039,8 +935,7 @@
     "last_hits": 322,
     "denies": 9
   },
-  {
-    "hero": "Tidehunter",
+  "tidehunter": {
     "kills": 5,
     "deaths": 7,
     "assists": 18,
@@ -1049,8 +944,7 @@
     "last_hits": 218,
     "denies": 6
   },
-  {
-    "hero": "Timbersaw",
+  "shredder": {
     "kills": 10,
     "deaths": 8,
     "assists": 14,
@@ -1059,8 +953,7 @@
     "last_hits": 231,
     "denies": 6
   },
-  {
-    "hero": "Tinker",
+  "tinker": {
     "kills": 8,
     "deaths": 5,
     "assists": 13,
@@ -1069,8 +962,7 @@
     "last_hits": 362,
     "denies": 5
   },
-  {
-    "hero": "Tiny",
+  "tiny": {
     "kills": 7,
     "deaths": 7,
     "assists": 16,
@@ -1079,8 +971,7 @@
     "last_hits": 201,
     "denies": 5
   },
-  {
-    "hero": "Treant Protector",
+  "treant": {
     "kills": 3,
     "deaths": 8,
     "assists": 21,
@@ -1089,8 +980,7 @@
     "last_hits": 74,
     "denies": 3
   },
-  {
-    "hero": "Troll Warlord",
+  "troll_warlord": {
     "kills": 8,
     "deaths": 7,
     "assists": 10,
@@ -1099,8 +989,7 @@
     "last_hits": 322,
     "denies": 11
   },
-  {
-    "hero": "Tusk",
+  "tusk": {
     "kills": 5,
     "deaths": 9,
     "assists": 19,
@@ -1109,8 +998,7 @@
     "last_hits": 77,
     "denies": 3
   },
-  {
-    "hero": "Underlord",
+  "abyssal_underlord": {
     "kills": 5,
     "deaths": 8,
     "assists": 18,
@@ -1119,8 +1007,7 @@
     "last_hits": 231,
     "denies": 8
   },
-  {
-    "hero": "Undying",
+  "undying": {
     "kills": 7,
     "deaths": 9,
     "assists": 20,
@@ -1129,8 +1016,7 @@
     "last_hits": 140,
     "denies": 5
   },
-  {
-    "hero": "Ursa",
+  "ursa": {
     "kills": 12,
     "deaths": 8,
     "assists": 10,
@@ -1139,8 +1025,7 @@
     "last_hits": 242,
     "denies": 6
   },
-  {
-    "hero": "Vengeful Spirit",
+  "vengefulspirit": {
     "kills": 5,
     "deaths": 10,
     "assists": 19,
@@ -1149,8 +1034,7 @@
     "last_hits": 100,
     "denies": 5
   },
-  {
-    "hero": "Venomancer",
+  "venomancer": {
     "kills": 6,
     "deaths": 10,
     "assists": 21,
@@ -1159,8 +1043,7 @@
     "last_hits": 149,
     "denies": 2
   },
-  {
-    "hero": "Viper",
+  "viper": {
     "kills": 11,
     "deaths": 10,
     "assists": 14,
@@ -1169,8 +1052,7 @@
     "last_hits": 185,
     "denies": 7
   },
-  {
-    "hero": "Visage",
+  "visage": {
     "kills": 9,
     "deaths": 8,
     "assists": 13,
@@ -1179,8 +1061,7 @@
     "last_hits": 137,
     "denies": 6
   },
-  {
-    "hero": "Void Spirit",
+  "void_spirit": {
     "kills": 10,
     "deaths": 6,
     "assists": 15,
@@ -1189,8 +1070,7 @@
     "last_hits": 188,
     "denies": 9
   },
-  {
-    "hero": "Warlock",
+  "warlock": {
     "kills": 5,
     "deaths": 8,
     "assists": 19,
@@ -1199,8 +1079,7 @@
     "last_hits": 146,
     "denies": 2
   },
-  {
-    "hero": "Weaver",
+  "weaver": {
     "kills": 10,
     "deaths": 7,
     "assists": 13,
@@ -1209,8 +1088,7 @@
     "last_hits": 222,
     "denies": 5
   },
-  {
-    "hero": "Windranger",
+  "windrunner": {
     "kills": 11,
     "deaths": 8,
     "assists": 13,
@@ -1219,8 +1097,7 @@
     "last_hits": 167,
     "denies": 5
   },
-  {
-    "hero": "Winter Wyvern",
+  "winter_wyvern": {
     "kills": 5,
     "deaths": 8,
     "assists": 18,
@@ -1229,8 +1106,7 @@
     "last_hits": 96,
     "denies": 2
   },
-  {
-    "hero": "Witch Doctor",
+  "witch_doctor": {
     "kills": 9,
     "deaths": 10,
     "assists": 18,
@@ -1239,8 +1115,7 @@
     "last_hits": 75,
     "denies": 3
   },
-  {
-    "hero": "Wraith King",
+  "skeleton_king": {
     "kills": 9,
     "deaths": 7,
     "assists": 15,
@@ -1249,8 +1124,7 @@
     "last_hits": 235,
     "denies": 6
   },
-  {
-    "hero": "Zeus",
+  "zuus": {
     "kills": 9,
     "deaths": 8,
     "assists": 21,
@@ -1259,4 +1133,4 @@
     "last_hits": 157,
     "denies": 3
   }
-]
+}
