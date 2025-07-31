@@ -4,44 +4,51 @@ import requests
 
 GIST_ID = os.getenv("GIST_ID")
 GIST_TOKEN = os.getenv("GIST_TOKEN")
+GIST_FILENAME = "state.json"
+
 HEADERS = {
     "Authorization": f"Bearer {GIST_TOKEN}",
     "Accept": "application/vnd.github.v3+json"
 }
 
-FILENAME = "state.json"
-
 def load_state():
     """
-    Fetches state.json from the GitHub Gist and returns its contents as a dict.
-    If the Gist is missing or corrupt, returns an empty dict.
+    Loads a set of known match IDs from the GitHub Gist (state.json).
+    Returns: set of match ID strings.
     """
+    if not GIST_ID or not GIST_TOKEN:
+        print("❌ Missing GIST_ID or GIST_TOKEN environment variables.")
+        return set()
+
     try:
-        url = f"https://api.github.com/gists/{GIST_ID}"
-        response = requests.get(url, headers=HEADERS)
+        response = requests.get(f"https://api.github.com/gists/{GIST_ID}", headers=HEADERS)
         response.raise_for_status()
-        files = response.json().get("files", {})
-        if FILENAME in files and files[FILENAME]["content"]:
-            return json.loads(files[FILENAME]["content"])
+        content = response.json()["files"][GIST_FILENAME]["content"]
+        match_ids = json.loads(content)
+        return set(match_ids)
     except Exception as e:
         print(f"⚠️ Failed to load state.json: {e}")
-    return {}
+        return set()
 
-def save_state(state):
+def save_state(match_id_set):
     """
-    Updates the state.json file in the GitHub Gist with the given dict.
+    Saves the set of known match IDs to the GitHub Gist as state.json.
+    Args:
+        match_id_set: set of match ID strings
     """
+    if not GIST_ID or not GIST_TOKEN:
+        print("❌ Missing GIST_ID or GIST_TOKEN environment variables.")
+        return
+
     try:
-        url = f"https://api.github.com/gists/{GIST_ID}"
         payload = {
             "files": {
-                FILENAME: {
-                    "content": json.dumps(state, indent=2)
+                GIST_FILENAME: {
+                    "content": json.dumps(list(match_id_set), indent=2)
                 }
             }
         }
-        response = requests.patch(url, headers=HEADERS, data=json.dumps(payload))
+        response = requests.patch(f"https://api.github.com/gists/{GIST_ID}", headers=HEADERS, data=json.dumps(payload))
         response.raise_for_status()
-        print("📝 Updated state.json on GitHub Gist")
     except Exception as e:
         print(f"❌ Failed to update state.json: {e}")
