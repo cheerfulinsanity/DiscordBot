@@ -89,13 +89,12 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         deltas[stat] = delta
         score += delta * weightings.get(stat, 1.0)
 
-    # Token feedback tags
+    highlight = max(deltas, key=lambda k: deltas[k]) if deltas else "N/A"
+    lowlight = min(deltas, key=lambda k: deltas[k]) if deltas else "N/A"
+
     praises = [k for k, v in deltas.items() if v > 0]
     critiques = [k for k, v in deltas.items() if v < 0]
-    highlight = max(deltas, key=lambda k: deltas[k])
-    lowlight = min(deltas, key=lambda k: deltas[k])
 
-    # Optional compound flags
     compound_flags = []
     if stats['kills'] + stats['assists'] < 5:
         compound_flags.append("low_kp")
@@ -104,7 +103,6 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if stats['imp'] >= 10:
         compound_flags.append("impact_god")
 
-    # Output summary log
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆 Win" if won else "💀 Loss"
     header = f"🧙 {player_name} — {hero_name}: {kda} — {win_emoji} (Match ID: {match_id})"
