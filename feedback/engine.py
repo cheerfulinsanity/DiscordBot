@@ -69,6 +69,7 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
     if not filtered_deltas:
         return result
 
+    # Sorted for most extreme to least extreme deltas
     sorted_deltas = sorted(filtered_deltas.items(), key=lambda x: x[1], reverse=True)
     result['highlight'] = sorted_deltas[0][0]
     result['lowlight'] = sorted_deltas[-1][0]
