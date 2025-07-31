@@ -1,6 +1,11 @@
 # bot/fetch.py
 
-from bot.stratz import fetch_latest_stratz_match
+from bot.stratz import fetch_latest_match
 
-def get_latest_full_match(steam_id, hero_id_to_name=None):
-    return fetch_latest_stratz_match(steam_id)
+def get_latest_new_match(steam_id: int, last_posted_id: str | None, token: str) -> dict | None:
+    match = fetch_latest_match(steam_id, token)
+
+    if str(match["match_id"]) != str(last_posted_id):
+        return match
+
+    return None
