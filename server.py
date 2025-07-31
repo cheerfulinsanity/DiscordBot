@@ -1,7 +1,7 @@
 # server.py
 
 from flask import Flask
-import threading
+from multiprocessing import Process
 from bot.runner import run_bot
 
 app = Flask(__name__)
@@ -13,7 +13,7 @@ def index():
 @app.route("/run")
 def run():
     try:
-        threading.Thread(target=run_bot).start()
+        Process(target=run_bot).start()
         return "✅ GuildBot run triggered. Check Render logs for progress."
     except Exception as e:
         return f"❌ Error: {str(e)}"
