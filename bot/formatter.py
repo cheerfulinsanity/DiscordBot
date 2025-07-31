@@ -13,7 +13,8 @@ def format_match(player: dict, match: dict) -> str:
     # Extract inputs needed for feedback engine
     hero_short = hero_name
     team_kills = sum(p["kills"] for p in match["players"] if p["isRadiant"] == player["isRadiant"])
-    role = get_expected_role(hero_short)
+    roles = get_expected_role(hero_short)
+    role = roles[0] if isinstance(roles, list) else roles
     baseline = get_hero_baseline(hero_short, role)
 
     stats = {
