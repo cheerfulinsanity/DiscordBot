@@ -1,7 +1,6 @@
 # bot/formatter.py
 
 import json
-import os
 from pathlib import Path
 from datetime import datetime
 
@@ -25,34 +24,22 @@ def get_baseline(hero_name, role):
 
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
+    if not isinstance(full_match, dict):
+        return f"❌ Match data was not a valid dictionary. Got: {type(full_match)}"
+
     match_id = full_match.get("id")
     match_players = full_match.get("players", [])
     match_start = full_match.get("startDateTime", 0)
     match_duration = full_match.get("durationSeconds", 0)
 
-    player = next((p for p in match_players if p["steamAccountId"] == player_id), None)
+    player = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
     if not player:
         return f"❌ Player data not found in match {match_id}"
 
-    if os.getenv("DEBUG_MODE") == "1":
-        print("🧪 Player Block:")
-        print(json.dumps(player, indent=2))
-        stats_debug = player.get("stats", {})
-        print(f"🧪 Types — campStack: {type(stats_debug.get('campStack'))}, level: {type(stats_debug.get('level'))}")
-
     # Defensive stat extraction
-    stats_block = player.get("stats")
-    if not isinstance(stats_block, dict):
-        stats_block = {}
-
-    # Normalize campStack and level regardless of type
-    camp_stack = stats_block.get("campStack")
-    if not isinstance(camp_stack, list):
-        camp_stack = [camp_stack] if camp_stack is not None else []
-
-    level_list = stats_block.get("level")
-    if not isinstance(level_list, list):
-        level_list = [level_list] if level_list is not None else []
+    stats_block = player.get("stats") or {}
+    camp_stack = stats_block.get("campStack") or []
+    level_list = stats_block.get("level") or []
 
     stats = {
         'kills': player.get('kills', 0),
@@ -60,9 +47,9 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         'assists': player.get('assists', 0),
         'gpm': player.get('goldPerMinute', 0),
         'xpm': player.get('experiencePerMinute', 0),
-        'imp': player.get('imp', 0),
-        'campStack': sum(camp_stack),
-        'level': level_list[-1] if level_list else 0,
+        'imp': player.get('imp') if player.get('imp') is not None else 0,
+        'campStack': sum(camp_stack) if isinstance(camp_stack, list) else 0,
+        'level': level_list[-1] if isinstance(level_list, list) and level_list else 0,
     }
 
     role = get_role(hero_name)
@@ -89,12 +76,13 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         deltas[stat] = delta
         score += delta * weightings.get(stat, 1.0)
 
-    highlight = max(deltas, key=lambda k: deltas[k]) if deltas else "N/A"
-    lowlight = min(deltas, key=lambda k: deltas[k]) if deltas else "N/A"
-
+    # Token feedback tags
     praises = [k for k, v in deltas.items() if v > 0]
     critiques = [k for k, v in deltas.items() if v < 0]
+    highlight = max(deltas, key=lambda k: deltas[k], default="unknown")
+    lowlight = min(deltas, key=lambda k: deltas[k], default="unknown")
 
+    # Optional compound flags
     compound_flags = []
     if stats['kills'] + stats['assists'] < 5:
         compound_flags.append("low_kp")
@@ -103,9 +91,10 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if stats['imp'] >= 10:
         compound_flags.append("impact_god")
 
+    # Output summary log
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆 Win" if won else "💀 Loss"
-    header = f"🧙 {player_name} — {hero_name}: {kda} — {win_emoji} (Match ID: {match_id})"
+    header = f"🧙 {player_name} — {hero_name.split('_')[-1]}: {kda} — {win_emoji} (Match ID: {match_id})"
     summary = f"📈 Score: {round(score, 2)}"
     tags = f"📊 Tags: highlight={highlight} | lowlight={lowlight} | critiques={critiques} | praises={praises}"
     if compound_flags:
