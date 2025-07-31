@@ -20,11 +20,16 @@ HERO_BASELINES = {
     entry["hero"].lower(): entry for entry in HERO_BASELINES_LIST if "hero" in entry
 }
 
+def normalize_hero_name(raw_name: str) -> str:
+    return raw_name.replace("npc_dota_hero_", "").replace("_", " ").title()
+
 def get_role(hero_name):
-    return HERO_ROLES.get(hero_name, "unknown")
+    normalized = normalize_hero_name(hero_name)
+    return HERO_ROLES.get(normalized, "unknown")
 
 def get_baseline(hero_name, role):
-    return HERO_BASELINES.get(hero_name.lower())
+    normalized = normalize_hero_name(hero_name).lower()
+    return HERO_BASELINES.get(normalized)
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
     if not isinstance(full_match, dict):
