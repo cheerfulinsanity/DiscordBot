@@ -16,7 +16,7 @@ def fetch_latest_match(steam_id: int, token: str) -> dict | None:
     query = """
     query ($steamId: Long!) {
       player(steamAccountId: $steamId) {
-        matches(request: {take: 1}) {
+        matches(request: {take: 1, gameModeIds: [23]}) {
           id
           players {
             steamAccountId
@@ -55,7 +55,6 @@ def fetch_latest_match(steam_id: int, token: str) -> dict | None:
     except Exception as e:
         print(f"❌ Error in fetch_latest_match: {e}")
         return None
-
 
 def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
     """
@@ -100,6 +99,8 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
           }
           stats {
             level
+            campStack
+            wardDestruction
             itemPurchases { itemId time }
             killEvents { time target }
             deathEvents { time }
