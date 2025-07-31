@@ -26,23 +26,19 @@ GAME_MODE_NAMES = {
     23: "Turbo"
 }
 
-
 def normalize_hero_name(raw_name: str) -> str:
     if raw_name.startswith("npc_dota_hero_"):
         raw_name = raw_name.replace("npc_dota_hero_", "")
     return raw_name.lower()
-
 
 def get_role(hero_name):
     normalized = normalize_hero_name(hero_name)
     roles = HERO_ROLES.get(normalized, [])
     return roles[0] if roles else "unknown"
 
-
 def get_baseline(hero_name, role):
     normalized = normalize_hero_name(hero_name)
     return HERO_BASELINES.get(normalized)
-
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
     if not isinstance(full_match, dict):
@@ -112,7 +108,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     hero_display = player.get("hero", {}).get("displayName", normalize_hero_name(hero_name).title())
 
     if score >= 3.5:
-        icon, phrase = "🧨", "blew up the game"
+        icon, phrase = "💨", "blew up the game"
     elif score >= 2.0:
         icon, phrase = "🔥", "went off"
     elif score >= 0.5:
@@ -125,7 +121,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         icon, phrase = "☠️", "inted it all away"
 
     header = f"{icon} {player_name} {phrase} {kda} as {hero_display} — {win_emoji} {'Win' if won else 'Loss'} (Match {match_id}, {game_mode_name})"
-    summary = f"📈 Score: {round(score, 2)}"
+    summary = f"📊 Score: {round(score, 2)}"
 
     # Generate structured advice
     advice = generate_advice(result['feedback_tags'], result['deltas'])
@@ -138,17 +134,17 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
             advice_sections.append(f"- {line}")
 
     if advice["negatives"]:
-        advice_sections.append("🛠️ What to work on:")
+        advice_sections.append("🚰 What to work on:")
         for line in advice["negatives"]:
             advice_sections.append(f"- {line}")
 
     if advice["flags"]:
-        advice_sections.append("📛 Flagged behavior:")
+        advice_sections.append("💼 Flagged behavior:")
         for line in advice["flags"]:
             advice_sections.append(f"- {line}")
 
     if advice["tips"]:
-        advice_sections.append("🧾 Tips:")
+        advice_sections.append("🗾️ Tips:")
         for line in advice["tips"]:
             advice_sections.append(f"- {line}")
 
