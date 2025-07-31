@@ -35,6 +35,21 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if not player:
         return f"❌ Player data not found in match {match_id}"
 
+    stats_block = player.get("stats", {})
+
+    # Safely handle scalar or list cases
+    camp_stack_raw = stats_block.get("campStack", 0)
+    if isinstance(camp_stack_raw, list):
+        camp_stack = sum(camp_stack_raw)
+    else:
+        camp_stack = camp_stack_raw or 0
+
+    level_raw = stats_block.get("level", 0)
+    if isinstance(level_raw, list):
+        level = level_raw[-1] if level_raw else 0
+    else:
+        level = level_raw or 0
+
     stats = {
         'kills': player.get('kills', 0),
         'deaths': player.get('deaths', 0),
@@ -42,8 +57,8 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         'gpm': player.get('goldPerMinute', 0),
         'xpm': player.get('experiencePerMinute', 0),
         'imp': player.get('imp', 0),
-        'campStack': sum(player.get("stats", {}).get("campStack", [])) if isinstance(player.get("stats", {}).get("campStack"), list) else 0,
-        'level': player.get("stats", {}).get("level", [-1])[-1] if isinstance(player.get("stats", {}).get("level"), list) else 0,
+        'campStack': camp_stack,
+        'level': level,
     }
 
     role = get_role(hero_name)
