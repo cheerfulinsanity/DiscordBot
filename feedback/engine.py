@@ -56,7 +56,7 @@ def _score_performance(deltas: Dict[str, float], role: str, ignore_stats: list[s
         score += delta * weight
     return score
 
-def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any]) -> Dict[str, Any]:
+def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any], ignore_stats: list[str] = []) -> Dict[str, Any]:
     result = {
         'highlight': None,
         'lowlight': None,
@@ -65,36 +65,37 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
         'compound_flags': []
     }
 
-    if not deltas:
+    filtered_deltas = {k: v for k, v in deltas.items() if k not in ignore_stats}
+    if not filtered_deltas:
         return result
 
-    sorted_deltas = sorted(deltas.items(), key=lambda x: x[1], reverse=True)
+    sorted_deltas = sorted(filtered_deltas.items(), key=lambda x: x[1], reverse=True)
     result['highlight'] = sorted_deltas[0][0]
     result['lowlight'] = sorted_deltas[-1][0]
 
-    for stat, delta in deltas.items():
+    for stat, delta in filtered_deltas.items():
         if delta <= LOW_DELTA_THRESHOLD:
             result['critiques'].append(stat)
         elif delta >= HIGH_DELTA_THRESHOLD:
             result['praises'].append(stat)
 
     # Compound logic for support stacking
-    if 'campStack' in deltas and deltas['campStack'] <= -0.8 and _get_role_category(role) == 'support':
+    if 'campStack' in filtered_deltas and filtered_deltas['campStack'] <= -0.8 and _get_role_category(role) == 'support':
         result['compound_flags'].append('no_stacking_support')
 
     # Carry with low impact despite good farm
-    if 'gpm' in deltas and 'imp' in deltas:
-        if deltas['gpm'] < -0.3 and deltas['imp'] >= 0:
+    if 'gpm' in filtered_deltas and 'imp' in filtered_deltas:
+        if filtered_deltas['gpm'] < -0.3 and filtered_deltas['imp'] >= 0:
             result['compound_flags'].append('impact_without_farm')
-        if deltas['gpm'] >= 0.2 and deltas['imp'] < -0.2:
+        if filtered_deltas['gpm'] >= 0.2 and filtered_deltas['imp'] < -0.2:
             result['compound_flags'].append('farmed_did_nothing')
 
     # Low kill participation
-    if 'killParticipation' in deltas and deltas['killParticipation'] < -0.3:
+    if 'killParticipation' in filtered_deltas and filtered_deltas['killParticipation'] < -0.3:
         result['compound_flags'].append('low_kp')
 
     # Fed and useless
-    if 'deaths' in deltas and deltas['deaths'] > 0.5 and deltas.get('imp', 0) < 0:
+    if 'deaths' in filtered_deltas and filtered_deltas['deaths'] > 0.5 and filtered_deltas.get('imp', 0) < 0:
         result['compound_flags'].append('fed_no_impact')
 
     return result
@@ -118,7 +119,7 @@ def analyze_player(
     score = _score_performance(deltas, role, ignore_stats=ignore_stats)
 
     # Tag-based analysis for advice generation
-    feedback_tags = _select_priority_feedback(deltas, role, context=player_stats)
+    feedback_tags = _select_priority_feedback(deltas, role, context=player_stats, ignore_stats=ignore_stats)
 
     return {
         'deltas': deltas,
