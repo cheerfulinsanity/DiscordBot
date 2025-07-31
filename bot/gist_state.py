@@ -15,8 +15,26 @@ def load_state():
         "Accept": "application/vnd.github+json"
     })
     res.raise_for_status()
-    content = res.json()["files"][GIST_FILENAME]["content"]
-    return json.loads(content)
+    gist = res.json()
+
+    print("🧪 Gist file keys:", list(gist["files"].keys()))
+
+    if GIST_FILENAME not in gist["files"]:
+        print(f"❌ Gist file {GIST_FILENAME} not found. Returning empty dict.")
+        return {}
+
+    content = gist["files"][GIST_FILENAME]["content"]
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError:
+        print("❌ Failed to decode state.json. Returning empty dict.")
+        return {}
+
+    if isinstance(parsed, dict):
+        return parsed
+
+    print(f"⚠️ state.json contained a {type(parsed).__name__}, expected dict. Overwriting.")
+    return {}
 
 def save_state(new_state):
     """Updates state.json in GitHub Gist with the provided dictionary"""
@@ -38,5 +56,12 @@ def save_state(new_state):
         },
         json=payload
     )
+
+    if res.status_code == 200:
+        updated_content = res.json()["files"][GIST_FILENAME]["content"]
+        print(f"✅ Gist successfully patched. New content:\n{updated_content}")
+    else:
+        print(f"❌ Gist PATCH failed: {res.status_code} - {res.text}")
+
     res.raise_for_status()
     return True
