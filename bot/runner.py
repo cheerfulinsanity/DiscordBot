@@ -47,9 +47,6 @@ def run_bot():
         assists = player_data.get("assists", 0)
         won = player_data.get("isVictory", False)
 
-        print(f"🧙 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
-        print("📊 Performance Analysis:")
-
         try:
             feedback = format_match(
                 player_name,
