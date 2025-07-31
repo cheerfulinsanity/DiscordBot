@@ -123,7 +123,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     header = f"{icon} {player_name} {phrase} {kda} as {hero_display} — {win_emoji} {'Win' if won else 'Loss'} (Match {match_id}, {game_mode_name})"
     summary = f"📊 Score: {round(score, 2)}"
 
-    # Generate structured advice with turbo-aware exclusions
+    # ✅ Turbo-aware structured advice
     advice = generate_advice(result['feedback_tags'], result['deltas'], ignore_stats=ignore_stats)
 
     advice_sections = []
