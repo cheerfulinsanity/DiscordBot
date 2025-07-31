@@ -1,417 +1,417 @@
 {
-  "Abaddon": [
+  "abaddon": [
     "offlane",
     "support"
   ],
-  "Alchemist": [
+  "alchemist": [
     "carry"
   ],
-  "Ancient Apparition": [
+  "ancient_apparition": [
     "hard_support"
   ],
-  "Anti-Mage": [
+  "antimage": [
     "carry"
   ],
-  "Arc Warden": [
+  "arc_warden": [
     "carry"
   ],
-  "Axe": [
+  "axe": [
     "offlane"
   ],
-  "Bane": [
+  "bane": [
     "hard_support"
   ],
-  "Batrider": [
+  "batrider": [
     "offlane",
     "mid"
   ],
-  "Beastmaster": [
+  "beastmaster": [
     "offlane"
   ],
-  "Bloodseeker": [
+  "bloodseeker": [
     "carry",
     "mid"
   ],
-  "Bounty Hunter": [
+  "bounty_hunter": [
     "roamer",
     "soft_support"
   ],
-  "Brewmaster": [
+  "brewmaster": [
     "offlane"
   ],
-  "Bristleback": [
+  "bristleback": [
     "offlane"
   ],
-  "Broodmother": [
+  "broodmother": [
     "offlane"
   ],
-  "Centaur Warrunner": [
+  "centaur": [
     "offlane"
   ],
-  "Chaos Knight": [
+  "chaos_knight": [
     "carry"
   ],
-  "Chen": [
+  "chen": [
     "hard_support",
     "jungler"
   ],
-  "Clinkz": [
+  "clinkz": [
     "carry"
   ],
-  "Clockwerk": [
+  "rattletrap": [
     "offlane",
     "soft_support"
   ],
-  "Crystal Maiden": [
+  "crystal_maiden": [
     "hard_support"
   ],
-  "Dark Seer": [
+  "dark_seer": [
     "offlane"
   ],
-  "Dark Willow": [
+  "dark_willow": [
     "soft_support"
   ],
-  "Dawnbreaker": [
+  "dawnbreaker": [
     "offlane",
     "support"
   ],
-  "Dazzle": [
+  "dazzle": [
     "hard_support"
   ],
-  "Death Prophet": [
+  "death_prophet": [
     "mid",
     "offlane"
   ],
-  "Disruptor": [
+  "disruptor": [
     "hard_support"
   ],
-  "Doom": [
+  "doom_bringer": [
     "offlane",
     "carry"
   ],
-  "Dragon Knight": [
+  "dragon_knight": [
     "mid",
     "offlane"
   ],
-  "Drow Ranger": [
+  "drow_ranger": [
     "carry"
   ],
-  "Earth Spirit": [
+  "earth_spirit": [
     "soft_support"
   ],
-  "Earthshaker": [
+  "earthshaker": [
     "soft_support"
   ],
-  "Elder Titan": [
+  "elder_titan": [
     "soft_support",
     "offlane"
   ],
-  "Ember Spirit": [
+  "ember_spirit": [
     "mid"
   ],
-  "Enchantress": [
+  "enchantress": [
     "soft_support"
   ],
-  "Enigma": [
+  "enigma": [
     "offlane"
   ],
-  "Faceless Void": [
+  "faceless_void": [
     "carry"
   ],
-  "Grimstroke": [
+  "grimstroke": [
     "hard_support"
   ],
-  "Gyrocopter": [
+  "gyrocopter": [
     "carry"
   ],
-  "Hoodwink": [
+  "hoodwink": [
     "soft_support",
     "offlane"
   ],
-  "Huskar": [
+  "huskar": [
     "mid"
   ],
-  "Invoker": [
+  "invoker": [
     "mid"
   ],
-  "Io": [
+  "wisp": [
     "hard_support"
   ],
-  "Jakiro": [
+  "jakiro": [
     "hard_support"
   ],
-  "Juggernaut": [
+  "juggernaut": [
     "carry"
   ],
-  "Keeper of the Light": [
+  "keeper_of_the_light": [
     "hard_support"
   ],
-  "Kez": [
+  "kez": [
     "carry"
   ],
-  "Kunkka": [
+  "kunkka": [
     "mid",
     "offlane"
   ],
-  "Legion Commander": [
+  "legion_commander": [
     "offlane"
   ],
-  "Leshrac": [
+  "leshrac": [
     "mid",
     "offlane"
   ],
-  "Lich": [
+  "lich": [
     "hard_support"
   ],
-  "Lifestealer": [
+  "life_stealer": [
     "carry"
   ],
-  "Lina": [
+  "lina": [
     "mid",
     "carry"
   ],
-  "Lion": [
+  "lion": [
     "hard_support"
   ],
-  "Lone Druid": [
+  "lone_druid": [
     "carry"
   ],
-  "Luna": [
+  "luna": [
     "carry"
   ],
-  "Lycan": [
+  "lycan": [
     "offlane",
     "carry"
   ],
-  "Magnus": [
+  "magnataur": [
     "offlane",
     "soft_support"
   ],
-  "Marci": [
+  "marci": [
     "offlane",
     "support"
   ],
-  "Mars": [
+  "mars": [
     "offlane"
   ],
-  "Medusa": [
+  "medusa": [
     "carry"
   ],
-  "Meepo": [
+  "meepo": [
     "mid"
   ],
-  "Mirana": [
+  "mirana": [
     "soft_support"
   ],
-  "Monkey King": [
+  "monkey_king": [
     "carry"
   ],
-  "Morphling": [
+  "morphling": [
     "carry"
   ],
-  "Muerta": [
+  "muerta": [
     "carry"
   ],
-  "Naga Siren": [
+  "naga_siren": [
     "carry"
   ],
-  "Nature's Prophet": [
+  "furion": [
     "offlane",
     "carry"
   ],
-  "Necrophos": [
+  "necrolyte": [
     "mid",
     "offlane"
   ],
-  "Night Stalker": [
+  "night_stalker": [
     "offlane"
   ],
-  "Nyx Assassin": [
+  "nyx_assassin": [
     "soft_support"
   ],
-  "Ogre Magi": [
+  "ogre_magi": [
     "hard_support"
   ],
-  "Omniknight": [
+  "omniknight": [
     "offlane",
     "hard_support"
   ],
-  "Oracle": [
+  "oracle": [
     "hard_support"
   ],
-  "Outworld Destroyer": [
+  "obsidian_destroyer": [
     "mid"
   ],
-  "Pangolier": [
+  "pangolier": [
     "mid",
     "offlane"
   ],
-  "Phantom Assassin": [
+  "phantom_assassin": [
     "carry"
   ],
-  "Phantom Lancer": [
+  "phantom_lancer": [
     "carry"
   ],
-  "Phoenix": [
+  "phoenix": [
     "soft_support",
     "offlane"
   ],
-  "Primal Beast": [
+  "primal_beast": [
     "offlane"
   ],
-  "Puck": [
+  "puck": [
     "mid"
   ],
-  "Pudge": [
+  "pudge": [
     "soft_support",
     "offlane"
   ],
-  "Pugna": [
+  "pugna": [
     "soft_support",
     "mid"
   ],
-  "Queen of Pain": [
+  "queenofpain": [
     "mid"
   ],
-  "Razor": [
+  "razor": [
     "offlane",
     "mid"
   ],
-  "Riki": [
+  "riki": [
     "roamer",
     "support"
   ],
-  "Ringmaster": [
+  "ringmaster": [
     "unknown"
   ],
-  "Rubick": [
+  "rubick": [
     "soft_support"
   ],
-  "Sand King": [
+  "sand_king": [
     "offlane"
   ],
-  "Shadow Demon": [
+  "shadow_demon": [
     "hard_support"
   ],
-  "Shadow Fiend": [
+  "nevermore": [
     "mid"
   ],
-  "Shadow Shaman": [
+  "shadow_shaman": [
     "hard_support"
   ],
-  "Silencer": [
+  "silencer": [
     "hard_support"
   ],
-  "Skywrath Mage": [
+  "skywrath_mage": [
     "soft_support"
   ],
-  "Slardar": [
+  "slardar": [
     "offlane"
   ],
-  "Slark": [
+  "slark": [
     "carry"
   ],
-  "Snapfire": [
+  "snapfire": [
     "soft_support"
   ],
-  "Sniper": [
+  "sniper": [
     "carry"
   ],
-  "Spectre": [
+  "spectre": [
     "carry"
   ],
-  "Spirit Breaker": [
+  "spirit_breaker": [
     "offlane",
     "soft_support"
   ],
-  "Storm Spirit": [
+  "storm_spirit": [
     "mid"
   ],
-  "Sven": [
+  "sven": [
     "carry"
   ],
-  "Techies": [
+  "techies": [
     "soft_support"
   ],
-  "Templar Assassin": [
+  "templar_assassin": [
     "mid"
   ],
-  "Terrorblade": [
+  "terrorblade": [
     "carry"
   ],
-  "Tidehunter": [
+  "tidehunter": [
     "offlane"
   ],
-  "Timbersaw": [
+  "shredder": [
     "offlane"
   ],
-  "Tinker": [
+  "tinker": [
     "mid"
   ],
-  "Tiny": [
+  "tiny": [
     "mid",
     "offlane",
     "support"
   ],
-  "Treant Protector": [
+  "treant": [
     "hard_support"
   ],
-  "Troll Warlord": [
+  "troll_warlord": [
     "carry"
   ],
-  "Tusk": [
+  "tusk": [
     "soft_support",
     "offlane"
   ],
-  "Underlord": [
+  "abyssal_underlord": [
     "offlane"
   ],
-  "Undying": [
+  "undying": [
     "soft_support",
     "offlane"
   ],
-  "Ursa": [
+  "ursa": [
     "carry"
   ],
-  "Vengeful Spirit": [
+  "vengefulspirit": [
     "hard_support"
   ],
-  "Venomancer": [
+  "venomancer": [
     "soft_support",
     "offlane"
   ],
-  "Viper": [
+  "viper": [
     "mid",
     "offlane"
   ],
-  "Visage": [
+  "visage": [
     "mid",
     "offlane"
   ],
-  "Void Spirit": [
+  "void_spirit": [
     "mid"
   ],
-  "Warlock": [
+  "warlock": [
     "hard_support"
   ],
-  "Weaver": [
+  "weaver": [
     "carry",
     "soft_support"
   ],
-  "Windranger": [
+  "windrunner": [
     "mid",
     "soft_support"
   ],
-  "Winter Wyvern": [
+  "winter_wyvern": [
     "hard_support"
   ],
-  "Witch Doctor": [
+  "witch_doctor": [
     "hard_support"
   ],
-  "Wraith King": [
+  "skeleton_king": [
     "carry"
   ],
-  "Zeus": [
+  "zuus": [
     "mid",
     "support"
   ]
