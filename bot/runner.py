@@ -40,21 +40,26 @@ def run_bot():
             last_id = state.get(str(steam_id))
 
             try:
-                match = get_latest_new_match(steam_id, last_id, TOKEN)
+                minimal = get_latest_new_match(steam_id, last_id, TOKEN)
 
-                if not match:
+                if not minimal:
                     print("⏩ No new match. Skipping.")
+                    continue
+
+                full_match = fetch_latest_match(steam_id, minimal["match_id"], TOKEN)
+                if not full_match:
+                    print("⚠️ Failed to fetch full match.")
                     continue
 
                 # TODO: Format and send to Discord webhook
                 print(
-                    f"🧙 {name} — {match['hero_name']}: {match['kills']}/"
-                    f"{match['deaths']}/{match['assists']} — "
-                    f"{'🏆 Win' if match['won'] else '💀 Loss'} "
-                    f"(Match ID: {match['match_id']})"
+                    f"🧙 {name} — {full_match['hero_name']}: {full_match['kills']}/"
+                    f"{full_match['deaths']}/{full_match['assists']} — "
+                    f"{'🏆 Win' if full_match['won'] else '💀 Loss'} "
+                    f"(Match ID: {full_match['match_id']})"
                 )
 
-                updated_state[str(steam_id)] = match["match_id"]
+                updated_state[str(steam_id)] = full_match["match_id"]
 
             except Exception as e:
                 print(f"❌ Error fetching match for {name}: {e}")
