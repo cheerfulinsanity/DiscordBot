@@ -1,15 +1,13 @@
 # bot/runner.py
 
-import os
-from time import sleep
-from bot.fetch import get_latest_new_match, get_full_match_data
-from bot.formatter import format_match
+from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
+from bot.formatter import format_match
 from bot.config import CONFIG
-import json
-import logging
+from time import sleep
+import os
 
-logging.basicConfig(level=logging.INFO)
+TOKEN = os.getenv("TOKEN")
 
 def run_bot():
     print("🚀 GuildBot started")
@@ -17,69 +15,60 @@ def run_bot():
     players = CONFIG["players"]
     print(f"👥 Loaded {len(players)} players from config.json")
 
-    known_match_ids = load_state()
+    state = load_state()
     print("📥 Loaded state.json from GitHub Gist")
-    print(f"🔎 Initial state keys: {list(known_match_ids.keys())}")
 
-    token = os.getenv("TOKEN")
-    if not token:
-        print("❌ No Stratz API token found in environment. Set TOKEN before running.")
-        return
+    for index, (player_name, steam_id) in enumerate(players.items(), start=1):
+        print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({steam_id})...")
 
-    for index, (player_name, player_id) in enumerate(players.items(), start=1):
-        print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({player_id})...")
+        last_posted_id = state.get(str(steam_id))
+        match_bundle = get_latest_new_match(steam_id, last_posted_id, TOKEN)
+
+        if not match_bundle:
+            print("⏩ No new match or failed to fetch. Skipping.")
+            continue
+
+        match_id = match_bundle["match_id"]
+        match_data = match_bundle["full_data"]
+
+        # Try to find this player's block
+        player_data = next(
+            (p for p in match_data.get("players", []) if p.get("steamAccountId") == steam_id),
+            None
+        )
+
+        if not player_data:
+            print(f"❌ Player data missing in match {match_id}")
+            continue
+
+        hero_name = player_data.get("hero", {}).get("name", "unknown").replace("npc_dota_hero_", "")
+        kills = player_data.get("kills", 0)
+        deaths = player_data.get("deaths", 0)
+        assists = player_data.get("assists", 0)
+        won = player_data.get("isVictory", False)
+
+        print(f"🧙 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
+        print("📊 Performance Analysis:")
 
         try:
-            new_match = get_latest_new_match(player_id, known_match_ids.get(str(player_id)), token)
-        except Exception as e:
-            print(f"❌ Error checking latest match for {player_name}: {e}")
-            continue
-
-        if not new_match:
-            print("⏩ No new match. Skipping.")
-            continue
-
-        match_id = new_match["match_id"]
-        print(f"🆕 New match found: {match_id}")
-
-        full_data = get_full_match_data(player_id, match_id, token)
-        if not full_data:
-            print(f"❌ Failed to fetch full match data for {player_name}")
-            continue
-
-        try:
-            hero_name = new_match["hero_name"]
-            kills = new_match["kills"]
-            deaths = new_match["deaths"]
-            assists = new_match["assists"]
-            won = new_match["won"]
-
-            print(f"🧙 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
-            print("📊 Performance Analysis:")
-
             feedback = format_match(
                 player_name,
-                player_id,
+                steam_id,
                 hero_name,
                 kills,
                 deaths,
                 assists,
                 won,
-                full_data
+                match_data
             )
             print(feedback)
-
         except Exception as e:
             print(f"❌ Failed to format match for {player_name}: {e}")
-            continue
 
-        known_match_ids[str(player_id)] = match_id
+        # Update state
+        state[str(steam_id)] = match_id
         sleep(1.2)
 
-    # 🧪 Inject a fake match entry to confirm saving works
-    known_match_ids["999999999"] = 1234567890
-
-    print(f"📤 Saving updated match IDs:\n{json.dumps(known_match_ids, indent=2)}")
-    save_state(known_match_ids)
-
+    save_state(state)
+    print("📝 Updated state.json on GitHub Gist")
     print("✅ GuildBot run complete.")
