@@ -2,7 +2,7 @@
 
 import random
 from typing import Dict, List
-from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS  # ⬅ Imported from catalog
+from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES
 
 # --- LOGIC ---
 
@@ -26,31 +26,38 @@ def pick_line(tag: str, delta: float) -> str | None:
     template = random.choice(lines)
     return template.format(delta=delta * 100)
 
-def generate_advice(tags: Dict, deltas: Dict[str, float]) -> str:
-    lines: List[str] = []
+def generate_advice(tags: Dict, deltas: Dict[str, float]) -> Dict[str, List[str]]:
+    positives = []
+    negatives = []
+    tips = []
+    flags = []
 
     # Highlight
     hi = tags.get("highlight")
     if hi and hi in deltas:
-        hl_line = pick_line(hi, deltas[hi])
-        if hl_line:
-            lines.append(f"» {hl_line}")
+        line = pick_line(hi, deltas[hi])
+        if line and deltas[hi] > 0:
+            positives.append(line)
+        elif line:
+            negatives.append(line)
 
     # Lowlight
     lo = tags.get("lowlight")
     if lo and lo != hi and lo in deltas:
-        ll_line = pick_line(lo, deltas[lo])
-        if ll_line:
-            lines.append(f"» {ll_line}")
+        line = pick_line(lo, deltas[lo])
+        if line and deltas[lo] > 0:
+            positives.append(line)
+        elif line:
+            negatives.append(line)
 
     # Compound flag
     for flag in tags.get("compound_flags", []):
         options = COMPOUND_FLAGS.get(flag)
         if options:
-            lines.append(f"» {random.choice(options)}")
-            break  # Show only one
+            flags.append(random.choice(options))
+            break  # Only one for now
 
-    # Bonus praise/crit if room
+    # Additional high/low performers
     used = {hi, lo}
     remaining = sorted(
         ((k, v) for k, v in deltas.items() if k not in used),
@@ -60,7 +67,14 @@ def generate_advice(tags: Dict, deltas: Dict[str, float]) -> str:
     for stat, delta in remaining:
         line = pick_line(stat, delta)
         if line:
-            lines.append(f"» {line}")
+            (positives if delta > 0 else negatives).append(line)
+            if stat in TIP_LINES:
+                tips.append(TIP_LINES[stat])
             break
 
-    return "\n".join(lines)
+    return {
+        "positives": positives,
+        "negatives": negatives,
+        "flags": flags,
+        "tips": tips
+    }
