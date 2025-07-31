@@ -1,6 +1,7 @@
 # bot/stratz.py
 
 import requests
+import json
 
 STRATZ_URL = "https://api.stratz.com/graphql"
 
@@ -41,7 +42,10 @@ def fetch_latest_match(steam_id: int, token: str) -> dict | None:
             timeout=10
         )
         data = res.json()
-        match = data["data"]["player"]["matches"][0]
+        matches = data["data"]["player"]["matches"]
+        if not matches:
+            return None
+        match = matches[0]
         player = next(p for p in match["players"] if p["steamAccountId"] == steam_id)
         return {
             "match_id": match["id"],
@@ -120,7 +124,9 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
             headers=headers,
             timeout=15
         )
-        return res.json().get("data", {}).get("match")
+        data = res.json()
+        print("🔎 Full match response:", json.dumps(data, indent=2))
+        return data.get("data", {}).get("match")
 
     except Exception as e:
         print(f"❌ Error in fetch_full_match: {e}")
