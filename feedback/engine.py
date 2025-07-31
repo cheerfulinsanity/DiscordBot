@@ -84,7 +84,7 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
         result['compound_flags'].append('no_stacking_support')
 
     # Carry with low impact despite good farm
-    if 'gpm' in filtered_deltas and 'imp' in filtered_deltas:
+    if all(s in filtered_deltas for s in ['gpm', 'imp']):
         if filtered_deltas['gpm'] < -0.3 and filtered_deltas['imp'] >= 0:
             result['compound_flags'].append('impact_without_farm')
         if filtered_deltas['gpm'] >= 0.2 and filtered_deltas['imp'] < -0.2:
