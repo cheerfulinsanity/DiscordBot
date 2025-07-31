@@ -1,28 +1,20 @@
+# server.py
+
 from flask import Flask
 import os
-from bot.stratz import fetch_latest_match
+from bot.runner import run_bot
 
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "✅ GuildBot Flask server is running. Try /run to test the Stratz fetch."
+    return "✅ GuildBot Flask server is running. Try /run to test the full player loop."
 
 @app.route("/run")
 def run():
     try:
-        token = os.getenv("TOKEN")
-        steam_id = 84228471
-
-        match = fetch_latest_match(steam_id, token)
-
-        return (
-            f"🧙 {match['hero_name']}: {match['kills']}/"
-            f"{match['deaths']}/{match['assists']} — "
-            f"{'🏆 Win' if match['won'] else '💀 Loss'} "
-            f"(Match ID: {match['match_id']})"
-        )
-
+        lines = run_bot()
+        return "<br>".join(lines)
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
