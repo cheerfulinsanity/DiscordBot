@@ -34,7 +34,6 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if not isinstance(match_players, list):
         return f"❌ 'players' field is not a list. Got: {type(match_players)}"
 
-    # DEBUG sanity check for all entries in players list
     for p in match_players:
         if not isinstance(p, dict):
             return f"❌ Malformed player entry in match {match_id}: expected dict, got {type(p)}"
@@ -67,13 +66,24 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         return f"❌ No baseline for {hero_name} ({role})"
 
     # Compute team kills for kill participation
-    team_id = 0 if player.get("isRadiant") else 1
-    team_kills = sum(p.get("kills", 0) for p in match_players if (p.get("isRadiant") == player.get("isRadiant")))
+    is_radiant = player.get("isRadiant")
+    team_kills = sum(
+        p.get("kills", 0) for p in match_players
+        if p.get("isRadiant") == is_radiant
+    )
 
     try:
         result = analyze_player(stats, baseline, role, team_kills)
     except Exception as e:
-        return f"❌ analyze_player raised error for {player_name}: {e}"
+        debug_dump = {
+            "player_name": player_name,
+            "hero_name": hero_name,
+            "stats": stats,
+            "baseline": baseline,
+            "role": role,
+            "team_kills": team_kills
+        }
+        return f"❌ analyze_player raised error for {player_name}: {e}\n🧪 Debug dump:\n{json.dumps(debug_dump, indent=2)}"
 
     # Output summary log
     kda = f"{kills}/{deaths}/{assists}"
