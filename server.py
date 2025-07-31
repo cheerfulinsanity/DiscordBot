@@ -1,24 +1,60 @@
 # server.py
-
 from flask import Flask
-from bot.runner import run_bot
+import requests
+import os
 
 app = Flask(__name__)
 
-@app.route("/")
-def index():
-    return "GuildBot is running."
+@app.route("/run", methods=["GET"])
+def run():
+    token = os.getenv("TOKEN")
+    steam_id = 84228471  # hardcoded test player
 
-@app.route("/run")
-def trigger():
-    print("🟢 /run endpoint triggered")
+    query = """
+    query GetLatestMatch($steamId: Long!) {
+      player(steamAccountId: $steamId) {
+        matches(request: {take: 1}) {
+          id
+          durationSeconds
+          players {
+            steamAccountId
+            hero { name }
+            isVictory
+            killCount
+            deathCount
+            assistCount
+          }
+        }
+      }
+    }
+    """
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "User-Agent": "STRATZ_API"
+    }
+
+    payload = {
+        "query": query,
+        "variables": {"steamId": steam_id}
+    }
+
     try:
-        run_bot()
-        print("✅ run_bot() finished without crashing")
-        return "Bot ran successfully!"
+        res = requests.post("https://api.stratz.com/graphql", headers=headers, json=payload)
+        res.raise_for_status()
+        data = res.json()
+        match = data["data"]["player"]["matches"][0]
+        player = next(p for p in match["players"] if p["steamAccountId"] == steam_id)
+
+        hero = player["hero"]["name"]
+        k, d, a = player["killCount"], player["deathCount"], player["assistCount"]
+        win = "🏆 Win" if player["isVictory"] else "💀 Loss"
+
+        return f"🧙 {hero}: {k}/{d}/{a} — {win} (Match ID: {match['id']})"
+
     except Exception as e:
-        print(f"❌ Exception inside run_bot(): {e}")
-        return f"Error: {str(e)}", 500
+        return f"❌ Error: {str(e)}"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run()
