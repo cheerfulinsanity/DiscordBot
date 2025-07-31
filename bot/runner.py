@@ -75,7 +75,7 @@ def run_bot():
 
         try:
             save_state(updated_state)
-            print("📝 Updated state.json on GitHub Gist")
+            print("🗘️ Updated state.json on GitHub Gist")
         except Exception as e:
             print(f"⚠️ Failed to save state.json: {e}")
 
