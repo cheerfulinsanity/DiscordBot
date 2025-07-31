@@ -1,11 +1,8 @@
-# bot/formatter.py
-
 import json
 from pathlib import Path
-from datetime import datetime
 from feedback.engine import analyze_player
 
-# Load hero baselines and roles inline from local JSON
+# Load hero baselines and roles from local JSON
 baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
 roles_path = Path(__file__).parent / "../data/hero_roles.json"
 
@@ -15,13 +12,16 @@ with open(baseline_path, "r") as f:
 with open(roles_path, "r") as f:
     HERO_ROLES = json.load(f)
 
-# Rebuild into a lookup dictionary: hero_name.lower() → stats
-HERO_BASELINES = {
-    entry["hero"].lower(): entry for entry in HERO_BASELINES_LIST if "hero" in entry
-}
-
+# Normalize and rebuild baseline lookup
 def normalize_hero_name(raw_name: str) -> str:
-    return raw_name.replace("npc_dota_hero_", "").replace("_", " ").title()
+    if raw_name.startswith("npc_dota_hero_"):
+        raw_name = raw_name.replace("npc_dota_hero_", "")
+    return raw_name.replace("_", " ").title()
+
+HERO_BASELINES = {
+    normalize_hero_name(entry["hero"]).lower(): entry
+    for entry in HERO_BASELINES_LIST if "hero" in entry
+}
 
 def get_role(hero_name):
     normalized = normalize_hero_name(hero_name)
@@ -72,12 +72,8 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if not baseline:
         return f"❌ No baseline for {hero_name} ({role})"
 
-    # Compute team kills for kill participation
     is_radiant = player.get("isRadiant")
-    team_kills = sum(
-        p.get("kills", 0) for p in match_players
-        if p.get("isRadiant") == is_radiant
-    )
+    team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isRadiant") == is_radiant)
 
     try:
         result = analyze_player(stats, baseline, role, team_kills)
@@ -92,10 +88,11 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         }
         return f"❌ analyze_player raised error for {player_name}: {e}\n🧪 Debug dump:\n{json.dumps(debug_dump, indent=2)}"
 
-    # Output summary log
+    # Compose log
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆 Win" if won else "💀 Loss"
-    header = f"🧙 {player_name} — {hero_name.split('_')[-1]}: {kda} — {win_emoji} (Match ID: {match_id})"
+    short_name = normalize_hero_name(hero_name).split()[-1].lower()
+    header = f"🧙 {player_name} — {short_name}: {kda} — {win_emoji} (Match ID: {match_id})"
     summary = f"📈 Score: {round(result['score'], 2)}"
 
     tags = result['feedback_tags']
