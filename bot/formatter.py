@@ -120,4 +120,4 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         for line in advice["tips"]:
             advice_sections.append(f"- {line}")
 
-    return f"{header}\n📊 Performance Analysis:\n{summary}\n\n" + "\n".join(advice_sections)
+    return f"{header}\n📊 Performance Analysis:\n{summary}\n" + "\n".join(advice_sections)
