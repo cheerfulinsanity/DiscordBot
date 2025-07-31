@@ -26,7 +26,7 @@ def pick_line(tag: str, delta: float) -> str | None:
     template = random.choice(lines)
     return template.format(delta=delta * 100)
 
-def generate_advice(tags: Dict, deltas: Dict[str, float]) -> Dict[str, List[str]]:
+def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str] = []) -> Dict[str, List[str]]:
     positives = []
     negatives = []
     tips = []
@@ -34,7 +34,7 @@ def generate_advice(tags: Dict, deltas: Dict[str, float]) -> Dict[str, List[str]
 
     # Highlight
     hi = tags.get("highlight")
-    if hi and hi in deltas:
+    if hi and hi not in ignore_stats and hi in deltas:
         line = pick_line(hi, deltas[hi])
         if line and deltas[hi] > 0:
             positives.append(line)
@@ -43,7 +43,7 @@ def generate_advice(tags: Dict, deltas: Dict[str, float]) -> Dict[str, List[str]
 
     # Lowlight
     lo = tags.get("lowlight")
-    if lo and lo != hi and lo in deltas:
+    if lo and lo != hi and lo not in ignore_stats and lo in deltas:
         line = pick_line(lo, deltas[lo])
         if line and deltas[lo] > 0:
             positives.append(line)
@@ -60,7 +60,7 @@ def generate_advice(tags: Dict, deltas: Dict[str, float]) -> Dict[str, List[str]
     # Additional high/low performers
     used = {hi, lo}
     remaining = sorted(
-        ((k, v) for k, v in deltas.items() if k not in used),
+        ((k, v) for k, v in deltas.items() if k not in used and k not in ignore_stats),
         key=lambda x: abs(x[1]),
         reverse=True
     )
