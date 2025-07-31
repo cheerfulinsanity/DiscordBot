@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from feedback.engine import analyze_player
+from feedback.advice import generate_advice  # 🆕 Import advice generator
 
 # Load hero baselines and roles from local JSON
 baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
@@ -12,19 +13,23 @@ with open(baseline_path, "r") as f:
 with open(roles_path, "r") as f:
     HERO_ROLES = json.load(f)
 
+
 def normalize_hero_name(raw_name: str) -> str:
     if raw_name.startswith("npc_dota_hero_"):
         raw_name = raw_name.replace("npc_dota_hero_", "")
     return raw_name.lower()
+
 
 def get_role(hero_name):
     normalized = normalize_hero_name(hero_name)
     roles = HERO_ROLES.get(normalized, [])
     return roles[0] if roles else "unknown"
 
+
 def get_baseline(hero_name, role):
     normalized = normalize_hero_name(hero_name)
     return HERO_BASELINES.get(normalized)
+
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
     if not isinstance(full_match, dict):
@@ -83,16 +88,14 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         }
         return f"❌ analyze_player raised error for {player_name}: {e}\n🧪 Debug dump:\n{json.dumps(debug_dump, indent=2)}"
 
-    # Compose log
+    # Compose output
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆 Win" if won else "💀 Loss"
     short_name = normalize_hero_name(hero_name).split("_")[-1]
     header = f"🧙 {player_name} — {short_name}: {kda} — {win_emoji} (Match ID: {match_id})"
     summary = f"📈 Score: {round(result['score'], 2)}"
 
-    tags = result['feedback_tags']
-    tag_line = f"📊 Tags: highlight={tags['highlight']} | lowlight={tags['lowlight']} | critiques={tags['critiques']} | praises={tags['praises']}"
-    if tags.get("compound_flags"):
-        tag_line += f" | compound_flags={tags['compound_flags']}"
+    # Generate advice from tags and deltas
+    advice_lines = generate_advice(result['feedback_tags'], result['deltas'])
 
-    return f"{header}\n📊 Performance Analysis:\n{summary}\n{tag_line}"
+    return f"{header}\n📊 Performance Analysis:\n{summary}\n{advice_lines}"
