@@ -12,15 +12,18 @@ def load_config():
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def run_bot() -> list[str]:
+def run_bot():
+    print("🚀 Starting GuildBot match fetch...")
+
     if not TOKEN:
-        return ["❌ TOKEN environment variable is not set."]
+        print("❌ TOKEN environment variable is not set.")
+        return
 
     config = load_config()
     players = config.get("players", {})
 
-    results = []
     for i, (name, steam_id) in enumerate(players.items(), 1):
+        print(f"🔍 [{i}/{len(players)}] Fetching {name} ({steam_id})...")
         try:
             match = fetch_latest_match(steam_id, TOKEN)
             result = (
@@ -29,11 +32,10 @@ def run_bot() -> list[str]:
                 f"{'🏆 Win' if match['won'] else '💀 Loss'} "
                 f"(Match ID: {match['match_id']})"
             )
-            results.append(result)
-
+            print(result)
         except Exception as e:
-            results.append(f"❌ {name} ({steam_id}): {e}")
+            print(f"❌ {name} ({steam_id}): {e}")
 
-        time.sleep(0.25)  # 💡 4 requests/sec = 60s / 15 burst = safe
+        time.sleep(0.25)
 
-    return results
+    print("✅ GuildBot run complete.")
