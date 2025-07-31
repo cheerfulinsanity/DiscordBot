@@ -75,30 +75,40 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
         elif delta >= HIGH_DELTA_THRESHOLD:
             result['praises'].append(stat)
 
+    # Compound logic for support stacking
     if 'campStack' in deltas and deltas['campStack'] <= -0.8 and _get_role_category(role) == 'support':
         result['compound_flags'].append('no_stacking_support')
 
+    # Carry with low impact despite good farm
     if 'gpm' in deltas and 'imp' in deltas:
         if deltas['gpm'] < -0.3 and deltas['imp'] >= 0:
             result['compound_flags'].append('impact_without_farm')
         if deltas['gpm'] >= 0.2 and deltas['imp'] < -0.2:
             result['compound_flags'].append('farmed_did_nothing')
 
+    # Low kill participation
     if 'killParticipation' in deltas and deltas['killParticipation'] < -0.3:
         result['compound_flags'].append('low_kp')
 
+    # Fed and useless
     if 'deaths' in deltas and deltas['deaths'] > 0.5 and deltas.get('imp', 0) < 0:
         result['compound_flags'].append('fed_no_impact')
 
     return result
 
 def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
+    # Compute kill participation and enrich player stats
     kills = player_stats.get("kills", 0)
     assists = player_stats.get("assists", 0)
     player_stats["killParticipation"] = _compute_kp(kills, assists, team_kills)
 
+    # Calculate normalized performance deltas
     deltas = _calculate_deltas(player_stats, baseline_stats)
+
+    # Weighted performance score
     score = _score_performance(deltas, role)
+
+    # Tag-based analysis for advice generation
     feedback_tags = _select_priority_feedback(deltas, role, context=player_stats)
 
     return {
