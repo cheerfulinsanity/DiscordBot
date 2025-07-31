@@ -32,12 +32,7 @@ def get_expected_role(hero_name: str) -> str:
     return role_list[0] if role_list else "unknown"
 
 def format_match(player: dict, match: dict) -> str:
-    steam_id = player.get("steamAccountId")
     hero_name = player.get("hero", {}).get("name", "").replace("npc_dota_hero_", "")
-    kda = f"{player.get('kills', 0)}/{player.get('deaths', 0)}/{player.get('assists', 0)}"
-    result = "🏆 Win" if player.get("isVictory") else "💀 Loss"
-
-    # Extract inputs needed for feedback engine
     hero_short = hero_name
     team_kills = sum(p["kills"] for p in match["players"] if p["isRadiant"] == player["isRadiant"])
     role = get_expected_role(hero_short)
@@ -61,7 +56,6 @@ def format_match(player: dict, match: dict) -> str:
     tag_summary = " | ".join(f"{k}={v}" for k, v in tags.items() if v)
 
     return (
-        f"🧙 {steam_id} — {hero_name}: {kda} — {result}\n"
         f"📈 Score: {score:.2f}\n"
         f"📊 Tags: {tag_summary}"
     )
