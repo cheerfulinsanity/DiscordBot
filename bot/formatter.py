@@ -33,6 +33,10 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     match_start = full_match.get("startDateTime", 0)
     match_duration = full_match.get("durationSeconds", 0)
 
+    # Ensure players is a list
+    if not isinstance(match_players, list):
+        return f"❌ 'players' field is not a list. Got: {type(match_players)}"
+
     player = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
     if not player:
         return f"❌ Player data not found in match {match_id}"
@@ -42,7 +46,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     camp_stack = stats_block.get("campStack") or []
     level_list = stats_block.get("level") or []
 
-    player_stats = {
+    stats = {
         'kills': player.get('kills', 0),
         'deaths': player.get('deaths', 0),
         'assists': player.get('assists', 0),
@@ -58,16 +62,21 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if not baseline:
         return f"❌ No baseline for {hero_name} ({role})"
 
-    team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isVictory") == player.get("isVictory"))
-    analysis = analyze_player(player_stats, baseline, role, team_kills)
+    # Compute team kills for kill participation
+    team_id = 0 if player.get("isRadiant") else 1
+    team_kills = sum(p.get("kills", 0) for p in match_players if (p.get("isRadiant") == player.get("isRadiant")))
+
+    result = analyze_player(stats, baseline, role, team_kills)
 
     # Output summary log
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆 Win" if won else "💀 Loss"
     header = f"🧙 {player_name} — {hero_name.split('_')[-1]}: {kda} — {win_emoji} (Match ID: {match_id})"
-    summary = f"📈 Score: {round(analysis['score'], 2)}"
-    tags = f"📊 Tags: highlight={analysis['feedback_tags']['highlight']} | lowlight={analysis['feedback_tags']['lowlight']} | critiques={analysis['feedback_tags']['critiques']} | praises={analysis['feedback_tags']['praises']}"
-    if analysis['feedback_tags']['compound_flags']:
-        tags += f" | compound_flags={analysis['feedback_tags']['compound_flags']}"
+    summary = f"📈 Score: {round(result['score'], 2)}"
 
-    return f"{header}\n📊 Performance Analysis:\n{summary}\n{tags}"
+    tags = result['feedback_tags']
+    tag_line = f"📊 Tags: highlight={tags['highlight']} | lowlight={tags['lowlight']} | critiques={tags['critiques']} | praises={tags['praises']}"
+    if tags.get("compound_flags"):
+        tag_line += f" | compound_flags={tags['compound_flags']}"
+
+    return f"{header}\n📊 Performance Analysis:\n{summary}\n{tag_line}"
