@@ -32,9 +32,11 @@ ROLE_WEIGHTS = {
 def _get_role_category(role: str) -> str:
     return 'support' if role in ['softSupport', 'hardSupport'] else 'core'
 
-def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any]) -> Dict[str, float]:
+def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], ignore_stats: list[str] = []) -> Dict[str, float]:
     deltas = {}
     for key in baseline_stats:
+        if key in ignore_stats:
+            continue
         player_val = player_stats.get(key)
         baseline_val = baseline_stats.get(key)
         if isinstance(player_val, (int, float)) and isinstance(baseline_val, (int, float)) and baseline_val != 0:
@@ -95,14 +97,20 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
 
     return result
 
-def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
+def analyze_player(
+    player_stats: Dict[str, Any],
+    baseline_stats: Dict[str, Any],
+    role: str,
+    team_kills: int,
+    ignore_stats: list[str] = []
+) -> Dict[str, Any]:
     # Compute kill participation and enrich player stats
     kills = player_stats.get("kills", 0)
     assists = player_stats.get("assists", 0)
     player_stats["killParticipation"] = _compute_kp(kills, assists, team_kills)
 
     # Calculate normalized performance deltas
-    deltas = _calculate_deltas(player_stats, baseline_stats)
+    deltas = _calculate_deltas(player_stats, baseline_stats, ignore_stats=ignore_stats)
 
     # Weighted performance score
     score = _score_performance(deltas, role)
