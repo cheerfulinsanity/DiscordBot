@@ -6,7 +6,6 @@ from feedback.engine import analyze_player
 from data.config import load_config
 from bot.gist_state import load_state, save_state
 
-# Temporary import for printing/logging output
 import json
 
 TOKEN = os.getenv("TOKEN")
@@ -38,7 +37,6 @@ def run():
             print("⚠️ Player not found in match")
             continue
 
-        # Extract stats for feedback
         team_kills = sum(p['kills'] for p in full_data['players'] if p['isRadiant'] == player['isRadiant'])
 
         stats = {
@@ -48,13 +46,12 @@ def run():
             'gpm': player['goldPerMinute'],
             'xpm': player['experiencePerMinute'],
             'imp': player['imp'],
-            'campStack': player['stats'].get('campStack', 0),
-            'level': player['stats'].get('level', 0),
+            'campStack': sum(player['stats'].get('campStack', [])),
+            'level': player['stats'].get('level', [])[-1] if player['stats'].get('level') else 0,
         }
 
-        # Baseline lookup must be implemented here (placeholder):
-        from data.hero_baselines import get_hero_baseline  # Ensure this is implemented
-        from data.hero_roles import get_expected_role      # Ensure this is implemented
+        from data.hero_baselines import get_hero_baseline
+        from data.hero_roles import get_expected_role
 
         hero_short = player['hero']['name'].replace("npc_dota_hero_", "")
         role = get_expected_role(hero_short)
@@ -67,9 +64,14 @@ def run():
         analysis = analyze_player(stats, baseline, role, team_kills)
 
         print("📊 Feedback Analysis:")
-        print(json.dumps(analysis, indent=2))
+        for key, val in analysis.items():
+            if isinstance(val, dict):
+                print(f"{key}:")
+                for subkey, subval in val.items():
+                    print(f"  {subkey}: {subval}")
+            else:
+                print(f"{key}: {val}")
 
-        # TEMPORARY mock feedback summary until formatter is wired:
         top_tag = analysis['feedback_tags'].get('compound_flags') or analysis['feedback_tags'].get('critiques')
         summary_line = "🧠 Performance review: "
         if top_tag:
@@ -83,7 +85,6 @@ def run():
 
         print(summary_line)
 
-        # Update state to prevent repost
         state[str(steam_id)] = latest['match_id']
 
     save_state(state)
