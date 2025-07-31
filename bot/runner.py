@@ -1,26 +1,39 @@
 # bot/runner.py
 
 import os
-import time
-from bot.fetch import get_latest_new_match
+import json
+from bot.stratz import fetch_latest_match
+
+CONFIG_PATH = "data/config.json"
+TOKEN = os.getenv("TOKEN")
+
+def load_config():
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def run_bot():
-    print("🔁 Running GuildBot minimal test")
+    if not TOKEN:
+        print("❌ TOKEN environment variable is not set.")
+        return
 
-    token = os.getenv("TOKEN")
-    steam_id = 84228471
-    last_posted_id = None  # Replace with state.get(...) later
+    config = load_config()
+    players = config.get("players", {})
 
-    match = get_latest_new_match(steam_id, last_posted_id, token)
+    print(f"🧙 Starting run for {len(players)} players...\n")
 
-    if match:
-        print(
-            f"🧙 {match['hero_name']}: {match['kills']}/"
-            f"{match['deaths']}/{match['assists']} — "
-            f"{'🏆 Win' if match['won'] else '💀 Loss'} "
-            f"(Match ID: {match['match_id']})"
-        )
-    else:
-        print("⏭️ No new match")
+    for name, steam_id in players.items():
+        try:
+            match = fetch_latest_match(steam_id, TOKEN)
+            result = (
+                f"🧙 {name} — {match['hero_name']}: {match['kills']}/"
+                f"{match['deaths']}/{match['assists']} — "
+                f"{'🏆 Win' if match['won'] else '💀 Loss'} "
+                f"(Match ID: {match['match_id']})"
+            )
+            print(result)
 
-    time.sleep(1.0)  # placeholder for eventual rate limit pacing
+        except Exception as e:
+            print(f"❌ Error fetching for {name} ({steam_id}): {e}")
+
+if __name__ == "__main__":
+    run_bot()
