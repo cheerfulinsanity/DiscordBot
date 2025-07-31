@@ -3,7 +3,7 @@
 import os
 import json
 import time
-from bot.fetch import get_latest_new_match
+from bot.fetch import get_latest_new_match, get_full_match_data
 from bot.gist_state import load_state, save_state
 
 CONFIG_PATH = "data/config.json"
@@ -45,13 +45,19 @@ def run_bot():
                     print("⏩ No new match. Skipping.")
                     continue
 
-                # TODO: Format and send to Discord webhook
                 print(
                     f"🧙 {name} — {match['hero_name']}: {match['kills']}/"
                     f"{match['deaths']}/{match['assists']} — "
                     f"{'🏆 Win' if match['won'] else '💀 Loss'} "
                     f"(Match ID: {match['match_id']})"
                 )
+
+                # Fetch and log full match payload
+                full_data = get_full_match_data(steam_id, match["match_id"], TOKEN)
+                if full_data:
+                    print(json.dumps(full_data, indent=2))
+                else:
+                    print("⚠️ Full match fetch failed")
 
                 updated_state[str(steam_id)] = match["match_id"]
 
