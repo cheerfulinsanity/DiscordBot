@@ -1,17 +1,31 @@
+# bot/formatter.py
+
 from feedback.engine import analyze_player
 
+EMOJI_WIN = "🏆"
+EMOJI_LOSS = "💀"
+EMOJI_HERO = "🧙"
+EMOJI_STATS = "📊"
+EMOJI_FEEDBACK = "📝"
 
-def format_match(player: dict, match: dict) -> str:
-    """
-    Build a basic string summary for a player's match, including performance feedback tokens.
-    """
-    steam_id = player.get("steamAccountId")
-    hero_name = player.get("hero", {}).get("name", "").replace("npc_dota_hero_", "")
-    kda = f"{player.get('kills', 0)}/{player.get('deaths', 0)}/{player.get('assists', 0)}"
-    result = "🏆 Win" if player.get("isVictory") else "💀 Loss"
+def format_match(player_name, player_data, match_data):
+    hero = player_data['hero']['name'].replace("npc_dota_hero_", "")
+    kda = f"{player_data['kills']}/{player_data['deaths']}/{player_data['assists'] }"
+    won = player_data['isVictory']
+    emoji = EMOJI_WIN if won else EMOJI_LOSS
 
-    # Call feedback engine to calculate performance tags (currently placeholders)
-    feedback_tokens = analyze_player(player, match)
-    feedback_summary = " | ".join(feedback_tokens)
+    # Header summary line
+    summary_line = f"{EMOJI_HERO} {player_name} — {hero}: {kda} — {emoji} {'Win' if won else 'Loss'}"
 
-    return f"🧙 {steam_id} — {hero_name}: {kda} — {result}\n📊 {feedback_summary}"
+    # Get feedback token dict
+    feedback = analyze_player(player_data, match_data)
+    token_keys = list(feedback.keys())
+
+    # Token label line (to be replaced later)
+    token_line = f"{EMOJI_STATS} {' | '.join(token_keys)}"
+
+    # Placeholder feedback section
+    feedback_lines = [f"- [{token}]" for token in token_keys]
+    feedback_block = f"{EMOJI_FEEDBACK} Feedback:\n" + "\n".join(feedback_lines)
+
+    return f"{summary_line}\n{token_line}\n{feedback_block}"
