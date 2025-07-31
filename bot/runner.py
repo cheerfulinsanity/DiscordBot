@@ -2,6 +2,7 @@
 
 import os
 import json
+import time
 from bot.stratz import fetch_latest_match
 
 CONFIG_PATH = "data/config.json"
@@ -19,7 +20,7 @@ def run_bot() -> list[str]:
     players = config.get("players", {})
 
     results = []
-    for name, steam_id in players.items():
+    for i, (name, steam_id) in enumerate(players.items(), 1):
         try:
             match = fetch_latest_match(steam_id, TOKEN)
             result = (
@@ -29,6 +30,10 @@ def run_bot() -> list[str]:
                 f"(Match ID: {match['match_id']})"
             )
             results.append(result)
+
         except Exception as e:
             results.append(f"❌ {name} ({steam_id}): {e}")
+
+        time.sleep(0.25)  # 💡 4 requests/sec = 60s / 15 burst = safe
+
     return results
