@@ -1,74 +1,56 @@
-# bot/runner.py
+import json
+from bot import fetch
+from bot import formatter
+from bot import opendota
+from bot import gist_state
+from feedback import engine
+from data import config
 
-from bot.fetch import get_latest_new_match
-from bot.gist_state import load_state, save_state
-from bot.formatter import format_match
-from bot.config import CONFIG
-from time import sleep
-import os
-
-TOKEN = os.getenv("TOKEN")
-
-def run_bot():
+def run_guildbot():
     print("🚀 GuildBot started")
 
-    players = CONFIG["players"]
+    players = config.load_player_config()
     print(f"👥 Loaded {len(players)} players from config.json")
 
-    state = load_state()
+    state = gist_state.load_state()
+    print(f"🧪 Gist file keys: {list(state.keys())}")
     print("📥 Loaded state.json from GitHub Gist")
 
-    for index, (player_name, steam_id) in enumerate(players.items(), start=1):
-        print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({steam_id})...")
+    new_state = {}
 
-        last_posted_id = state.get(str(steam_id))
-        match_bundle = get_latest_new_match(steam_id, last_posted_id, TOKEN)
+    for idx, (name, steam_id) in enumerate(players.items(), 1):
+        print(f"🔍 [{idx}/{len(players)}] Checking {name} ({steam_id})...")
 
-        if not match_bundle:
+        last_match_id = state.get(str(steam_id))
+        latest_match_id = opendota.get_latest_match_id(steam_id)
+
+        if not latest_match_id or str(latest_match_id) == str(last_match_id):
             print("⏩ No new match or failed to fetch. Skipping.")
+            new_state[str(steam_id)] = last_match_id
             continue
 
-        match_id = match_bundle["match_id"]
-        match_data = match_bundle["full_data"]
+        match = fetch.get_full_match_data(latest_match_id)
+        if not match:
+            print("❌ Failed to fetch full match data. Skipping.")
+            continue
 
-        # Try to find this player's block
-        player_data = next(
-            (p for p in match_data.get("players", []) if p.get("steamAccountId") == steam_id),
-            None
-        )
-
+        player_data = next((p for p in match["players"] if p["steamAccountId"] == steam_id), None)
         if not player_data:
-            print(f"❌ Player data missing in match {match_id}")
+            print(f"❌ Could not find player {steam_id} in match. Skipping.")
             continue
 
-        hero_name = player_data.get("hero", {}).get("name", "unknown").replace("npc_dota_hero_", "")
-        kills = player_data.get("kills", 0)
-        deaths = player_data.get("deaths", 0)
-        assists = player_data.get("assists", 0)
-        won = player_data.get("isVictory", False)
-
-        print(f"🧙 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
-        print("📊 Performance Analysis:")
+        print(f"🧙 {name} — {player_data['hero']['name'].replace('npc_dota_hero_', '')}: {player_data['kills']}/{player_data['deaths']}/{player_data['assists']} — {'🏆 Win' if player_data['isVictory'] else '💀 Loss'} (Match ID: {match['id']})")
 
         try:
-            feedback = format_match(
-                player_name,
-                steam_id,
-                hero_name,
-                kills,
-                deaths,
-                assists,
-                won,
-                match_data
-            )
+            summary = formatter.format_match_summary(match, steam_id)
+            feedback = engine.generate_feedback(match, steam_id)
+            print("📊 Performance Analysis:")
             print(feedback)
         except Exception as e:
-            print(f"❌ Failed to format match for {player_name}: {e}")
+            print(f"❌ Failed to format match for {name}: {e}")
+            continue
 
-        # Update state
-        state[str(steam_id)] = match_id
-        sleep(1.2)
+        new_state[str(steam_id)] = match["id"]
 
-    save_state(state)
-    print("📝 Updated state.json on GitHub Gist")
+    gist_state.save_state(new_state)
     print("✅ GuildBot run complete.")
