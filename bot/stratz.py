@@ -1,83 +1,100 @@
-import requests
 import os
+import requests
 
+STRATZ_URL = "https://api.stratz.com/graphql"
 TOKEN = os.getenv("TOKEN")
 
-QUERY = """
-query GetLatestMatch($steamId: Long!) {
-  player(steamAccountId: $steamId) {
-    matches(request: { take: 1 }) {
-      id
-      durationSeconds
-      gameMode
-      startDateTime
-      players {
-        steamAccountId
-        isVictory
-        hero { id name }
-        kills
-        deaths
-        assists
-        goldPerMinute
-        experiencePerMinute
-        numLastHits
+HEADERS = {
+    "Authorization": f"Bearer {TOKEN}",
+    "User-Agent": "STRATZ_API",
+    "Content-Type": "application/json",
+}
+
+
+def fetch_latest_match(steam_id):
+    query = """
+    query ($steamId: Long!) {
+      player(steamAccountId: $steamId) {
+        matches(request: {take: 1}) {
+          id
+        }
       }
     }
-  }
-}
-"""
-
-def fetch_latest_match(steam_id: int, token=None) -> dict | None:
-    headers = {
-        "Authorization": f"Bearer {TOKEN}",
-        "Content-Type": "application/json",
-        "User-Agent": "STRATZ_API"
-    }
-
-    payload = {
-        "query": QUERY,
-        "variables": {"steamId": steam_id}
-    }
-
-    res = requests.post("https://api.stratz.com/graphql", headers=headers, json=payload)
-    if res.status_code != 200:
-        print(f"❌ HTTP error {res.status_code}: {res.text}")
-        return None
-
+    """
+    variables = {"steamId": steam_id}
+    response = requests.post(STRATZ_URL, headers=HEADERS, json={"query": query, "variables": variables})
+    response.raise_for_status()
+    data = response.json()
     try:
-        data = res.json()
-        match = data["data"]["player"]["matches"][0]
-        match_id = match["id"]
-        is_turbo = (match["gameMode"] == "TURBO")
-        duration = match["durationSeconds"]
-
-        for p in match["players"]:
-            if p["steamAccountId"] == steam_id:
-                result = {
-                    "match_id": match_id,
-                    "kills": p["kills"],
-                    "deaths": p["deaths"],
-                    "assists": p["assists"],
-                    "gpm": p["goldPerMinute"],
-                    "xpm": p["experiencePerMinute"],
-                    "last_hits": p["numLastHits"],
-                    "hero_name": p["hero"]["name"],
-                    "won": p["isVictory"],
-                    "duration": duration,
-                    "is_turbo": is_turbo
-                }
-
-                print(f"\n🎯 Match {match_id} — {p['hero']['name']}")
-                for k, v in result.items():
-                    print(f"  {k}: {v}")
-                print("")  # newline for clarity
-
-                return result
-
-        print("❌ Could not find player in match.")
+        return data["data"]["player"]["matches"][0]["id"]
+    except (KeyError, IndexError):
         return None
 
-    except Exception as e:
-        print(f"❌ JSON parse error: {e}")
-        print("Raw response:", res.text)
-        return None
+
+def fetch_full_match(steam_id):
+    query = """
+    query ($steamId: Long!) {
+      player(steamAccountId: $steamId) {
+        matches(request: {take: 1}) {
+          id
+          durationSeconds
+          startDateTime
+          gameMode
+          players {
+            steamAccountId
+            isVictory
+            isRadiant
+            lane
+            role
+            position
+            partyId
+            kills
+            deaths
+            assists
+            goldPerMinute
+            experiencePerMinute
+            numLastHits
+            imp
+            item0Id
+            item1Id
+            item2Id
+            item3Id
+            item4Id
+            item5Id
+            neutral0Id
+            backpack0Id
+            backpack1Id
+            backpack2Id
+            isRandom
+            intentionalFeeding
+            hero {
+              id
+              name
+            }
+            stats {
+              level
+              itemPurchases {
+                itemId
+                time
+              }
+              killEvents {
+                time
+                target
+              }
+              deathEvents {
+                time
+              }
+              assistEvents {
+                time
+                target
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    variables = {"steamId": steam_id}
+    response = requests.post(STRATZ_URL, headers=HEADERS, json={"query": query, "variables": variables})
+    response.raise_for_status()
+    return response.json()
