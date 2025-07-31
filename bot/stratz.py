@@ -27,7 +27,7 @@ query GetLatestMatch($steamId: Long!) {
 }
 """
 
-def fetch_latest_match(steam_id: int) -> dict | None:
+def fetch_latest_match(steam_id: int, token=None) -> dict | None:
     headers = {
         "Authorization": f"Bearer {TOKEN}",
         "Content-Type": "application/json",
@@ -51,7 +51,6 @@ def fetch_latest_match(steam_id: int) -> dict | None:
         is_turbo = (match["gameMode"] == "TURBO")
         duration = match["durationSeconds"]
 
-        # find our player
         for p in match["players"]:
             if p["steamAccountId"] == steam_id:
                 result = {
@@ -68,7 +67,6 @@ def fetch_latest_match(steam_id: int) -> dict | None:
                     "is_turbo": is_turbo
                 }
 
-                # Log everything for now
                 print(f"\n🎯 Match {match_id} — {p['hero']['name']}")
                 for k, v in result.items():
                     print(f"  {k}: {v}")
