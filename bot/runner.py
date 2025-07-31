@@ -64,9 +64,12 @@ def run_bot():
                     continue
 
                 print("📊 Performance Analysis:")
-                print(format_match(player, full_match))
-
-                updated_state[str(steam_id)] = match["match_id"]
+                try:
+                    output = format_match(player, full_match)
+                    print(output)
+                    updated_state[str(steam_id)] = match["match_id"]
+                except Exception as e:
+                    print(f"❌ Failed to format match for {name}: {e}")
 
             except Exception as e:
                 print(f"❌ Error fetching or processing match for {name}: {e}")
@@ -75,7 +78,7 @@ def run_bot():
 
         try:
             save_state(updated_state)
-            print("🗘️ Updated state.json on GitHub Gist")
+            print("📝 Updated state.json on GitHub Gist")
         except Exception as e:
             print(f"⚠️ Failed to save state.json: {e}")
 
