@@ -1,78 +1,91 @@
-# bot/runner.py
+# runner.py
 
 import os
-import json
-import time
 from bot.fetch import get_latest_new_match, get_full_match_data
+from feedback.engine import analyze_player
+from data.config import load_config
 from bot.gist_state import load_state, save_state
 
-CONFIG_PATH = "data/config.json"
+# Temporary import for printing/logging output
+import json
+
 TOKEN = os.getenv("TOKEN")
 
-def load_config():
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+def run():
+    config = load_config()
+    state = load_state()
 
-def run_bot():
     print("🚀 GuildBot started")
+    print(f"👥 Loaded {len(config)} players from config.json")
 
-    if not TOKEN:
-        print("❌ TOKEN is missing!")
-        return
+    for name, steam_id in config.items():
+        print(f"🔍 Checking {name} ({steam_id})...")
 
-    try:
-        config = load_config()
-        players = config.get("players", {})
-        print(f"👥 Loaded {len(players)} players from config.json")
+        latest = get_latest_new_match(steam_id, state, TOKEN)
+        if not latest:
+            print("⏩ No new match. Skipping.")
+            continue
 
-        try:
-            state = load_state()
-            print("📥 Loaded state.json from GitHub Gist")
-        except Exception as e:
-            print(f"⚠️ Failed to load state.json: {e}")
-            state = {}
+        print(f"🧙 {name} — {latest['hero_name']}: {latest['kills']}/{latest['deaths']}/{latest['assists']} — {'🏆 Win' if latest['won'] else '💀 Loss'} (Match ID: {latest['match_id']})")
 
-        updated_state = state.copy()
+        full_data = get_full_match_data(steam_id, latest['match_id'], TOKEN)
+        if not full_data:
+            print("⚠️ Full match fetch failed")
+            continue
 
-        for i, (name, steam_id) in enumerate(players.items(), 1):
-            print(f"\n🔍 [{i}/{len(players)}] Checking {name} ({steam_id})...")
-            last_id = state.get(str(steam_id))
+        player = next((p for p in full_data['players'] if p['steamAccountId'] == steam_id), None)
+        if not player:
+            print("⚠️ Player not found in match")
+            continue
 
-            try:
-                match = get_latest_new_match(steam_id, last_id, TOKEN)
+        # Extract stats for feedback
+        team_kills = sum(p['kills'] for p in full_data['players'] if p['isRadiant'] == player['isRadiant'])
 
-                if not match:
-                    print("⏩ No new match. Skipping.")
-                    continue
+        stats = {
+            'kills': player['kills'],
+            'deaths': player['deaths'],
+            'assists': player['assists'],
+            'gpm': player['goldPerMinute'],
+            'xpm': player['experiencePerMinute'],
+            'imp': player['imp'],
+            'campStack': player['stats'].get('campStack', 0),
+            'level': player['stats'].get('level', 0),
+        }
 
-                print(
-                    f"🧙 {name} — {match['hero_name']}: {match['kills']}/"
-                    f"{match['deaths']}/{match['assists']} — "
-                    f"{'🏆 Win' if match['won'] else '💀 Loss'} "
-                    f"(Match ID: {match['match_id']})"
-                )
+        # Baseline lookup must be implemented here (placeholder):
+        from data.hero_baselines import get_hero_baseline  # Ensure this is implemented
+        from data.hero_roles import get_expected_role      # Ensure this is implemented
 
-                # Fetch and log full match payload
-                full_data = get_full_match_data(steam_id, match["match_id"], TOKEN)
-                if full_data:
-                    print(json.dumps(full_data, indent=2))
-                else:
-                    print("⚠️ Full match fetch failed")
+        hero_short = player['hero']['name'].replace("npc_dota_hero_", "")
+        role = get_expected_role(hero_short)
+        baseline = get_hero_baseline(hero_short, role)
 
-                updated_state[str(steam_id)] = match["match_id"]
+        if not baseline:
+            print("⚠️ No baseline found. Skipping feedback.")
+            continue
 
-            except Exception as e:
-                print(f"❌ Error fetching match for {name}: {e}")
+        analysis = analyze_player(stats, baseline, role, team_kills)
 
-            time.sleep(0.25)  # Respect API rate limits
+        print("📊 Feedback Analysis:")
+        print(json.dumps(analysis, indent=2))
 
-        try:
-            save_state(updated_state)
-            print("📝 Updated state.json on GitHub Gist")
-        except Exception as e:
-            print(f"⚠️ Failed to save state.json: {e}")
+        # TEMPORARY mock feedback summary until formatter is wired:
+        top_tag = analysis['feedback_tags'].get('compound_flags') or analysis['feedback_tags'].get('critiques')
+        summary_line = "🧠 Performance review: "
+        if top_tag:
+            summary_line += f"Most notable issue: {top_tag[0]}"
+        elif analysis['score'] > 0.2:
+            summary_line += "Great game! Solid stats across the board."
+        elif analysis['score'] < -0.3:
+            summary_line += "Rough one. Stats say: time to hit the demo range."
+        else:
+            summary_line += "Decent showing — but plenty of room to improve."
 
-        print("\n✅ GuildBot run complete.")
+        print(summary_line)
 
-    except Exception as outer:
-        print(f"💥 CRASH in run_bot(): {outer}")
+        # Update state to prevent repost
+        state[str(steam_id)] = latest['match_id']
+
+    save_state(state)
+    print("📝 Updated state.json on GitHub Gist")
+    print("✅ GuildBot run complete.")
