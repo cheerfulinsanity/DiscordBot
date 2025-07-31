@@ -1,95 +1,48 @@
-# runner.py
-
 import os
+import json
 from bot.fetch import get_latest_new_match, get_full_match_data
+from bot.formatter import format_match
 from feedback.engine import analyze_player
-from data.config import load_config
 from bot.gist_state import load_state, save_state
 
-# Temporary import for printing/logging output
-import json
-
-TOKEN = os.getenv("TOKEN")
-
-def run():
-    config = load_config()
-    state = load_state()
-
+def run_bot():
     print("🚀 GuildBot started")
+
+    # Load config.json directly
+    with open("config.json", "r") as f:
+        config = json.load(f)
     print(f"👥 Loaded {len(config)} players from config.json")
 
-    for name, steam_id in config.items():
-        print(f"🔍 Checking {name} ({steam_id})...")
+    state = load_state()
+    print("📥 Loaded state.json from GitHub Gist")
 
-        latest = get_latest_new_match(steam_id, state, TOKEN)
+    new_state = {}
+    for i, (player_name, steam_id) in enumerate(config.items(), start=1):
+        print(f"🔍 [{i}/{len(config)}] Checking {player_name} ({steam_id})...")
+
+        latest = get_latest_new_match(steam_id, state.get(str(steam_id)))
         if not latest:
             print("⏩ No new match. Skipping.")
+            new_state[str(steam_id)] = state.get(str(steam_id))
             continue
 
-        print(f"🧙 {name} — {latest['hero_name']}: {latest['kills']}/{latest['deaths']}/{latest['assists']} — {'🏆 Win' if latest['won'] else '💀 Loss'} (Match ID: {latest['match_id']})")
+        print(f"🧙 {player_name} — {latest['hero_name']}: {latest['kills']}/{latest['deaths']}/{latest['assists']} — {'🏆 Win' if latest['won'] else '💀 Loss'} (Match ID: {latest['match_id']})")
 
-        full_data = get_full_match_data(steam_id, latest['match_id'], TOKEN)
-        if not full_data:
+        match_data = get_full_match_data(steam_id, latest["match_id"])
+        if not match_data:
             print("⚠️ Full match fetch failed")
             continue
 
-        player = next((p for p in full_data['players'] if p['steamAccountId'] == steam_id), None)
-        if not player:
-            print("⚠️ Player not found in match")
-            continue
+        # Run feedback analysis
+        feedback = analyze_player(match_data)
+        print(f"💬 Feedback tokens: {feedback}")
 
-        # Extract stats for feedback
-        team_kills = sum(p['kills'] for p in full_data['players'] if p['isRadiant'] == player['isRadiant'])
+        # Format and (later) send match summary
+        message = format_match(player_name, latest, match_data)
+        print(message)  # currently logging to console
 
-        stats = {
-            'kills': player['kills'],
-            'deaths': player['deaths'],
-            'assists': player['assists'],
-            'gpm': player['goldPerMinute'],
-            'xpm': player['experiencePerMinute'],
-            'imp': player['imp'],
-            'campStack': sum(player['stats'].get('campStack') or []),
-            'level': max(player['stats'].get('level') or [0])
-        }
+        new_state[str(steam_id)] = latest["match_id"]
 
-        from data.hero_baselines import get_hero_baseline
-        from data.hero_roles import get_expected_role
-
-        hero_short = player['hero']['name'].replace("npc_dota_hero_", "")
-        role = get_expected_role(hero_short)
-        baseline = get_hero_baseline(hero_short, role)
-
-        if not baseline:
-            print("⚠️ No baseline found. Skipping feedback.")
-            continue
-
-        analysis = analyze_player(stats, baseline, role, team_kills)
-
-        print("📊 Feedback Score: {:.2f}".format(analysis['score']))
-        if analysis['praise']:
-            print("🌟 Praise:")
-            for line in analysis['praise']:
-                print("   👍", line)
-        if analysis['advice']:
-            print("🛠️ Advice:")
-            for line in analysis['advice']:
-                print("   ⚠️", line)
-
-        # Optional: top-level summary message
-        if analysis['score'] > 0.4:
-            summary = "💪 Clean game! Strong numbers and good impact."
-        elif analysis['score'] > 0.15:
-            summary = "👌 Solid showing. A few tweaks and you’re golden."
-        elif analysis['score'] > -0.15:
-            summary = "🤔 Mixed bag. Some good moves, some head-scratchers."
-        else:
-            summary = "🫠 Statistically a war crime. Time for a review session."
-
-        print(f"🧠 Summary: {summary}")
-
-        # Update state to prevent repost
-        state[str(steam_id)] = latest['match_id']
-
-    save_state(state)
+    save_state(new_state)
     print("📝 Updated state.json on GitHub Gist")
     print("✅ GuildBot run complete.")
