@@ -2,41 +2,47 @@
 
 import json
 from pathlib import Path
-from datetime import datetime
+from feedback.engine import analyze_player
 
-# Load hero baselines and roles inline from local JSON
-baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
+# Load hero roles and baselines
 roles_path = Path(__file__).parent / "../data/hero_roles.json"
-
-with open(baseline_path, "r") as f:
-    HERO_BASELINES = json.load(f)
+baselines_path = Path(__file__).parent / "../data/hero_baselines.json"
 
 with open(roles_path, "r") as f:
     HERO_ROLES = json.load(f)
 
+with open(baselines_path, "r") as f:
+    RAW_BASELINES = json.load(f)
 
-def get_role(hero_name):
-    return HERO_ROLES.get(hero_name, "unknown")
+# Reformat baselines into dict[hero][role]
+HERO_BASELINES = {}
+for entry in RAW_BASELINES:
+    hero = entry["hero"]
+    if hero not in HERO_BASELINES:
+        HERO_BASELINES[hero] = {}
+    for role in HERO_ROLES.get(hero, ["unknown"]):
+        HERO_BASELINES[hero][role] = {
+            k: entry[k] for k in ["kills", "deaths", "assists", "gpm", "xpm"]
+            if k in entry
+        }
 
+def get_role(hero_name: str) -> str:
+    roles = HERO_ROLES.get(hero_name, [])
+    if not roles:
+        return "unknown"
+    for r in roles:
+        if "support" in r:
+            return "support"
+    return "core"
 
-def get_baseline(hero_name, role):
+def get_baseline(hero_name: str, role: str) -> dict:
     return HERO_BASELINES.get(hero_name, {}).get(role)
-
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
     match_id = full_match.get("id")
-    match_players = full_match.get("players", [])
-    match_start = full_match.get("startDateTime", 0)
-    match_duration = full_match.get("durationSeconds", 0)
-
-    player = next((p for p in match_players if p["steamAccountId"] == player_id), None)
+    player = next((p for p in full_match.get("players", []) if p["steamAccountId"] == player_id), None)
     if not player:
         return f"❌ Player data not found in match {match_id}"
-
-    # Defensive stat extraction
-    stats_block = player.get("stats") or {}
-    camp_stack = stats_block.get("campStack") or []
-    level_list = stats_block.get("level") or []
 
     stats = {
         'kills': player.get('kills', 0),
@@ -45,56 +51,29 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         'gpm': player.get('goldPerMinute', 0),
         'xpm': player.get('experiencePerMinute', 0),
         'imp': player.get('imp', 0),
-        'campStack': sum(camp_stack) if isinstance(camp_stack, list) else 0,
-        'level': level_list[-1] if isinstance(level_list, list) and level_list else 0,
+        'campStack': sum(player.get("stats", {}).get("campStack", [])) if isinstance(player.get("stats", {}).get("campStack"), list) else 0,
+        'level': player.get("stats", {}).get("level", [-1])[-1] if isinstance(player.get("stats", {}).get("level"), list) else 0,
     }
 
     role = get_role(hero_name)
     baseline = get_baseline(hero_name, role)
     if not baseline:
-        return f"❌ No baseline for {hero_name} ({role})"
+        return f"❌ No baseline available for {hero_name} ({role})"
 
-    # Score calculation
-    deltas = {}
-    score = 0
-    weightings = {
-        'kills': 1.0,
-        'deaths': -1.5,
-        'assists': 0.7,
-        'gpm': 0.02,
-        'xpm': 0.02,
-        'imp': 1.0,
-        'campStack': 0.5,
-        'level': 0.5,
-    }
+    team_kills = sum(p.get("kills", 0) for p in full_match.get("players", []) if p.get("isRadiant") == player.get("isRadiant"))
 
-    for stat, value in stats.items():
-        delta = value - baseline.get(stat, 0)
-        deltas[stat] = delta
-        score += delta * weightings.get(stat, 1.0)
+    result = analyze_player(stats, baseline, role, team_kills)
+    feedback = result["feedback_tags"]
 
-    # Token feedback tags
-    praises = [k for k, v in deltas.items() if v > 0]
-    critiques = [k for k, v in deltas.items() if v < 0]
-    highlight = max(deltas, key=lambda k: deltas[k])
-    lowlight = min(deltas, key=lambda k: deltas[k])
-
-    # Optional compound flags
-    compound_flags = []
-    if stats['kills'] + stats['assists'] < 5:
-        compound_flags.append("low_kp")
-    if stats['deaths'] >= 10:
-        compound_flags.append("feeder_alert")
-    if stats['imp'] >= 10:
-        compound_flags.append("impact_god")
-
-    # Output summary log
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆 Win" if won else "💀 Loss"
     header = f"🧙 {player_name} — {hero_name}: {kda} — {win_emoji} (Match ID: {match_id})"
-    summary = f"📈 Score: {round(score, 2)}"
-    tags = f"📊 Tags: highlight={highlight} | lowlight={lowlight} | critiques={critiques} | praises={praises}"
-    if compound_flags:
-        tags += f" | compound_flags={compound_flags}"
+    summary = f"📈 Score: {round(result['score'], 2)}"
+    tags = (
+        f"📊 Tags: highlight={feedback['highlight']} | lowlight={feedback['lowlight']} | "
+        f"critiques={feedback['critiques']} | praises={feedback['praises']}"
+    )
+    if feedback['compound_flags']:
+        tags += f" | compound_flags={feedback['compound_flags']}"
 
     return f"{header}\n📊 Performance Analysis:\n{summary}\n{tags}"
