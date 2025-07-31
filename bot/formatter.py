@@ -30,19 +30,23 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
 
     match_id = full_match.get("id")
     match_players = full_match.get("players", [])
-    match_start = full_match.get("startDateTime", 0)
-    match_duration = full_match.get("durationSeconds", 0)
 
-    # Ensure players is a list
     if not isinstance(match_players, list):
         return f"❌ 'players' field is not a list. Got: {type(match_players)}"
+
+    # DEBUG sanity check for all entries in players list
+    for p in match_players:
+        if not isinstance(p, dict):
+            return f"❌ Malformed player entry in match {match_id}: expected dict, got {type(p)}"
 
     player = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
     if not player:
         return f"❌ Player data not found in match {match_id}"
 
-    # Defensive stat extraction
     stats_block = player.get("stats") or {}
+    if not isinstance(stats_block, dict):
+        return f"❌ 'stats' field is not a dict. Got: {type(stats_block)}"
+
     camp_stack = stats_block.get("campStack") or []
     level_list = stats_block.get("level") or []
 
@@ -66,7 +70,10 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     team_id = 0 if player.get("isRadiant") else 1
     team_kills = sum(p.get("kills", 0) for p in match_players if (p.get("isRadiant") == player.get("isRadiant")))
 
-    result = analyze_player(stats, baseline, role, team_kills)
+    try:
+        result = analyze_player(stats, baseline, role, team_kills)
+    except Exception as e:
+        return f"❌ analyze_player raised error for {player_name}: {e}"
 
     # Output summary log
     kda = f"{kills}/{deaths}/{assists}"
