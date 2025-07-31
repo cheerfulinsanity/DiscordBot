@@ -2,6 +2,7 @@
 
 import requests
 import json
+import os  # Added for DEBUG_MODE
 
 STRATZ_URL = "https://api.stratz.com/graphql"
 
@@ -115,6 +116,9 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
             killEvents { time target }
             deathEvents { time }
             assistEvents { time target }
+            wardDestruction {
+              time
+            }
           }
         }
       }
@@ -131,7 +135,12 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
             timeout=15
         )
         data = res.json()
-        print("🔎 Full match response:", json.dumps(data, indent=2))
+
+        # 🔇 Only log raw JSON if DEBUG_MODE is explicitly set
+        if os.getenv("DEBUG_MODE") == "1":
+            print("🔎 Full match response:")
+            print(json.dumps(data, indent=2))
+
         return data.get("data", {}).get("match")
 
     except Exception as e:
