@@ -46,10 +46,12 @@ def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, An
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     return (kills + assists) / team_kills if team_kills > 0 else 0.0
 
-def _score_performance(deltas: Dict[str, float], role: str) -> float:
+def _score_performance(deltas: Dict[str, float], role: str, ignore_stats: list[str] = []) -> float:
     weights = ROLE_WEIGHTS[_get_role_category(role)]
     score = 0.0
     for stat, delta in deltas.items():
+        if stat in ignore_stats:
+            continue
         weight = weights.get(stat, 0)
         score += delta * weight
     return score
@@ -113,7 +115,7 @@ def analyze_player(
     deltas = _calculate_deltas(player_stats, baseline_stats, ignore_stats=ignore_stats)
 
     # Weighted performance score
-    score = _score_performance(deltas, role)
+    score = _score_performance(deltas, role, ignore_stats=ignore_stats)
 
     # Tag-based analysis for advice generation
     feedback_tags = _select_priority_feedback(deltas, role, context=player_stats)
