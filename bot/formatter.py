@@ -90,12 +90,27 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         }
         return f"❌ analyze_player raised error for {player_name}: {e}\n🧪 Debug dump:\n{json.dumps(debug_dump, indent=2)}"
 
-    # Compose output
+    # Compose performance title
     kda = f"{kills}/{deaths}/{assists}"
-    win_emoji = "🏆 Win" if won else "💀 Loss"
-    short_name = normalize_hero_name(hero_name).split("_")[-1]
-    header = f"🧙 {player_name} — {short_name}: {kda} — {win_emoji} (Match ID: {match_id})"
-    summary = f"📈 Score: {round(result['score'], 2)}"
+    win_emoji = "🏆" if won else "💀"
+    score = result['score']
+    hero_display = player.get("hero", {}).get("displayName", normalize_hero_name(hero_name).title())
+
+    if score >= 3.5:
+        icon, verb = "🧨", "blew up the game as"
+    elif score >= 2.0:
+        icon, verb = "🔥", "went off as"
+    elif score >= 0.5:
+        icon, verb = "🎯", "went steady as"
+    elif score >= -0.5:
+        icon, verb = "🎲", "turned up as"
+    elif score >= -2.0:
+        icon, verb = "💀", "struggled on"
+    else:
+        icon, verb = "☠️", "inted it all away on"
+
+    header = f"{icon} {player_name} went {kda} {verb} {hero_display} — {win_emoji} {'Win' if won else 'Loss'} (Match {match_id})"
+    summary = f"📈 Score: {round(score, 2)}"
 
     # Generate structured advice
     advice = generate_advice(result['feedback_tags'], result['deltas'])
