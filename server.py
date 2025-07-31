@@ -1,9 +1,12 @@
-# server.py
 from flask import Flask
 import requests
 import os
 
 app = Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def index():
+    return "✅ GuildBot Flask server is running. Try /run to test the Stratz fetch."
 
 @app.route("/run", methods=["GET"])
 def run():
