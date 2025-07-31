@@ -10,19 +10,21 @@ baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
 roles_path = Path(__file__).parent / "../data/hero_roles.json"
 
 with open(baseline_path, "r") as f:
-    HERO_BASELINES = json.load(f)
+    HERO_BASELINES_LIST = json.load(f)
 
 with open(roles_path, "r") as f:
     HERO_ROLES = json.load(f)
 
+# Rebuild into a lookup dictionary: hero_name.lower() → stats
+HERO_BASELINES = {
+    entry["hero"].lower(): entry for entry in HERO_BASELINES_LIST if "hero" in entry
+}
 
 def get_role(hero_name):
     return HERO_ROLES.get(hero_name, "unknown")
 
-
 def get_baseline(hero_name, role):
-    return HERO_BASELINES.get(hero_name, {}).get(role)
-
+    return HERO_BASELINES.get(hero_name.lower())
 
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
     if not isinstance(full_match, dict):
