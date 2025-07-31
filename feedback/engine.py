@@ -1,4 +1,5 @@
 from typing import Dict, Any
+import json
 
 LOW_DELTA_THRESHOLD = -0.25   # Underperforming by 25% or more
 HIGH_DELTA_THRESHOLD = 0.25   # Overperforming by 25% or more
@@ -28,20 +29,24 @@ ROLE_WEIGHTS = {
     }
 }
 
+
 def _get_role_category(role: str) -> str:
     return 'support' if role in ['softSupport', 'hardSupport'] else 'core'
+
 
 def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any]) -> Dict[str, float]:
     deltas = {}
     for key in baseline_stats:
         player_val = player_stats.get(key)
         baseline_val = baseline_stats.get(key)
-        if player_val is not None and baseline_val and baseline_val != 0:
+        if isinstance(player_val, (int, float)) and isinstance(baseline_val, (int, float)) and baseline_val != 0:
             deltas[key] = (player_val - baseline_val) / baseline_val
     return deltas
 
+
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     return (kills + assists) / team_kills if team_kills > 0 else 0.0
+
 
 def _score_performance(deltas: Dict[str, float], role: str) -> float:
     weights = ROLE_WEIGHTS[_get_role_category(role)]
@@ -50,6 +55,7 @@ def _score_performance(deltas: Dict[str, float], role: str) -> float:
         weight = weights.get(stat, 0)
         score += delta * weight
     return score
+
 
 def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any]) -> Dict[str, Any]:
     result = {
@@ -94,7 +100,13 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
 
     return result
 
+
 def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
+    print(f"🧪 analyze_player input:")
+    print(f"  player_stats: {json.dumps(player_stats, indent=2)}")
+    print(f"  baseline_stats: {json.dumps(baseline_stats, indent=2)}")
+    print(f"  role: {role}, team_kills: {team_kills}")
+
     # Compute kill participation and enrich player stats
     kills = player_stats.get("kills", 0)
     assists = player_stats.get("assists", 0)
