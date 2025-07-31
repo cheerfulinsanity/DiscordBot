@@ -39,7 +39,12 @@ def fetch_latest_match(steam_id: int, token: str) -> dict:
     res = requests.post("https://api.stratz.com/graphql", headers=headers, json=payload)
     res.raise_for_status()
     data = res.json()
-    match = data["data"]["player"]["matches"][0]
+
+    matches = data["data"]["player"]["matches"]
+    if not matches:
+        raise ValueError("No matches found")
+
+    match = matches[0]
 
     for p in match["players"]:
         if p["steamAccountId"] == steam_id:
