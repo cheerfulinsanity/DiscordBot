@@ -1,220 +1,71 @@
 # feedback/catalog.py
 
-FEEDBACK_LIBRARY = {
-  # === SUPPORT: Too many kills, not enough assists ===
-  "support_ks": {
-    "burns": [
-      "KS King",
-      "Support With a God Complex",
-      "Not All Heroes Ward",
-      "This Is Why We Can’t Have Carries"
+# Tiered feedback phrasing per stat
+PHRASE_BOOK = {
+    "gpm": {
+        "mild": [
+            "Farm was okay — not terrible, not amazing (+{delta:.0f}%)",
+            "Slight gold advantage — keep optimizing rotations (+{delta:.0f}%)"
+        ],
+        "strong": [
+            "Solid gold gain. Lane and jungle use was efficient (+{delta:.0f}%)",
+            "You farmed well — look at how you pushed ahead (+{delta:.0f}%)"
+        ],
+        "extreme": [
+            "Incredible GPM — you outpaced the enemy cores (+{delta:.0f}%)",
+            "Gold machine. This was a farm diff (+{delta:.0f}%)"
+        ]
+    },
+    "imp": {
+        "mild": ["Had some impact, especially midgame (+{delta:.0f}% IMP)"],
+        "strong": ["Strong influence across fights (+{delta:.0f}% IMP)"],
+        "extreme": ["Dominated the game — high impact throughout (+{delta:.0f}% IMP)"]
+    },
+    "deaths": {
+        "mild": ["A bit death-heavy — stay tighter to team next time (-{delta:.0f}%)"],
+        "strong": ["Too many deaths. Think about position and map awareness (-{delta:.0f}%)"],
+        "extreme": ["Severe feeding — rethink your engagements (-{delta:.0f}%)"]
+    },
+    "campStack": {
+        "mild": ["Minimal stacking. Look for downtime to stack more (+{delta:.0f}%)"],
+        "strong": ["Good stacking game — nice support efficiency (+{delta:.0f}%)"],
+        "extreme": ["Excellent stacking — you juiced the jungle (+{delta:.0f}%)"]
+    },
+    "killParticipation": {
+        "mild": ["Some fight presence — room to be more involved (+{delta:.0f}%)"],
+        "strong": ["High participation — you showed up when it counted (+{delta:.0f}%)"],
+        "extreme": ["Nearly every kill involved you. Team player (+{delta:.0f}%)"]
+    }
+}
+
+# Phrases triggered by specific behavior tags
+COMPOUND_FLAGS = {
+    "farmed_did_nothing": [
+        "You had farm but no impact. Focus more on fight timing and positioning.",
+        "High GPM, low presence. Next time convert gold into pressure."
     ],
-    "lines": [
-      [
-        "You had way more kills than assists — that’s a red flag for support play.",
-        "Your kill count reads like a core. Your assists don’t.",
-        "Leading in kills as a support isn't impressive. It's a warning sign.",
-        "Your spell aim was great. Pity it kept finishing kills."
-      ],
-      [
-        "Try enabling your cores instead of outshining them.",
-        "Let the cores close the deal — your job is to start it.",
-        "Hold that last nuke. There’s a PA somewhere praying for gold.",
-        "You can be lethal and still leave room for others to thrive."
-      ],
-      [
-        "Want to win more? Start counting assists, not kills.",
-        "Supports don’t need MVP stars. They need teammates who lived.",
-        "Save the burst for after they’ve committed. Not before."
-      ]
-    ]
-  },
-
-  # === SUPPORT: Low assists, low impact ===
-  "support_invisible": {
-    "burns": [
-      "Mute Button Support",
-      "Invisible From Start to Finish",
-      "Where Were You Again?"
+    "no_stacking_support": [
+        "Very low stacks. If nothing's happening, get to the jungle and stack.",
+        "Supports create space too — stacking helps your carry a lot."
     ],
-    "lines": [
-      [
-        "You had almost no assists this game — that's a serious red flag.",
-        "Your contribution to fights was basically moral support.",
-        "Low kills *and* low assists? It’s like you queued and left."
-      ],
-      [
-        "Play tighter to your team and look for impact moments.",
-        "Try showing up before the fight ends. Spell usage matters.",
-        "Being alive isn't the same as being helpful. Find the fight."
-      ],
-      [
-        "You don’t need to carry, but you do need to connect.",
-        "Think about smoke rotations or just warding around activity zones.",
-        "Turbo isn’t an excuse to play tourist."
-      ]
-    ]
-  },
-
-  # === CARRY: Farmed well but didn’t fight ===
-  "carry_afk_farmer": {
-    "burns": [
-      "6-Slot Ghost",
-      "Jungle MVP (Solo Queue Edition)",
-      "Spectre of Contribution"
+    "low_kp": [
+        "Low kill participation — be more active in team fights.",
+        "You missed a lot of fights. Stay more connected to your team."
     ],
-    "lines": [
-      [
-        "You had great farm but almost no presence in fights.",
-        "Your LHs are excellent. Your kill count isn’t.",
-        "Your items scaled. The game didn’t wait for you."
-      ],
-      [
-        "Try joining team fights once core items are online.",
-        "Haunt or no Haunt, your presence changes fights.",
-        "Even showing up forces enemy movement. Use that."
-      ],
-      [
-        "Carry isn’t about farming forever. It’s about timing impact.",
-        "Item timing means nothing if you arrive after throne falls."
-      ]
-    ]
-  },
-
-  # === CARRY: Low LHs, underfarmed ===
-  "carry_no_farm": {
-    "burns": [
-      "Creep Avoidant",
-      "Carry by Role Only",
-      "Full-Time Teamfighter, Part-Time Farmer"
+    "fed_no_impact": [
+        "High deaths with little impact. Play safer when behind.",
+        "Died a lot and didn’t turn fights. Focus on smarter positioning."
     ],
-    "lines": [
-      [
-        "Your last hits were way below average for a carry.",
-        "Your gold income looks like you skipped laning phase.",
-        "Low LHs means your item timings were delayed all game."
-      ],
-      [
-        "Focus on CS mechanics and staying in lane longer.",
-        "Don’t abandon lane early — even under pressure, farm matters.",
-        "Try rotating less until you’ve got baseline items."
-      ],
-      [
-        "If you don’t farm, you’re just a worse mid.",
-        "Carries win with farm, not teamfights at level 7."
-      ]
+    "impact_without_farm": [
+        "Low GPM, high impact — great support work.",
+        "Not much gold, but you still contributed. Nice job."
     ]
-  },
+}
 
-  # === OFFLANE: Fed without contributing ===
-  "offlane_feed": {
-    "burns": [
-      "XP Courier",
-      "Space Creator for the Enemy",
-      "Frontliner for the Wrong Team"
-    ],
-    "lines": [
-      [
-        "You had high deaths and almost no assists.",
-        "You fed heavily and gave up lane pressure early.",
-        "Too many deaths without trades puts your team behind."
-      ],
-      [
-        "Try to sync with your 4-position before going in.",
-        "Back up when spells are down. You’re not invincible.",
-        "Time your aggression for when backup exists."
-      ],
-      [
-        "Space is only useful if someone uses it. Don’t just die.",
-        "Pressure doesn’t mean suicide. It means forcing reactions."
-      ]
-    ]
-  },
-
-  # === MID: Didn’t rotate or snowball ===
-  "mid_afk": {
-    "burns": [
-      "Midlane MIA",
-      "Neutral Creep With Extra Steps",
-      "Wasted Rune Control"
-    ],
-    "lines": [
-      [
-        "Your K+A was way below mid expectations.",
-        "You didn't rotate after 6 and your impact stalled.",
-        "Mid lane needs to lead tempo. You didn’t."
-      ],
-      [
-        "Look for rotations to side lanes once you have damage online.",
-        "If you’re winning mid, use it. Don’t just stay static.",
-        "Mids that stay passive lose control. Push advantage."
-      ],
-      [
-        "You don’t have to win lane. But you have to matter.",
-        "Playing mid? Then *play* mid. Influence the map."
-      ]
-    ]
-  },
-
-  # === ANY ROLE: Everything low ===
-  "invisible_game": {
-    "burns": [
-      "Spectator Queue",
-      "Ghost Queue",
-      "Performance Not Detected"
-    ],
-    "lines": [
-      [
-        "Kills, assists, and LHs were all well below average.",
-        "Minimal contribution across all stats.",
-        "It’s hard to assess what you were doing that game."
-      ],
-      [
-        "Try playing closer to team activity and farming zones.",
-        "Look for impact moments and clearer objectives.",
-        "Staying alive is good. But you also have to play."
-      ],
-      [
-        "Dota needs presence, not just participation.",
-        "If you want to learn, start by getting involved."
-      ]
-    ]
-  },
-
-  # === PERFORMANCE TIERS ===
-  "tag_excellent": {
-    "burns": [],
-    "lines": [[
-      "absolutely dominated.", "crushed it.", "played like a pro.",
-      "MMR inflation incoming.", "earned commends, and then some.",
-      "a display of pure Dota muscle.", "unfair to the enemy team."
-    ]]
-  },
-
-  "tag_solid": {
-    "burns": [],
-    "lines": [[
-      "put in solid work.", "held the line.", "delivered the goods.",
-      "showed up and clocked in.", "played like an adult.",
-      "kept it tidy.", "did their 20%. Respect."
-    ]]
-  },
-
-  "tag_neutral": {
-    "burns": [],
-    "lines": [[
-      "played an honest match.", "was neither the problem nor the solution.",
-      "kept things balanced.", "had a mid-tier performance. Literally.",
-      "made plays. Also made mistakes.", "was present and accounted for."
-    ]]
-  },
-
-  "tag_underperformed": {
-    "burns": [],
-    "lines": [[
-      "had a rough one.", "struggled to connect.", "fell behind early and never recovered.",
-      "was food for the enemy.", "underwhelming performance.",
-      "queue dodging might’ve helped."
-    ]]
-  }
+# Optional tips based on delta patterns or missed roles
+TIP_LINES = {
+    "campStack": "Try to stack during quiet moments — it adds up quickly.",
+    "deaths": "Use your minimap more aggressively to avoid blind deaths.",
+    "killParticipation": "Stay closer to your team during skirmishes.",
+    "gpm": "Push lanes before jungling to get more out of rotations."
 }
