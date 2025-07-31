@@ -49,6 +49,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     game_mode_id = full_match.get("gameMode")
     game_mode_name = GAME_MODE_NAMES.get(game_mode_id, f"Mode {game_mode_id}")
     is_turbo = game_mode_id == 23
+    mode_flag = "TURBO" if is_turbo else "NON_TURBO"
 
     if not isinstance(match_players, list):
         return f"❌ 'players' field is not a list. Got: {type(match_players)}"
@@ -124,7 +125,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     summary = f"📊 Score: {round(score, 2)}"
 
     # ✅ Turbo-aware structured advice
-    advice = generate_advice(result['feedback_tags'], result['deltas'], ignore_stats=ignore_stats)
+    advice = generate_advice(result['feedback_tags'], result['deltas'], ignore_stats=ignore_stats, mode=mode_flag)
 
     advice_sections = []
 
