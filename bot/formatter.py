@@ -37,6 +37,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
 
     match_id = full_match.get("id")
     match_players = full_match.get("players", [])
+    is_turbo = full_match.get("gameMode") == 23  # 🆕 Turbo detection
 
     if not isinstance(match_players, list):
         return f"❌ 'players' field is not a list. Got: {type(match_players)}"
@@ -76,7 +77,8 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isRadiant") == is_radiant)
 
     try:
-        result = analyze_player(stats, baseline, role, team_kills)
+        ignore_stats = ["gpm", "xpm"] if is_turbo else []
+        result = analyze_player(stats, baseline, role, team_kills, ignore_stats=ignore_stats)
     except Exception as e:
         debug_dump = {
             "player_name": player_name,
