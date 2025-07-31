@@ -1,6 +1,6 @@
 from flask import Flask
-import requests
 import os
+from bot.stratz import fetch_latest_match
 
 app = Flask(__name__)
 
@@ -10,63 +10,21 @@ def index():
 
 @app.route("/run")
 def run():
-    token = os.getenv("TOKEN")
-    steam_id = 84228471  # hardcoded test player
-
-    query = """
-    query GetLatestMatch($steamId: Long!) {
-      player(steamAccountId: $steamId) {
-        matches(request: { take: 1 }) {
-          id
-          durationSeconds
-          players {
-            steamAccountId
-            isVictory
-            hero {
-              id
-              name
-            }
-            kills
-            deaths
-            assists
-          }
-        }
-      }
-    }
-    """
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "User-Agent": "STRATZ_API"
-    }
-
-    payload = {
-        "query": query,
-        "variables": { "steamId": steam_id }
-    }
-
     try:
-        res = requests.post("https://api.stratz.com/graphql", headers=headers, json=payload)
-        res.raise_for_status()
-        data = res.json()
-        match = data["data"]["player"]["matches"][0]
+        token = os.getenv("TOKEN")
+        steam_id = 84228471
 
-        player = next(p for p in match["players"] if p["steamAccountId"] == steam_id)
+        match = fetch_latest_match(steam_id, token)
 
-        result = {
-            "match_id": match["id"],
-            "hero_name": player["hero"]["name"],
-            "kills": player["kills"],
-            "deaths": player["deaths"],
-            "assists": player["assists"],
-            "won": player["isVictory"]
-        }
-
-        return f"🧙 {result['hero_name']}: {result['kills']}/{result['deaths']}/{result['assists']} — {'🏆 Win' if result['won'] else '💀 Loss'} (Match ID: {result['match_id']})"
+        return (
+            f"🧙 {match['hero_name']}: {match['kills']}/"
+            f"{match['deaths']}/{match['assists']} — "
+            f"{'🏆 Win' if match['won'] else '💀 Loss'} "
+            f"(Match ID: {match['match_id']})"
+        )
 
     except Exception as e:
-        return f"❌ Error: {str(e)}\nRaw response: {res.text}"
+        return f"❌ Error: {str(e)}"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
