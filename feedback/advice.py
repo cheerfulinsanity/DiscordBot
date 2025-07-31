@@ -32,25 +32,28 @@ def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str
     tips = []
     flags = []
 
+    # Filtered deltas
+    filtered_deltas = {k: v for k, v in deltas.items() if k not in ignore_stats}
+
     # Highlight
     hi = tags.get("highlight")
-    if hi and hi not in ignore_stats and hi in deltas:
-        line = pick_line(hi, deltas[hi])
-        if line and deltas[hi] > 0:
+    if hi and hi in filtered_deltas:
+        line = pick_line(hi, filtered_deltas[hi])
+        if line and filtered_deltas[hi] > 0:
             positives.append(line)
         elif line:
             negatives.append(line)
 
     # Lowlight
     lo = tags.get("lowlight")
-    if lo and lo != hi and lo not in ignore_stats and lo in deltas:
-        line = pick_line(lo, deltas[lo])
-        if line and deltas[lo] > 0:
+    if lo and lo != hi and lo in filtered_deltas:
+        line = pick_line(lo, filtered_deltas[lo])
+        if line and filtered_deltas[lo] > 0:
             positives.append(line)
         elif line:
             negatives.append(line)
 
-    # Compound flag
+    # Compound flags (not filtered — assume upstream logic handled this)
     for flag in tags.get("compound_flags", []):
         options = COMPOUND_FLAGS.get(flag)
         if options:
@@ -60,7 +63,7 @@ def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str
     # Additional high/low performers
     used = {hi, lo}
     remaining = sorted(
-        ((k, v) for k, v in deltas.items() if k not in used and k not in ignore_stats),
+        ((k, v) for k, v in filtered_deltas.items() if k not in used),
         key=lambda x: abs(x[1]),
         reverse=True
     )
