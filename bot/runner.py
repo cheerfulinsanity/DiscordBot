@@ -1,88 +1,70 @@
-# bot/runner.py
-
-import os
-import json
-import time
-from bot.fetch import get_latest_new_match, get_full_match_data
+from bot.fetch import get_latest_match_id, get_match_details
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match
+from config import CONFIG
+from time import sleep
+from stratz import get_steam_ids
 
-CONFIG_PATH = "data/config.json"
-TOKEN = os.getenv("TOKEN")
+import logging
 
-def load_config():
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+logging.basicConfig(level=logging.INFO)
 
 def run_bot():
     print("🚀 GuildBot started")
 
-    if not TOKEN:
-        print("❌ TOKEN is missing!")
-        return
+    players = CONFIG["players"]
+    print(f"👥 Loaded {len(players)} players from config.json")
 
-    try:
-        config = load_config()
-        players = config.get("players", {})
-        print(f"👥 Loaded {len(players)} players from config.json")
+    known_match_ids = load_state()
+    print("📥 Loaded state.json from GitHub Gist")
 
-        try:
-            state = load_state()
-            print("📥 Loaded state.json from GitHub Gist")
-        except Exception as e:
-            print(f"⚠️ Failed to load state.json: {e}")
-            state = {}
+    for index, (player_name, player_id) in enumerate(players.items(), start=1):
+        print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({player_id})...")
 
-        updated_state = state.copy()
+        latest_match_id = get_latest_match_id(player_id)
+        if latest_match_id in known_match_ids:
+            print("⏩ No new match. Skipping.")
+            continue
 
-        for i, (name, steam_id) in enumerate(players.items(), 1):
-            print(f"\n🔍 [{i}/{len(players)}] Checking {name} ({steam_id})...")
-            last_id = state.get(str(steam_id))
+        match_data = get_match_details(latest_match_id)
+        if not match_data:
+            print(f"❌ Failed to fetch match data for {player_name}")
+            continue
 
-            try:
-                match = get_latest_new_match(steam_id, last_id, TOKEN)
+        match_players = match_data.get("players", [])
+        player_data = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
 
-                if not match:
-                    print("⏩ No new match. Skipping.")
-                    continue
+        if not player_data:
+            print(f"❌ Player data missing in match for {player_name}")
+            continue
 
-                print(
-                    f"🧙 {name} — {match['hero_name']}: {match['kills']}/"
-                    f"{match['deaths']}/{match['assists']} — "
-                    f"{'🏆 Win' if match['won'] else '💀 Loss'} "
-                    f"(Match ID: {match['match_id']})"
-                )
+        hero_name = player_data.get("hero", {}).get("name", "unknown")
+        kills = player_data.get("kills", 0)
+        deaths = player_data.get("deaths", 0)
+        assists = player_data.get("assists", 0)
+        won = player_data.get("isVictory", False)
 
-                full_match = get_full_match_data(steam_id, match["match_id"], TOKEN)
-                if not full_match:
-                    print("⚠️ Failed to fetch full match data. Skipping.")
-                    continue
-
-                player = next((p for p in full_match["players"] if p["steamAccountId"] == steam_id), None)
-                if not player:
-                    print("⚠️ Player not found in full match data")
-                    continue
-
-                print("📊 Performance Analysis:")
-                try:
-                    output = format_match(player, full_match)
-                    print(output)
-                    updated_state[str(steam_id)] = match["match_id"]
-                except Exception as e:
-                    print(f"❌ Failed to format match for {name}: {e}")
-
-            except Exception as e:
-                print(f"❌ Error fetching or processing match for {name}: {e}")
-
-            time.sleep(0.25)  # Respect API rate limits
+        print(f"🧙 {player_name} — {hero_name.split('_')[-1]}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {latest_match_id})")
+        print("📊 Performance Analysis:")
 
         try:
-            save_state(updated_state)
-            print("📝 Updated state.json on GitHub Gist")
+            feedback = format_match(
+                player_name,
+                player_id,
+                hero_name,
+                kills,
+                deaths,
+                assists,
+                won,
+                match_data
+            )
+            print(feedback)
         except Exception as e:
-            print(f"⚠️ Failed to save state.json: {e}")
+            print(f"❌ Failed to format match for {player_name}: {e}")
 
-        print("\n✅ GuildBot run complete.")
+        known_match_ids.add(latest_match_id)
+        sleep(1.2)
 
-    except Exception as outer:
-        print(f"💥 CRASH in run_bot(): {outer}")
+    save_state(known_match_ids)
+    print("📝 Updated state.json on GitHub Gist")
+    print("✅ GuildBot run complete.")
