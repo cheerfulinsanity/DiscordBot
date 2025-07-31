@@ -111,11 +111,17 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
           stats {
             level
             campStack
-            wardDestruction
             itemPurchases { itemId time }
             killEvents { time target }
             deathEvents { time }
             assistEvents { time target }
+            wardDestruction {
+              time
+              x
+              y
+              isObserver
+              entityId
+            }
           }
         }
       }
