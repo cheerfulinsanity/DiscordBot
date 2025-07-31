@@ -50,5 +50,9 @@ def save_state(match_id_set):
         }
         response = requests.patch(f"https://api.github.com/gists/{GIST_ID}", headers=HEADERS, data=json.dumps(payload))
         response.raise_for_status()
+        print("📝 Updated state.json on GitHub Gist")
     except Exception as e:
         print(f"❌ Failed to update state.json: {e}")
+
+# ✅ Add alias for backward compatibility
+update_state = save_state
