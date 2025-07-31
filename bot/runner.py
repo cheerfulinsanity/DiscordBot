@@ -13,29 +13,31 @@ def load_config():
         return json.load(f)
 
 def run_bot():
-    print("🚀 Starting GuildBot match fetch...")
+    print("🚀 GuildBot started")
 
-    if not TOKEN:
-        print("❌ TOKEN environment variable is not set.")
-        return
+    try:
+        if not TOKEN:
+            print("❌ TOKEN is missing!")
+            return
 
-    config = load_config()
-    players = config.get("players", {})
+        config = load_config()
+        players = config.get("players", {})
 
-    for i, (name, steam_id) in enumerate(players.items(), 1):
-        print(f"🔍 [{i}/{len(players)}] Fetching {name} ({steam_id})...")
-        try:
-            match = fetch_latest_match(steam_id, TOKEN)
-            result = (
-                f"🧙 {name} — {match['hero_name']}: {match['kills']}/"
-                f"{match['deaths']}/{match['assists']} — "
-                f"{'🏆 Win' if match['won'] else '💀 Loss'} "
-                f"(Match ID: {match['match_id']})"
-            )
-            print(result)
-        except Exception as e:
-            print(f"❌ {name} ({steam_id}): {e}")
+        for i, (name, steam_id) in enumerate(players.items(), 1):
+            print(f"🔍 [{i}/{len(players)}] Fetching match for {name} ({steam_id})...")
+            try:
+                match = fetch_latest_match(steam_id, TOKEN)
+                print(
+                    f"🧙 {name} — {match['hero_name']}: {match['kills']}/"
+                    f"{match['deaths']}/{match['assists']} — "
+                    f"{'🏆 Win' if match['won'] else '💀 Loss'} "
+                    f"(Match ID: {match['match_id']})"
+                )
+            except Exception as e:
+                print(f"❌ Failed to fetch {name} ({steam_id}): {e}")
 
-        time.sleep(0.25)
+            time.sleep(0.25)
 
-    print("✅ GuildBot run complete.")
+        print("✅ GuildBot run complete.")
+    except Exception as outer:
+        print(f"❌ CRASH in run_bot(): {outer}")
