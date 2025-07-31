@@ -1,70 +1,63 @@
-from bot.fetch import get_latest_match_id, get_match_details
-from bot.gist_state import load_state, save_state
+# bot/runner.py
+
+from bot.fetch import get_latest_new_match, get_full_match_data
 from bot.formatter import format_match
-from config import CONFIG
-from time import sleep
-from stratz import get_steam_ids
-
-import logging
-
-logging.basicConfig(level=logging.INFO)
+from bot.gist_state import load_state, update_state
+from bot.opendota import get_hero_name
+from bot.config import load_config
+import time
 
 def run_bot():
     print("🚀 GuildBot started")
 
-    players = CONFIG["players"]
-    print(f"👥 Loaded {len(players)} players from config.json")
+    config = load_config()
+    print(f"👥 Loaded {len(config)} players from config.json")
 
-    known_match_ids = load_state()
+    state = load_state()
     print("📥 Loaded state.json from GitHub Gist")
 
-    for index, (player_name, player_id) in enumerate(players.items(), start=1):
-        print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({player_id})...")
+    token = state.get("stratz_token")
+    if not token:
+        print("❌ No Stratz API token found in state.json. Aborting.")
+        return
 
-        latest_match_id = get_latest_match_id(player_id)
-        if latest_match_id in known_match_ids:
+    for idx, player in enumerate(config):
+        name = player["name"]
+        steam_id = player["steam_id"]
+        last_match_id = state.get("last_match_ids", {}).get(str(steam_id))
+
+        print(f"🔍 [{idx+1}/{len(config)}] Checking {name} ({steam_id})...")
+
+        try:
+            match = get_latest_new_match(steam_id, last_match_id, token)
+        except Exception as e:
+            print(f"⚠️  Failed to fetch latest match for {name}: {e}")
+            continue
+
+        if not match:
             print("⏩ No new match. Skipping.")
             continue
 
-        match_data = get_match_details(latest_match_id)
-        if not match_data:
-            print(f"❌ Failed to fetch match data for {player_name}")
-            continue
+        hero_name = get_hero_name(match["hero_id"])
+        won = match["won"]
+        kills = match["kills"]
+        deaths = match["deaths"]
+        assists = match["assists"]
+        match_id = match["match_id"]
 
-        match_players = match_data.get("players", [])
-        player_data = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
+        outcome_emoji = "🏆 Win" if won else "💀 Loss"
+        print(f"🧙 {name} — {hero_name}: {kills}/{deaths}/{assists} — {outcome_emoji} (Match ID: {match_id})")
 
-        if not player_data:
-            print(f"❌ Player data missing in match for {player_name}")
-            continue
-
-        hero_name = player_data.get("hero", {}).get("name", "unknown")
-        kills = player_data.get("kills", 0)
-        deaths = player_data.get("deaths", 0)
-        assists = player_data.get("assists", 0)
-        won = player_data.get("isVictory", False)
-
-        print(f"🧙 {player_name} — {hero_name.split('_')[-1]}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {latest_match_id})")
         print("📊 Performance Analysis:")
-
         try:
-            feedback = format_match(
-                player_name,
-                player_id,
-                hero_name,
-                kills,
-                deaths,
-                assists,
-                won,
-                match_data
-            )
-            print(feedback)
+            full_match = get_full_match_data(steam_id, match_id, token)
+            print(format_match(name, hero_name, kills, deaths, assists, won, full_match))
         except Exception as e:
-            print(f"❌ Failed to format match for {player_name}: {e}")
+            print(f"❌ Failed to format match for {name}: {e}")
 
-        known_match_ids.add(latest_match_id)
-        sleep(1.2)
+        state["last_match_ids"][str(steam_id)] = match_id
+        time.sleep(1)
 
-    save_state(known_match_ids)
+    update_state(state)
     print("📝 Updated state.json on GitHub Gist")
     print("✅ GuildBot run complete.")
