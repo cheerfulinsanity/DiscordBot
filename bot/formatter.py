@@ -95,7 +95,29 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     header = f"🧙 {player_name} — {short_name}: {kda} — {win_emoji} (Match ID: {match_id})"
     summary = f"📈 Score: {round(result['score'], 2)}"
 
-    # Generate advice from tags and deltas
-    advice_lines = generate_advice(result['feedback_tags'], result['deltas'])
+    # Generate structured advice
+    advice = generate_advice(result['feedback_tags'], result['deltas'])
 
-    return f"{header}\n📊 Performance Analysis:\n{summary}\n{advice_lines}"
+    advice_sections = []
+
+    if advice["positives"]:
+        advice_sections.append("🎯 What went well:")
+        for line in advice["positives"]:
+            advice_sections.append(f"- {line}")
+
+    if advice["negatives"]:
+        advice_sections.append("🛠️ What to work on:")
+        for line in advice["negatives"]:
+            advice_sections.append(f"- {line}")
+
+    if advice["flags"]:
+        advice_sections.append("📛 Flagged behavior:")
+        for line in advice["flags"]:
+            advice_sections.append(f"- {line}")
+
+    if advice["tips"]:
+        advice_sections.append("🧾 Tips:")
+        for line in advice["tips"]:
+            advice_sections.append(f"- {line}")
+
+    return f"{header}\n📊 Performance Analysis:\n{summary}\n\n" + "\n".join(advice_sections)
