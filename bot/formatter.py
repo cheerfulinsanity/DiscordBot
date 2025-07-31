@@ -37,14 +37,22 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if os.getenv("DEBUG_MODE") == "1":
         print("🧪 Player Block:")
         print(json.dumps(player, indent=2))
+        stats_debug = player.get("stats", {})
+        print(f"🧪 Types — campStack: {type(stats_debug.get('campStack'))}, level: {type(stats_debug.get('level'))}")
 
     # Defensive stat extraction
     stats_block = player.get("stats")
     if not isinstance(stats_block, dict):
         stats_block = {}
 
-    camp_stack = stats_block.get("campStack") or 0
-    level_list = stats_block.get("level") or 0
+    # Normalize campStack and level regardless of type
+    camp_stack = stats_block.get("campStack")
+    if not isinstance(camp_stack, list):
+        camp_stack = [camp_stack] if camp_stack is not None else []
+
+    level_list = stats_block.get("level")
+    if not isinstance(level_list, list):
+        level_list = [level_list] if level_list is not None else []
 
     stats = {
         'kills': player.get('kills', 0),
@@ -53,8 +61,8 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         'gpm': player.get('goldPerMinute', 0),
         'xpm': player.get('experiencePerMinute', 0),
         'imp': player.get('imp', 0),
-        'campStack': sum(camp_stack) if isinstance(camp_stack, list) else camp_stack,
-        'level': level_list[-1] if isinstance(level_list, list) and level_list else level_list,
+        'campStack': sum(camp_stack),
+        'level': level_list[-1] if level_list else 0,
     }
 
     role = get_role(hero_name)
