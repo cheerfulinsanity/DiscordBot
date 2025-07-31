@@ -16,7 +16,7 @@ def run_bot():
     players = CONFIG["players"]
     print(f"👥 Loaded {len(players)} players from config.json")
 
-    known_match_ids = load_state()  # this must be a dict
+    known_match_ids = load_state()
     print("📥 Loaded state.json from GitHub Gist")
 
     token = os.getenv("TOKEN")
@@ -27,10 +27,8 @@ def run_bot():
     for index, (player_name, player_id) in enumerate(players.items(), start=1):
         print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({player_id})...")
 
-        last_posted_id = known_match_ids.get(str(player_id))
-
         try:
-            new_match = get_latest_new_match(player_id, last_posted_id, token)
+            new_match = get_latest_new_match(player_id, known_match_ids.get(str(player_id)), token)
         except Exception as e:
             print(f"❌ Error checking latest match for {player_name}: {e}")
             continue
