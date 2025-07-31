@@ -13,6 +13,19 @@ with open(baseline_path, "r") as f:
 with open(roles_path, "r") as f:
     HERO_ROLES = json.load(f)
 
+# Map of Stratz gameMode IDs to readable names
+GAME_MODE_NAMES = {
+    1: "All Pick",
+    2: "Captains Mode",
+    3: "Random Draft",
+    4: "Single Draft",
+    5: "All Random",
+    12: "Ability Draft",
+    16: "Captains Draft",
+    22: "Ranked All Pick",
+    23: "Turbo"
+}
+
 
 def normalize_hero_name(raw_name: str) -> str:
     if raw_name.startswith("npc_dota_hero_"):
@@ -37,7 +50,9 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
 
     match_id = full_match.get("id")
     match_players = full_match.get("players", [])
-    is_turbo = full_match.get("gameMode") == 23  # 🆕 Turbo detection
+    game_mode_id = full_match.get("gameMode")
+    game_mode_name = GAME_MODE_NAMES.get(game_mode_id, f"Mode {game_mode_id}")
+    is_turbo = game_mode_id == 23
 
     if not isinstance(match_players, list):
         return f"❌ 'players' field is not a list. Got: {type(match_players)}"
@@ -97,19 +112,19 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     hero_display = player.get("hero", {}).get("displayName", normalize_hero_name(hero_name).title())
 
     if score >= 3.5:
-        icon, verb = "🧨", "blew up the game as"
+        icon, phrase = "🧨", "blew up the game"
     elif score >= 2.0:
-        icon, verb = "🔥", "went off as"
+        icon, phrase = "🔥", "went off"
     elif score >= 0.5:
-        icon, verb = "🎯", "went steady as"
+        icon, phrase = "🎯", "went steady"
     elif score >= -0.5:
-        icon, verb = "🎲", "turned up as"
+        icon, phrase = "🎲", "turned up"
     elif score >= -2.0:
-        icon, verb = "💀", "struggled on"
+        icon, phrase = "💀", "struggled"
     else:
-        icon, verb = "☠️", "inted it all away on"
+        icon, phrase = "☠️", "inted it all away"
 
-    header = f"{icon} {player_name} went {kda} {verb} {hero_display} — {win_emoji} {'Win' if won else 'Loss'} (Match {match_id})"
+    header = f"{icon} {player_name} {phrase} {kda} as {hero_display} — {win_emoji} {'Win' if won else 'Loss'} (Match {match_id}, {game_mode_name})"
     summary = f"📈 Score: {round(score, 2)}"
 
     # Generate structured advice
