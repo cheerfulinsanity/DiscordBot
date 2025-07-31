@@ -1,63 +1,86 @@
-# bot/runner.py
-
-from bot.fetch import get_latest_new_match, get_full_match_data
+from bot.fetch import get_latest_match, get_match_details
+from bot.stratz import load_hero_data, load_role_data, load_baselines
+from bot.gist_state import load_state, save_state
 from bot.formatter import format_match
-from bot.gist_state import load_state, update_state
-from bot.opendota import get_hero_name
-from bot.config import load_config
+import json
 import time
+import os
+
+CONFIG = json.load(open("config.json"))
+PLAYERS = CONFIG["players"]
+GUILD_NAME = CONFIG.get("guild_name", "Guild")
+
+def log_check(index, total, name, steam_id):
+    print(f"🔍 [{index}/{total}] Checking {name} ({steam_id})...")
+
+def log_skip(reason):
+    print(f"⏩ {reason}")
+
+def log_match_summary(player_name, hero_name, kills, deaths, assists, won, match_id):
+    result_emoji = "🏆 Win" if won else "💀 Loss"
+    print(f"🧙 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {result_emoji} (Match ID: {match_id})")
 
 def run_bot():
     print("🚀 GuildBot started")
-
-    config = load_config()
-    print(f"👥 Loaded {len(config)} players from config.json")
-
-    state = load_state()
+    print(f"👥 Loaded {len(PLAYERS)} players from config.json")
+    
+    known_match_ids = load_state()
     print("📥 Loaded state.json from GitHub Gist")
 
-    token = state.get("stratz_token")
-    if not token:
-        print("❌ No Stratz API token found in state.json. Aborting.")
-        return
+    heroes = load_hero_data()
+    roles = load_role_data()
+    baselines = load_baselines()
 
-    for idx, player in enumerate(config):
-        name = player["name"]
-        steam_id = player["steam_id"]
-        last_match_id = state.get("last_match_ids", {}).get(str(steam_id))
+    for i, (name, steam_id) in enumerate(PLAYERS.items(), 1):
+        log_check(i, len(PLAYERS), name, steam_id)
 
-        print(f"🔍 [{idx+1}/{len(config)}] Checking {name} ({steam_id})...")
-
-        try:
-            match = get_latest_new_match(steam_id, last_match_id, token)
-        except Exception as e:
-            print(f"⚠️  Failed to fetch latest match for {name}: {e}")
+        latest_match = get_latest_match(steam_id)
+        if not latest_match:
+            log_skip("No turbo match found.")
             continue
 
-        if not match:
-            print("⏩ No new match. Skipping.")
+        match_id = latest_match["id"]
+        if match_id in known_match_ids:
+            log_skip("No new match. Skipping.")
             continue
 
-        hero_name = get_hero_name(match["hero_id"])
-        won = match["won"]
-        kills = match["kills"]
-        deaths = match["deaths"]
-        assists = match["assists"]
-        match_id = match["match_id"]
+        match_details = get_match_details(match_id)
+        if not match_details:
+            log_skip("Could not fetch full match details.")
+            continue
 
-        outcome_emoji = "🏆 Win" if won else "💀 Loss"
-        print(f"🧙 {name} — {hero_name}: {kills}/{deaths}/{assists} — {outcome_emoji} (Match ID: {match_id})")
+        player = match_details["player"]
+        hero_id = player["hero_id"]
+        hero_name = heroes.get(str(hero_id), {}).get("localized_name", "Unknown Hero")
+        won = player["won"]
+        kills = player["num_kills"]
+        deaths = player["num_deaths"]
+        assists = player["num_assists"]
 
-        print("📊 Performance Analysis:")
+        log_match_summary(name, hero_name, kills, deaths, assists, won, match_id)
+
         try:
-            full_match = get_full_match_data(steam_id, match_id, token)
-            print(format_match(name, hero_name, kills, deaths, assists, won, full_match))
+            output = format_match(
+                steam_id,
+                hero_id,
+                heroes,
+                roles,
+                baselines,
+                hero_name,
+                kills,
+                deaths,
+                assists,
+                won,
+                match_details,
+            )
+            if output:
+                print(output)
         except Exception as e:
             print(f"❌ Failed to format match for {name}: {e}")
+            continue
 
-        state["last_match_ids"][str(steam_id)] = match_id
-        time.sleep(1)
+        known_match_ids.add(match_id)
+        time.sleep(1.5)  # to respect Stratz API rate limits
 
-    update_state(state)
-    print("📝 Updated state.json on GitHub Gist")
+    save_state(known_match_ids)
     print("✅ GuildBot run complete.")
