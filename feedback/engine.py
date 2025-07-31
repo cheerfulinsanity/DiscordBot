@@ -29,8 +29,10 @@ ROLE_WEIGHTS = {
     }
 }
 
+
 def _get_role_category(role: str) -> str:
     return 'support' if role in ['softSupport', 'hardSupport'] else 'core'
+
 
 def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], ignore_stats: list[str] = []) -> Dict[str, float]:
     deltas = {}
@@ -43,8 +45,10 @@ def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, An
             deltas[key] = (player_val - baseline_val) / baseline_val
     return deltas
 
+
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     return (kills + assists) / team_kills if team_kills > 0 else 0.0
+
 
 def _score_performance(deltas: Dict[str, float], role: str, ignore_stats: list[str] = []) -> float:
     weights = ROLE_WEIGHTS[_get_role_category(role)]
@@ -55,6 +59,7 @@ def _score_performance(deltas: Dict[str, float], role: str, ignore_stats: list[s
         weight = weights.get(stat, 0)
         score += delta * weight
     return score
+
 
 def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any], ignore_stats: list[str] = []) -> Dict[str, Any]:
     result = {
@@ -69,7 +74,7 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
     if not filtered_deltas:
         return result
 
-    # Sorted for most extreme to least extreme deltas
+    # Strictly sort from best to worst
     sorted_deltas = sorted(filtered_deltas.items(), key=lambda x: x[1], reverse=True)
     result['highlight'] = sorted_deltas[0][0]
     result['lowlight'] = sorted_deltas[-1][0]
@@ -84,7 +89,7 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
     if 'campStack' in filtered_deltas and filtered_deltas['campStack'] <= -0.8 and _get_role_category(role) == 'support':
         result['compound_flags'].append('no_stacking_support')
 
-    # Carry with low impact despite good farm
+    # Carry with low impact despite good farm (disabled if gpm/imp excluded)
     if all(s in filtered_deltas for s in ['gpm', 'imp']):
         if filtered_deltas['gpm'] < -0.3 and filtered_deltas['imp'] >= 0:
             result['compound_flags'].append('impact_without_farm')
@@ -100,6 +105,7 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
         result['compound_flags'].append('fed_no_impact')
 
     return result
+
 
 def analyze_player(
     player_stats: Dict[str, Any],
