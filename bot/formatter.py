@@ -1,103 +1,36 @@
-# bot/formatter.py
-
-import json
-from pathlib import Path
 from datetime import datetime
+import time
 
-# Load hero baselines and roles inline from local JSON
-baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
-roles_path = Path(__file__).parent / "../data/hero_roles.json"
-
-with open(baseline_path, "r") as f:
-    HERO_BASELINES = json.load(f)
-
-with open(roles_path, "r") as f:
-    HERO_ROLES = json.load(f)
-
-
-def get_role(hero_name):
-    return HERO_ROLES.get(hero_name, "unknown")
-
-
-def get_baseline(hero_name, role):
-    return HERO_BASELINES.get(hero_name, {}).get(role)
-
-
-def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
-    if not isinstance(full_match, dict):
-        return f"❌ Match data was not a valid dictionary. Got: {type(full_match)}"
-
-    match_id = full_match.get("id")
-    match_players = full_match.get("players", [])
-    match_start = full_match.get("startDateTime", 0)
-    match_duration = full_match.get("durationSeconds", 0)
-
-    player = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
+def format_match_summary(match, steam_id):
+    player = next((p for p in match["players"] if p["steamAccountId"] == steam_id), None)
     if not player:
-        return f"❌ Player data not found in match {match_id}"
+        raise ValueError(f"Player {steam_id} not found in match data.")
 
-    # Defensive stat extraction
-    stats_block = player.get("stats") or {}
-    camp_stack = stats_block.get("campStack") or []
-    level_list = stats_block.get("level") or []
+    hero = player["hero"]["name"].replace("npc_dota_hero_", "")
+    win = "Victory" if player["isVictory"] else "Defeat"
+    kda = f"{player['kills']}/{player['deaths']}/{player['assists']}"
+    gpm = player["goldPerMinute"]
+    xpm = player["experiencePerMinute"]
+    imp = player.get("imp", 0)
 
-    stats = {
-        'kills': player.get('kills', 0),
-        'deaths': player.get('deaths', 0),
-        'assists': player.get('assists', 0),
-        'gpm': player.get('goldPerMinute', 0),
-        'xpm': player.get('experiencePerMinute', 0),
-        'imp': player.get('imp') if player.get('imp') is not None else 0,
-        'campStack': sum(camp_stack) if isinstance(camp_stack, list) else 0,
-        'level': level_list[-1] if isinstance(level_list, list) and level_list else 0,
-    }
+    time_str = format_unix_timestamp(match["startDateTime"])
+    duration = format_duration(match["durationSeconds"])
+    header = f"**{hero.title()}** — {win} ({kda})\n"
+    body = f"🕒 {time_str} | ⏱️ {duration}\n"
+    stats = f"📈 GPM: {gpm} | XPM: {xpm} | IMP: {imp}\n"
 
-    role = get_role(hero_name)
-    baseline = get_baseline(hero_name, role)
-    if not baseline:
-        return f"❌ No baseline for {hero_name} ({role})"
+    return header + body + stats
 
-    # Score calculation
-    deltas = {}
-    score = 0
-    weightings = {
-        'kills': 1.0,
-        'deaths': -1.5,
-        'assists': 0.7,
-        'gpm': 0.02,
-        'xpm': 0.02,
-        'imp': 1.0,
-        'campStack': 0.5,
-        'level': 0.5,
-    }
+def format_unix_timestamp(unix_time):
+    try:
+        return datetime.utcfromtimestamp(unix_time).strftime('%Y-%m-%d %H:%M UTC')
+    except:
+        return "unknown time"
 
-    for stat, value in stats.items():
-        delta = value - baseline.get(stat, 0)
-        deltas[stat] = delta
-        score += delta * weightings.get(stat, 1.0)
-
-    # Token feedback tags
-    praises = [k for k, v in deltas.items() if v > 0]
-    critiques = [k for k, v in deltas.items() if v < 0]
-    highlight = max(deltas, key=lambda k: deltas[k], default="unknown")
-    lowlight = min(deltas, key=lambda k: deltas[k], default="unknown")
-
-    # Optional compound flags
-    compound_flags = []
-    if stats['kills'] + stats['assists'] < 5:
-        compound_flags.append("low_kp")
-    if stats['deaths'] >= 10:
-        compound_flags.append("feeder_alert")
-    if stats['imp'] >= 10:
-        compound_flags.append("impact_god")
-
-    # Output summary log
-    kda = f"{kills}/{deaths}/{assists}"
-    win_emoji = "🏆 Win" if won else "💀 Loss"
-    header = f"🧙 {player_name} — {hero_name.split('_')[-1]}: {kda} — {win_emoji} (Match ID: {match_id})"
-    summary = f"📈 Score: {round(score, 2)}"
-    tags = f"📊 Tags: highlight={highlight} | lowlight={lowlight} | critiques={critiques} | praises={praises}"
-    if compound_flags:
-        tags += f" | compound_flags={compound_flags}"
-
-    return f"{header}\n📊 Performance Analysis:\n{summary}\n{tags}"
+def format_duration(seconds):
+    try:
+        mins = seconds // 60
+        secs = seconds % 60
+        return f"{mins}m {secs}s"
+    except:
+        return "unknown duration"
