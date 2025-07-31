@@ -93,6 +93,7 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
     query ($matchId: Long!) {
       match(id: $matchId) {
         id
+        gameMode
         durationSeconds
         startDateTime
         players {
@@ -125,6 +126,7 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
           hero {
             id
             name
+            displayName
           }
           stats {
             level
