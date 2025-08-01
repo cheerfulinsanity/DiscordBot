@@ -1,11 +1,11 @@
 # feedback/engine_turbo.py
 
 from typing import Dict, Any
-import json
 
 LOW_DELTA_THRESHOLD = -0.25
 HIGH_DELTA_THRESHOLD = 0.25
 
+# Canonical stat set for Turbo — no economy stats allowed
 TURBO_STATS = [
     "imp", "kills", "deaths", "assists",
     "campStack", "level", "killParticipation"
@@ -31,26 +31,43 @@ ROLE_WEIGHTS = {
     }
 }
 
+
 def _get_role_category(role: str) -> str:
     return 'support' if role in ['softSupport', 'hardSupport'] else 'core'
 
-def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any]) -> Dict[str, float]:
-    return {
-        k: (player_stats[k] - v) / v
-        for k, v in baseline_stats.items()
-        if k in ROLE_WEIGHTS[_get_role_category(player_stats.get("role", "core"))]
-        and isinstance(player_stats.get(k), (int, float)) and isinstance(v, (int, float)) and v != 0
-    }
 
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     return (kills + assists) / team_kills if team_kills > 0 else 0.0
+
+
+def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str) -> Dict[str, float]:
+    category = _get_role_category(role)
+    allowed_keys = ROLE_WEIGHTS[category].keys()
+
+    return {
+        k: (player_stats[k] - baseline_stats[k]) / baseline_stats[k]
+        for k in allowed_keys
+        if k in player_stats and k in baseline_stats
+        and isinstance(player_stats[k], (int, float))
+        and isinstance(baseline_stats[k], (int, float))
+        and baseline_stats[k] != 0
+    }
+
 
 def _score_performance(deltas: Dict[str, float], role: str) -> float:
     weights = ROLE_WEIGHTS[_get_role_category(role)]
     return sum(deltas.get(k, 0) * weights.get(k, 0) for k in deltas)
 
+
 def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any]) -> Dict[str, Any]:
-    result = {'highlight': None, 'lowlight': None, 'critiques': [], 'praises': [], 'compound_flags': []}
+    result = {
+        'highlight': None,
+        'lowlight': None,
+        'critiques': [],
+        'praises': [],
+        'compound_flags': []
+    }
+
     if not deltas:
         return result
 
@@ -75,21 +92,23 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
 
     return result
 
+
 def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
-    # Compute KP first
-    player_stats["killParticipation"] = _compute_kp(
-        player_stats.get("kills", 0),
-        player_stats.get("assists", 0),
+    # Sanitize input strictly to TURBO_STATS only
+    turbo_stats = {
+        k: player_stats.get(k, 0) for k in TURBO_STATS
+    }
+
+    # Always compute KP fresh
+    turbo_stats["killParticipation"] = _compute_kp(
+        turbo_stats.get("kills", 0),
+        turbo_stats.get("assists", 0),
         team_kills
     )
 
-    # Strip illegal stats
-    filtered_stats = {k: v for k, v in player_stats.items() if k in TURBO_STATS}
-    filtered_stats["role"] = role  # needed by _get_role_category during delta calculation
-
-    deltas = _calculate_deltas(filtered_stats, baseline_stats)
+    deltas = _calculate_deltas(turbo_stats, baseline_stats, role)
     score = _score_performance(deltas, role)
-    tags = _select_priority_feedback(deltas, role, context=filtered_stats)
+    tags = _select_priority_feedback(deltas, role, context=turbo_stats)
 
     return {
         'deltas': deltas,
