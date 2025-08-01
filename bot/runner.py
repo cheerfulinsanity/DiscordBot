@@ -33,7 +33,10 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         print(f"❌ Player data missing in match {match_id} for {player_name}")
         return
 
-    hero_name = player_data.get("hero", {}).get("name", "unknown").replace("npc_dota_hero_", "")
+    hero_info = player_data.get("hero", {})
+    hero_name = hero_info.get("name", "unknown")  # raw: "npc_dota_hero_xyz"
+    hero_display = hero_info.get("displayName", hero_name.replace("npc_dota_hero_", "").title())  # fallback
+
     kills = player_data.get("kills", 0)
     deaths = player_data.get("deaths", 0)
     assists = player_data.get("assists", 0)
@@ -41,7 +44,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
 
     readable_mode = game_mode.title().replace("_", " ") if isinstance(game_mode, str) else f"Mode {game_mode}"
 
-    print(f"🎮 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
+    print(f"🎮 {player_name} — {hero_display}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
     print(f"📊 Performance Analysis:")
     print(f"🧠 Mode: {game_mode} → Using {'Turbo' if game_mode == 'TURBO' else 'Normal'} engine")
 
