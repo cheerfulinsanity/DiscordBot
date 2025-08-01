@@ -1,7 +1,7 @@
 # bot/fetch.py
 
 from bot.stratz import fetch_latest_match, fetch_full_match
-from bot.runner import throttle  # 🆕 Import throttle to enforce rate limits
+from bot.throttle import throttle  # ✅ Fixed: import throttle from dedicated module
 
 def get_latest_new_match(steam_id: int, last_posted_id: str | None, token: str) -> dict | None:
     """
