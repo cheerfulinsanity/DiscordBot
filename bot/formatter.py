@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from feedback.engine import analyze_player as analyze_normal
 from feedback.engine_turbo import analyze_player as analyze_turbo
-from feedback.advice import generate_advice
+from feedback.advice import generate_advice, get_title_phrase
 from datetime import datetime
 
 # --- Canonical stat sets ---
@@ -130,18 +130,8 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     score = result["score"]
     hero_display = player.get("hero", {}).get("displayName") or normalize_hero_name(hero_name).title()
 
-    if score >= 3.5:
-        icon, phrase = "💨", "blew up the game"
-    elif score >= 2.0:
-        icon, phrase = "🔥", "went off"
-    elif score >= 0.5:
-        icon, phrase = "🎯", "went steady"
-    elif score >= -0.5:
-        icon, phrase = "🎲", "turned up"
-    elif score >= -2.0:
-        icon, phrase = "💀", "struggled"
-    else:
-        icon, phrase = "☠️", "inted it all away"
+    # Use new helper for title emoji and phrase based on score, won, and compound flags
+    icon, phrase = get_title_phrase(score, won, result["feedback_tags"].get("compound_flags", []))
 
     header = f"{icon} {player_name} {phrase} {kda} as {hero_display} — {win_emoji} {'Win' if won else 'Loss'} (Match {match_id}, {game_mode_name})"
     summary = f"📊 Score: {round(score, 2)}"
@@ -226,7 +216,9 @@ def format_match_embed(player_name, player_id, hero_name, kills, deaths, assists
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆" if won else "💀"
 
-    title = f"🔥 {player_name} went off — {hero_display} ({kda}) {win_emoji} {'Win' if won else 'Loss'}"
+    icon, phrase = get_title_phrase(score, won, result["feedback_tags"].get("compound_flags", []))
+
+    title = f"{icon} {player_name} {phrase} {kda} as {hero_display} {win_emoji} {'Win' if won else 'Loss'}"
     color = 0x00FF00 if won else 0xFF0000
 
     # Format stat deltas string
