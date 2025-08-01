@@ -84,18 +84,21 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         'level': level_list[-1] if isinstance(level_list, list) and level_list else 0,
     }
 
-    # Remove banned stats for Turbo BEFORE analyze
-    if is_turbo:
-        raw_stats.pop("gpm", None)
-        raw_stats.pop("xpm", None)
-
     role = get_role(hero_name)
     baseline = get_baseline(hero_name, role)
     if not baseline:
         return f"❌ No baseline for {hero_name} ({role})"
 
+    # Remove banned stats for Turbo BEFORE analyze
+    if is_turbo:
+        raw_stats.pop("gpm", None)
+        raw_stats.pop("xpm", None)
+        baseline = {k: v for k, v in baseline.items() if k not in ["gpm", "xpm"]}
+
     is_radiant = player.get("isRadiant")
     team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isRadiant") == is_radiant)
+
+    print(f"🧠 Mode: {mode_flag} → Using {'Turbo' if is_turbo else 'Normal'} engine")
 
     try:
         analyze = analyze_turbo if is_turbo else analyze_normal
