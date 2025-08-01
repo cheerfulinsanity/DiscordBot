@@ -3,21 +3,21 @@ import json
 import sys
 from pathlib import Path
 
-# Ensure root dir is in sys.path so we can import like runner.py does
+# Insert project root into path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-# Now import using your existing project structure
-from bot.formatter import format_match
+# Import whole module (function not promoted with `__all__`)
+import bot.formatter
 
-# Enable debug mode
+# Enable debug logging
 os.environ["DEBUG_MODE"] = "1"
 
 def run_match_test(sample_path, player_name, player_id, hero_name, kills, deaths, assists, won):
     with open(sample_path) as f:
         match = json.load(f)
 
-    result = format_match(
+    result = bot.formatter.format_match(
         player_name=player_name,
         player_id=player_id,
         hero_name=hero_name,
