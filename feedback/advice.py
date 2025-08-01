@@ -1,5 +1,3 @@
-# feedback/advice.py
-
 import random
 from typing import Dict, List, Optional
 from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES
@@ -27,6 +25,7 @@ def stat_allowed(stat: str, mode: str) -> bool:
 def pick_line(tag: str, delta: float, mode: str) -> Optional[str]:
     """
     Pick a phrased line from the phrase book, based on delta tier.
+    Formats the delta using absolute value to avoid sign confusion.
     """
     if not stat_allowed(tag, mode):
         return None
@@ -37,7 +36,7 @@ def pick_line(tag: str, delta: float, mode: str) -> Optional[str]:
     if not lines:
         return None
     template = random.choice(lines)
-    return template.format(delta=delta * 100)
+    return template.format(delta=abs(delta) * 100)  # Use absolute delta here
 
 def generate_advice(
     tags: Dict,
@@ -161,4 +160,3 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
             return "☠️", "Was a major factor in loss"
         else:
             return "☠️", "Got wrecked hard"
-
