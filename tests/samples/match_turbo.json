@@ -29,7 +29,7 @@
         "laneCreeps": 64,
         "jungleCreeps": 18,
         "experiencePerMinute": 710,
-        "networthPerMinute": 0,  // intentionally ignored in Turbo
+        "networthPerMinute": 0,
         "fightParticipationPercent": 0.64,
         "stunDuration": 0,
         "disableDuration": 0
