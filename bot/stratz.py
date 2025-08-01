@@ -3,6 +3,7 @@
 import requests
 import json
 import os  # For DEBUG_MODE
+from bot.throttle import throttle  # ✅ Enforce Stratz rate limits
 
 STRATZ_URL = "https://api.stratz.com/graphql"
 
@@ -37,6 +38,7 @@ def fetch_latest_match(steam_id: int, token: str) -> dict | None:
     headers = HEADERS_TEMPLATE | {"Authorization": f"Bearer {token}"}
 
     try:
+        throttle()  # ✅ Enforce per-call rate limit
         res = requests.post(
             STRATZ_URL,
             json={"query": query, "variables": variables},
@@ -147,6 +149,7 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
     headers = HEADERS_TEMPLATE | {"Authorization": f"Bearer {token}"}
 
     try:
+        throttle()  # ✅ Enforce rate limit here too
         res = requests.post(
             STRATZ_URL,
             json={"query": query, "variables": variables},
