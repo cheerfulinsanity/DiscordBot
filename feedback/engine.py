@@ -1,5 +1,3 @@
-# feedback/engine.py
-
 from typing import Dict, Any
 import json
 
@@ -86,13 +84,36 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
     result['highlight'] = sorted_deltas[0][0]
     result['lowlight'] = sorted_deltas[-1][0]
 
+    won = context.get("isVictory", False)
+    kills = context.get("kills", 0)
+    imp = context.get("imp", 0)
+
     for stat, delta in deltas.items():
+        # Critiques first
         if delta <= LOW_DELTA_THRESHOLD:
             result['critiques'].append(stat)
-        elif delta >= HIGH_DELTA_THRESHOLD:
+            continue
+
+        # Skip praising GPM/XPM on supports
+        if role_category == 'support' and stat in ['gpm', 'xpm']:
+            continue
+
+        # Suppress empty kills-based praise
+        if stat == 'kills' and kills <= 3:
+            continue
+
+        # Avoid praising high GPM if impact is low
+        if stat == 'gpm' and imp < 0:
+            continue
+
+        # Damp praise if lost
+        if not won and stat in ['gpm', 'xpm', 'kills']:
+            continue
+
+        if delta >= HIGH_DELTA_THRESHOLD:
             result['praises'].append(stat)
 
-    # Compound flags
+    # --- Compound flags ---
     if 'campStack' in deltas and deltas['campStack'] <= -0.8 and role_category == 'support':
         result['compound_flags'].append('no_stacking_support')
 
