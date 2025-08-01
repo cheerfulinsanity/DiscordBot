@@ -1,7 +1,10 @@
+# bot/formatter.py
+
 import json
 from pathlib import Path
-from feedback.engine import analyze_player
-from feedback.advice import generate_advice  # 🆕 Import advice generator
+from feedback.engine import analyze_player as analyze_normal
+from feedback.engine_turbo import analyze_player as analyze_turbo
+from feedback.advice import generate_advice
 
 # Load hero baselines and roles from local JSON
 baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
@@ -89,8 +92,8 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isRadiant") == is_radiant)
 
     try:
-        ignore_stats = ["gpm", "xpm"] if is_turbo else []
-        result = analyze_player(stats, baseline, role, team_kills, ignore_stats=ignore_stats)
+        analyze = analyze_turbo if is_turbo else analyze_normal
+        result = analyze(stats, baseline, role, team_kills)
     except Exception as e:
         debug_dump = {
             "player_name": player_name,
@@ -125,6 +128,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     summary = f"📊 Score: {round(score, 2)}"
 
     # ✅ Turbo-aware structured advice
+    ignore_stats = ["gpm", "xpm"] if is_turbo else []
     advice = generate_advice(result['feedback_tags'], result['deltas'], ignore_stats=ignore_stats, mode=mode_flag)
 
     advice_sections = []
