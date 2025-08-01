@@ -6,17 +6,26 @@ from feedback.engine import analyze_player as analyze_normal
 from feedback.engine_turbo import analyze_player as analyze_turbo
 from feedback.advice import generate_advice
 
-# Load hero baselines and roles from local JSON
-baseline_path = Path(__file__).parent / "../data/hero_baselines.json"
-roles_path = Path(__file__).parent / "../data/hero_roles.json"
+# --- Canonical stat sets ---
+NORMAL_STATS = ["gpm", "xpm", "imp", "kills", "deaths", "assists", "campStack", "level", "killParticipation"]
+TURBO_STATS  = ["imp", "kills", "deaths", "assists", "campStack", "level", "killParticipation"]
 
-with open(baseline_path, "r") as f:
-    HERO_BASELINES = json.load(f)
+# --- Paths ---
+BASELINES_NORMAL_PATH = Path(__file__).parent / "../data/hero_baselines.json"
+BASELINES_TURBO_PATH  = Path(__file__).parent / "../data/hero_baselines_turbo.json"
+ROLES_PATH            = Path(__file__).parent / "../data/hero_roles.json"
 
-with open(roles_path, "r") as f:
+# --- Data loads ---
+with open(BASELINES_NORMAL_PATH, "r") as f:
+    HERO_BASELINES_NORMAL = json.load(f)
+
+with open(BASELINES_TURBO_PATH, "r") as f:
+    HERO_BASELINES_TURBO = json.load(f)
+
+with open(ROLES_PATH, "r") as f:
     HERO_ROLES = json.load(f)
 
-# Map of Stratz gameMode IDs to readable names
+# --- Game mode map ---
 GAME_MODE_NAMES = {
     1: "All Pick",
     2: "Captains Mode",
@@ -29,20 +38,37 @@ GAME_MODE_NAMES = {
     23: "Turbo"
 }
 
+# --- Utility functions ---
 def normalize_hero_name(raw_name: str) -> str:
     if raw_name.startswith("npc_dota_hero_"):
         raw_name = raw_name.replace("npc_dota_hero_", "")
     return raw_name.lower()
 
-def get_role(hero_name):
+def get_role(hero_name: str) -> str:
     normalized = normalize_hero_name(hero_name)
     roles = HERO_ROLES.get(normalized, [])
     return roles[0] if roles else "unknown"
 
-def get_baseline(hero_name, role):
+def get_baseline(hero_name: str, mode: str) -> dict | None:
     normalized = normalize_hero_name(hero_name)
-    return HERO_BASELINES.get(normalized)
+    if mode == "TURBO":
+        return HERO_BASELINES_TURBO.get(normalized)
+    return HERO_BASELINES_NORMAL.get(normalized)
 
+def _extract_stats(player: dict, stats_block: dict, stat_keys: list[str]) -> dict:
+    stats = {}
+    for key in stat_keys:
+        if key == "campStack":
+            camp_stack = stats_block.get("campStack") or []
+            stats["campStack"] = sum(camp_stack) if isinstance(camp_stack, list) else 0
+        elif key == "level":
+            level_list = stats_block.get("level") or []
+            stats["level"] = level_list[-1] if isinstance(level_list, list) and level_list else 0
+        else:
+            stats[key] = player.get(key, 0)
+    return stats
+
+# --- Main logic ---
 def format_match(player_name, player_id, hero_name, kills, deaths, assists, won, full_match):
     if not isinstance(full_match, dict):
         return f"❌ Match data was not a valid dictionary. Got: {type(full_match)}"
@@ -50,16 +76,17 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     match_id = full_match.get("id")
     match_players = full_match.get("players", [])
     game_mode_id = full_match.get("gameMode")
-    game_mode_name = GAME_MODE_NAMES.get(game_mode_id, f"Mode {game_mode_id}")
-    is_turbo = game_mode_id == 23
-    mode_flag = "TURBO" if is_turbo else "NON_TURBO"
 
     if not isinstance(match_players, list):
         return f"❌ 'players' field is not a list. Got: {type(match_players)}"
 
-    for p in match_players:
-        if not isinstance(p, dict):
-            return f"❌ Malformed player entry in match {match_id}: expected dict, got {type(p)}"
+    if game_mode_id is None:
+        return f"❌ Missing gameMode field in match {match_id}"
+
+    is_turbo = game_mode_id == 23
+    mode_flag = "TURBO" if is_turbo else "NON_TURBO"
+    game_mode_name = GAME_MODE_NAMES.get(game_mode_id, f"Mode {game_mode_id}")
+    stat_keys = TURBO_STATS if is_turbo else NORMAL_STATS
 
     player = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
     if not player:
@@ -69,36 +96,15 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     if not isinstance(stats_block, dict):
         return f"❌ 'stats' field is not a dict. Got: {type(stats_block)}"
 
-    camp_stack = stats_block.get("campStack") or []
-    level_list = stats_block.get("level") or []
-
-    # Raw stats extracted from match
-    raw_stats = {
-        'kills': player.get('kills', 0),
-        'deaths': player.get('deaths', 0),
-        'assists': player.get('assists', 0),
-        'gpm': player.get('goldPerMinute', 0),
-        'xpm': player.get('experiencePerMinute', 0),
-        'imp': player.get('imp') if player.get('imp') is not None else 0,
-        'campStack': sum(camp_stack) if isinstance(camp_stack, list) else 0,
-        'level': level_list[-1] if isinstance(level_list, list) and level_list else 0,
-    }
+    is_radiant = player.get("isRadiant", True)
+    team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isRadiant") == is_radiant)
 
     role = get_role(hero_name)
-    baseline_raw = get_baseline(hero_name, role)
-    if not baseline_raw:
+    baseline = get_baseline(hero_name, mode_flag)
+    if not baseline:
         return f"❌ No baseline for {hero_name} ({role})"
 
-    # Ensure no economy stats are passed to Turbo engine
-    baseline = baseline_raw.copy()
-    if is_turbo:
-        raw_stats.pop("gpm", None)
-        raw_stats.pop("xpm", None)
-        baseline.pop("gpm", None)
-        baseline.pop("xpm", None)
-
-    is_radiant = player.get("isRadiant")
-    team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isRadiant") == is_radiant)
+    raw_stats = _extract_stats(player, stats_block, stat_keys)
 
     print(f"🧠 Mode: {mode_flag} → Using {'Turbo' if is_turbo else 'Normal'} engine")
 
@@ -116,11 +122,11 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         }
         return f"❌ analyze_player raised error for {player_name}: {e}\n🧪 Debug dump:\n{json.dumps(debug_dump, indent=2)}"
 
-    # Compose performance title
+    # --- Formatting output ---
     kda = f"{kills}/{deaths}/{assists}"
     win_emoji = "🏆" if won else "💀"
-    score = result['score']
-    hero_display = player.get("hero", {}).get("displayName", normalize_hero_name(hero_name).title())
+    score = result["score"]
+    hero_display = player.get("hero", {}).get("displayName") or normalize_hero_name(hero_name).title()
 
     if score >= 3.5:
         icon, phrase = "💨", "blew up the game"
@@ -138,30 +144,25 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     header = f"{icon} {player_name} {phrase} {kda} as {hero_display} — {win_emoji} {'Win' if won else 'Loss'} (Match {match_id}, {game_mode_name})"
     summary = f"📊 Score: {round(score, 2)}"
 
-    # ✅ Turbo-aware structured advice
     ignore_stats = ["gpm", "xpm"] if is_turbo else []
-    advice = generate_advice(result['feedback_tags'], result['deltas'], ignore_stats=ignore_stats, mode=mode_flag)
+    advice = generate_advice(result["feedback_tags"], result["deltas"], ignore_stats=ignore_stats, mode=mode_flag)
 
     advice_sections = []
 
     if advice["positives"]:
         advice_sections.append("🎯 What went well:")
-        for line in advice["positives"]:
-            advice_sections.append(f"- {line}")
+        advice_sections.extend(f"- {line}" for line in advice["positives"])
 
     if advice["negatives"]:
         advice_sections.append("🚰 What to work on:")
-        for line in advice["negatives"]:
-            advice_sections.append(f"- {line}")
+        advice_sections.extend(f"- {line}" for line in advice["negatives"])
 
     if advice["flags"]:
         advice_sections.append("💼 Flagged behavior:")
-        for line in advice["flags"]:
-            advice_sections.append(f"- {line}")
+        advice_sections.extend(f"- {line}" for line in advice["flags"])
 
     if advice["tips"]:
         advice_sections.append("🗾️ Tips:")
-        for line in advice["tips"]:
-            advice_sections.append(f"- {line}")
+        advice_sections.extend(f"- {line}" for line in advice["tips"])
 
     return f"{header}\n📊 Performance Analysis:\n{summary}\n" + "\n".join(advice_sections)
