@@ -6,27 +6,16 @@ from bot.formatter import format_match
 from bot.config import CONFIG
 from bot.throttle import throttle
 import os
-import time
 
 TOKEN = os.getenv("TOKEN")
-MAX_RETRIES = 2
 
 def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> None:
     """
     Fetch and format the latest match for a player. Updates state if successful.
-    Includes simple retry mechanism for transient failures.
+    Now runs with no retries to avoid unnecessary API calls.
     """
-    retries = 0
-    match_bundle = None
-
-    while retries <= MAX_RETRIES:
-        throttle()  # ✅ Enforce rate limit before each attempt
-        match_bundle = get_latest_new_match(steam_id, last_posted_id, TOKEN)
-        if match_bundle or retries == MAX_RETRIES:
-            break
-        print(f"🔁 Retry {retries + 1} for {player_name} due to fetch failure...")
-        time.sleep(2)
-        retries += 1
+    throttle()  # ✅ Rate-limit before each player's call
+    match_bundle = get_latest_new_match(steam_id, last_posted_id, TOKEN)
 
     if not match_bundle:
         print(f"⏩ No new match or failed to fetch for {player_name}. Skipping.")
