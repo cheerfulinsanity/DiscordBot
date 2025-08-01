@@ -64,8 +64,11 @@ def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, An
                 deltas[stat] = 0.0
     return deltas
 
-def _score_performance(deltas: Dict[str, float], weights: Dict[str, float]) -> float:
-    return sum(deltas[stat] * weights.get(stat, 0) for stat in deltas)
+def _score_performance(deltas: Dict[str, float], weights: Dict[str, float], won: bool) -> float:
+    base_score = sum(deltas[stat] * weights.get(stat, 0) for stat in deltas)
+    if won:
+        base_score += 0.2
+    return base_score
 
 def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any]) -> Dict[str, Any]:
     role_category = _get_role_category(role)
@@ -86,27 +89,23 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
 
     won = context.get("isVictory", False)
     kills = context.get("kills", 0)
+    assists = context.get("assists", 0)
     imp = context.get("imp", 0)
 
     for stat, delta in deltas.items():
-        # Critiques first
         if delta <= LOW_DELTA_THRESHOLD:
             result['critiques'].append(stat)
             continue
 
-        # Skip praising GPM/XPM on supports
         if role_category == 'support' and stat in ['gpm', 'xpm']:
             continue
 
-        # Suppress empty kills-based praise
-        if stat == 'kills' and kills <= 3:
+        if stat == 'kills' and (kills + assists) <= 3:
             continue
 
-        # Avoid praising high GPM if impact is low
         if stat == 'gpm' and imp < 0:
             continue
 
-        # Damp praise if lost
         if not won and stat in ['gpm', 'xpm', 'kills']:
             continue
 
@@ -129,6 +128,9 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
     if 'deaths' in deltas and deltas['deaths'] > 0.5 and deltas.get('imp', 0) < 0:
         result['compound_flags'].append('fed_no_impact')
 
+    if context.get('deaths', 0) >= 5 and context.get('level', 0) < 10:
+        result['compound_flags'].append('fed_early')
+
     return result
 
 def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
@@ -136,7 +138,6 @@ def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any],
     Analyze a normal-mode player stat block against role baseline.
     Expects player_stats to contain only NORMAL_STATS.
     """
-
     role_category = _get_role_category(role)
     if role_category not in ROLE_WEIGHTS:
         raise ValueError(f"Invalid role category derived from role: {role}")
@@ -151,7 +152,7 @@ def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any],
     )
 
     deltas = _calculate_deltas(stats, baseline_stats, weights)
-    score = _score_performance(deltas, weights)
+    score = _score_performance(deltas, weights, won=stats.get("isVictory", False))
     feedback_tags = _select_priority_feedback(deltas, role, context=stats)
 
     if DEBUG:
