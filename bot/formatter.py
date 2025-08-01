@@ -1,5 +1,3 @@
-# bot/formatter.py
-
 import json
 from pathlib import Path
 from feedback.engine import analyze_player as analyze_normal
@@ -158,7 +156,6 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         advice_sections.extend(f"- {line}" for line in advice["tips"])
 
     return f"{header}\n📊 Performance Analysis:\n{summary}\n" + "\n".join(advice_sections)
-
 
 # --- New embed formatter ---
 
