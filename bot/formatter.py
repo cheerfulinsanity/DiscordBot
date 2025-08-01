@@ -85,15 +85,17 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     }
 
     role = get_role(hero_name)
-    baseline = get_baseline(hero_name, role)
-    if not baseline:
+    baseline_raw = get_baseline(hero_name, role)
+    if not baseline_raw:
         return f"❌ No baseline for {hero_name} ({role})"
 
-    # Remove banned stats for Turbo BEFORE analyze
+    # Ensure no economy stats are passed to Turbo engine
+    baseline = baseline_raw.copy()
     if is_turbo:
         raw_stats.pop("gpm", None)
         raw_stats.pop("xpm", None)
-        baseline = {k: v for k, v in baseline.items() if k not in ["gpm", "xpm"]}
+        baseline.pop("gpm", None)
+        baseline.pop("xpm", None)
 
     is_radiant = player.get("isRadiant")
     team_kills = sum(p.get("kills", 0) for p in match_players if p.get("isRadiant") == is_radiant)
