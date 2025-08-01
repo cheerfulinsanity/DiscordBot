@@ -34,6 +34,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
 
     match_id = match_bundle["match_id"]
     match_data = match_bundle["full_data"]
+    game_mode = match_bundle.get("game_mode", "UNKNOWN")
 
     player_data = next(
         (p for p in match_data["players"] if p.get("steamAccountId") == steam_id),
@@ -49,8 +50,11 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     assists = player_data.get("assists", 0)
     won = player_data.get("isVictory", False)
 
+    readable_mode = game_mode.title().replace("_", " ") if isinstance(game_mode, str) else f"Mode {game_mode}"
+
     print(f"🎮 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
-    print("📊 Performance Analysis:")
+    print(f"📊 Performance Analysis:")
+    print(f"🧠 Mode: {game_mode} → Using {'Turbo' if game_mode == 'TURBO' else 'Normal'} engine")
 
     try:
         feedback = format_match(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
