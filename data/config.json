@@ -1,7 +1,8 @@
 {
   "test_mode": false,
+  "webhook_enabled": true,
   "webhook_url": "https://discord.com/api/webhooks/1397376667772522606/JoRFu6srPi2Nn2wq1wMvCsEyEe5H9ts7kk9sODLv43zvzoVLNB44TLiDB4fHzjgfR9E5",
- "players": {
+  "players": {
     "ʑΩR⨂Θ™": 888990422,
     "†eKnOLod|ya": 117009018,
     "aqua-sama": 1250129131,
