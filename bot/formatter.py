@@ -18,22 +18,28 @@ NORMAL_STATS = [
   "networth", "networthPerMinute", "experiencePerMinute"
 ]
 
-TURBO_STATS = [s for s in NORMAL_STATS if s not in ["gpm", "xpm", "gold", "goldSpent", "networth", "networthPerMinute"]]
+TURBO_STATS = [
+  stat for stat in NORMAL_STATS
+  if stat not in {"gpm", "xpm", "gold", "goldSpent", "networth", "networthPerMinute"}
+]
 
 # --- Paths ---
 BASELINES_NORMAL_PATH = Path(__file__).parent / "../data/hero_baselines.json"
-BASELINES_TURBO_PATH  = Path(__file__).parent / "../data/hero_baselines_turbo.json"
-ROLES_PATH            = Path(__file__).parent / "../data/hero_roles.json"
+BASELINES_TURBO_PATH = Path(__file__).parent / "../data/hero_baselines_turbo.json"
+ROLES_PATH = Path(__file__).parent / "../data/hero_roles.json"
 
 # --- Data loads ---
-with open(BASELINES_NORMAL_PATH, "r") as f:
-    HERO_BASELINES_NORMAL = json.load(f)
+def _load_json(path):
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"❌ Failed to load {path}: {e}")
+        return {}
 
-with open(BASELINES_TURBO_PATH, "r") as f:
-    HERO_BASELINES_TURBO = json.load(f)
-
-with open(ROLES_PATH, "r") as f:
-    HERO_ROLES = json.load(f)
+HERO_BASELINES_NORMAL = _load_json(BASELINES_NORMAL_PATH)
+HERO_BASELINES_TURBO = _load_json(BASELINES_TURBO_PATH)
+HERO_ROLES = _load_json(ROLES_PATH)
 
 # --- Game mode map ---
 GAME_MODE_NAMES = {
@@ -50,62 +56,58 @@ GAME_MODE_NAMES = {
 
 # --- Utility functions ---
 def normalize_hero_name(raw_name: str) -> str:
-    if raw_name.startswith("npc_dota_hero_"):
-        raw_name = raw_name.replace("npc_dota_hero_", "")
-    return raw_name.lower()
+    return raw_name.replace("npc_dota_hero_", "").lower() if raw_name.startswith("npc_dota_hero_") else raw_name.lower()
 
 def get_role(hero_name: str) -> str:
-    normalized = normalize_hero_name(hero_name)
-    roles = HERO_ROLES.get(normalized, [])
-    return roles[0] if roles else "unknown"
+    return HERO_ROLES.get(normalize_hero_name(hero_name), ["unknown"])[0]
 
 def get_baseline(hero_name: str, mode: str) -> dict | None:
-    normalized = normalize_hero_name(hero_name)
-    if mode == "TURBO":
-        return HERO_BASELINES_TURBO.get(normalized)
-    return HERO_BASELINES_NORMAL.get(normalized)
+    baselines = HERO_BASELINES_TURBO if mode == "TURBO" else HERO_BASELINES_NORMAL
+    return baselines.get(normalize_hero_name(hero_name))
 
 def _extract_stats(player: dict, stats_block: dict, stat_keys: list[str]) -> dict:
     stats = {}
+    stats_block = stats_block or {}
 
     for key in stat_keys:
+        val = 0
+
         if key == "campStack":
-            camp_stack = stats_block.get("campStack") or []
-            stats["campStack"] = sum(camp_stack) if isinstance(camp_stack, list) else 0
+            val = sum(stats_block.get("campStack") or [])
 
         elif key == "level":
             level_list = stats_block.get("level") or []
-            stats["level"] = level_list[-1] if isinstance(level_list, list) and level_list else 0
+            val = level_list[-1] if level_list else 0
 
         elif key == "runePickups":
-            runes = stats_block.get("runes") or []
-            stats["runePickups"] = len(runes)
+            val = len(stats_block.get("runes") or [])
 
         elif key == "wardsPlaced":
-            wards = stats_block.get("wards") or []
-            stats["wardsPlaced"] = len(wards)
+            val = len(stats_block.get("wards") or [])
 
         elif key == "sentryWardsPlaced":
-            sentries = [w for w in stats_block.get("wards") or [] if w.get("isSentry")]
-            stats["sentryWardsPlaced"] = len(sentries)
+            val = sum(1 for w in stats_block.get("wards") or [] if w.get("isSentry"))
 
         elif key == "observerWardsPlaced":
-            observers = [w for w in stats_block.get("wards") or [] if w.get("isObserver")]
-            stats["observerWardsPlaced"] = len(observers)
+            val = sum(1 for w in stats_block.get("wards") or [] if w.get("isObserver"))
 
         elif key == "wardsDestroyed":
-            destroyed = stats_block.get("wardDestruction") or []
-            stats["wardsDestroyed"] = len(destroyed)
+            val = len(stats_block.get("wardDestruction") or [])
 
         elif key == "killParticipation":
-            stats["killParticipation"] = None  # Placeholder, calculated later
+            val = None  # set below
 
         else:
-            stats[key] = stats_block.get(key)
-            if stats[key] is None:
-                stats[key] = player.get(key, 0)
-            if stats[key] is None:
-                stats[key] = 0
+            val = stats_block.get(key, player.get(key, 0)) or 0
+
+        stats[key] = val
+
+    if "killParticipation" in stat_keys:
+        team_kills = player.get("_team_kills")
+        if team_kills and team_kills > 0:
+            stats["killParticipation"] = round((player.get("kills", 0) + player.get("assists", 0)) / team_kills, 3)
+        else:
+            stats["killParticipation"] = 0.0
 
     if os.getenv("DEBUG_MODE") == "1":
         print("🧪 Extracted stats:", json.dumps(stats, indent=2))
