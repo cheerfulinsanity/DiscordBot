@@ -1,3 +1,5 @@
+# bot/runner.py
+
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match
@@ -23,11 +25,11 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         if match_bundle or retries == MAX_RETRIES:
             break
         print(f"🔁 Retry {retries + 1} for {player_name} due to fetch failure...")
-        time.sleep(2)  # Simple backoff
+        time.sleep(2)
         retries += 1
 
     if not match_bundle:
-        print("⏩ No new match or failed to fetch. Skipping.")
+        print(f"⏩ No new match or failed to fetch for {player_name}. Skipping.")
         return
 
     match_id = match_bundle["match_id"]
@@ -38,7 +40,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         None
     )
     if not player_data:
-        print(f"❌ Player data missing in match {match_id}")
+        print(f"❌ Player data missing in match {match_id} for {player_name}")
         return
 
     hero_name = player_data.get("hero", {}).get("name", "unknown").replace("npc_dota_hero_", "")
@@ -47,7 +49,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     assists = player_data.get("assists", 0)
     won = player_data.get("isVictory", False)
 
-    print(f"{player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
+    print(f"🎮 {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
     print("📊 Performance Analysis:")
 
     try:
