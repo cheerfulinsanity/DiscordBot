@@ -109,6 +109,7 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     print(f"🧠 Mode: {mode_flag} → Using {'Turbo' if is_turbo else 'Normal'} engine")
 
     try:
+        assert set(raw_stats.keys()).issubset(set(stat_keys)), f"❌ Stat leak: {raw_stats.keys()} vs {stat_keys}"
         analyze = analyze_turbo if is_turbo else analyze_normal
         result = analyze(raw_stats, baseline, role, team_kills)
     except Exception as e:
