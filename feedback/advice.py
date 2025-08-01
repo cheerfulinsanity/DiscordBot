@@ -47,7 +47,7 @@ def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str
 
     # Highlight
     hi = tags.get("highlight")
-    if hi and hi in filtered_deltas:
+    if hi and hi in filtered_deltas and stat_allowed(hi, mode) and hi not in ignore_stats:
         line = pick_line(hi, filtered_deltas[hi], mode)
         if line and filtered_deltas[hi] > 0:
             positives.append(line)
@@ -56,7 +56,7 @@ def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str
 
     # Lowlight
     lo = tags.get("lowlight")
-    if lo and lo != hi and lo in filtered_deltas:
+    if lo and lo != hi and lo in filtered_deltas and stat_allowed(lo, mode) and lo not in ignore_stats:
         line = pick_line(lo, filtered_deltas[lo], mode)
         if line and filtered_deltas[lo] > 0:
             positives.append(line)
@@ -78,6 +78,8 @@ def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str
         reverse=True
     )
     for stat, delta in remaining:
+        if stat in ignore_stats or not stat_allowed(stat, mode):
+            continue
         line = pick_line(stat, delta, mode)
         if line:
             (positives if delta > 0 else negatives).append(line)
