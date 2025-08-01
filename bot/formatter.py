@@ -72,7 +72,8 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
     camp_stack = stats_block.get("campStack") or []
     level_list = stats_block.get("level") or []
 
-    stats = {
+    # Raw stats extracted from match
+    raw_stats = {
         'kills': player.get('kills', 0),
         'deaths': player.get('deaths', 0),
         'assists': player.get('assists', 0),
@@ -82,6 +83,11 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
         'campStack': sum(camp_stack) if isinstance(camp_stack, list) else 0,
         'level': level_list[-1] if isinstance(level_list, list) and level_list else 0,
     }
+
+    # Remove banned stats for Turbo BEFORE analyze
+    if is_turbo:
+        raw_stats.pop("gpm", None)
+        raw_stats.pop("xpm", None)
 
     role = get_role(hero_name)
     baseline = get_baseline(hero_name, role)
@@ -93,12 +99,12 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
 
     try:
         analyze = analyze_turbo if is_turbo else analyze_normal
-        result = analyze(stats, baseline, role, team_kills)
+        result = analyze(raw_stats, baseline, role, team_kills)
     except Exception as e:
         debug_dump = {
             "player_name": player_name,
             "hero_name": hero_name,
-            "stats": stats,
+            "stats": raw_stats,
             "baseline": baseline,
             "role": role,
             "team_kills": team_kills
