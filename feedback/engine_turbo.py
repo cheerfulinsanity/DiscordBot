@@ -6,6 +6,11 @@ import json
 LOW_DELTA_THRESHOLD = -0.25
 HIGH_DELTA_THRESHOLD = 0.25
 
+TURBO_STATS = [
+    "imp", "kills", "deaths", "assists",
+    "campStack", "level", "killParticipation"
+]
+
 ROLE_WEIGHTS = {
     'core': {
         'imp': 1.0,
@@ -26,10 +31,8 @@ ROLE_WEIGHTS = {
     }
 }
 
-
 def _get_role_category(role: str) -> str:
     return 'support' if role in ['softSupport', 'hardSupport'] else 'core'
-
 
 def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any]) -> Dict[str, float]:
     return {
@@ -39,15 +42,12 @@ def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, An
         and isinstance(player_stats.get(k), (int, float)) and isinstance(v, (int, float)) and v != 0
     }
 
-
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     return (kills + assists) / team_kills if team_kills > 0 else 0.0
-
 
 def _score_performance(deltas: Dict[str, float], role: str) -> float:
     weights = ROLE_WEIGHTS[_get_role_category(role)]
     return sum(deltas.get(k, 0) * weights.get(k, 0) for k in deltas)
-
 
 def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any]) -> Dict[str, Any]:
     result = {'highlight': None, 'lowlight': None, 'critiques': [], 'praises': [], 'compound_flags': []}
@@ -75,21 +75,24 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
 
     return result
 
-
 def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
+    # Compute KP first
     player_stats["killParticipation"] = _compute_kp(
         player_stats.get("kills", 0),
         player_stats.get("assists", 0),
         team_kills
     )
 
-    deltas = _calculate_deltas(player_stats, baseline_stats)
+    # Strip illegal stats
+    filtered_stats = {k: v for k, v in player_stats.items() if k in TURBO_STATS}
+    filtered_stats["role"] = role  # needed by _get_role_category during delta calculation
+
+    deltas = _calculate_deltas(filtered_stats, baseline_stats)
     score = _score_performance(deltas, role)
-    tags = _select_priority_feedback(deltas, role, context=player_stats)
+    tags = _select_priority_feedback(deltas, role, context=filtered_stats)
 
     return {
         'deltas': deltas,
         'score': score,
         'feedback_tags': tags
     }
-
