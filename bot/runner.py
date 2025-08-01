@@ -4,7 +4,6 @@ from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match
 from bot.config import CONFIG
-from time import sleep
 from bot.throttle import throttle  # ✅ Import externalized throttle
 import os
 
@@ -21,6 +20,8 @@ def run_bot():
     print("📥 Loaded state.json from GitHub Gist")
 
     for index, (player_name, steam_id) in enumerate(players.items(), start=1):
+        throttle()  # ✅ Enforce rate limit before each player check
+
         print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({steam_id})...")
 
         last_posted_id = state.get(str(steam_id))
@@ -70,7 +71,6 @@ def run_bot():
             print(f"❌ Failed to format match for {player_name}: {e}")
 
         state[str(steam_id)] = match_id
-        sleep(1.2)
 
     save_state(state)
     print("📝 Updated state.json on GitHub Gist")
