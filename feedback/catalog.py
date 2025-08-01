@@ -6,16 +6,16 @@ PHRASE_BOOK = {
         "modes": ["NON_TURBO"],
         "tiers": {
             "mild": [
-                "Farm was okay — not terrible, not amazing (+{delta:.0f}%)",
-                "Slight gold advantage — keep optimizing rotations (+{delta:.0f}%)"
+                "Farm was okay — not terrible, not amazing ({delta:.0f}%)",
+                "Slight gold advantage — keep optimizing rotations ({delta:.0f}%)"
             ],
             "strong": [
-                "Solid gold gain. Lane and jungle use was efficient (+{delta:.0f}%)",
-                "You farmed well — look at how you pushed ahead (+{delta:.0f}%)"
+                "Solid gold gain. Lane and jungle use was efficient ({delta:.0f}%)",
+                "You farmed well — look at how you pushed ahead ({delta:.0f}%)"
             ],
             "extreme": [
-                "Incredible GPM — you outpaced the enemy cores (+{delta:.0f}%)",
-                "Gold machine. This was a farm diff (+{delta:.0f}%)"
+                "Incredible GPM — you outpaced the enemy cores ({delta:.0f}%)",
+                "Gold machine. This was a farm diff ({delta:.0f}%)"
             ]
         }
     },
@@ -23,104 +23,104 @@ PHRASE_BOOK = {
         "modes": ["NON_TURBO"],
         "tiers": {
             "mild": [
-                "Reasonable XP gain (+{delta:.0f}%) — steady flow."
+                "Reasonable XP gain ({delta:.0f}%) — steady flow."
             ],
             "strong": [
-                "Strong XPM — you were always in the action (+{delta:.0f}%)"
+                "Strong XPM — you were always in the action ({delta:.0f}%)"
             ],
             "extreme": [
-                "Explosive XP rate — constant fights and pushes (+{delta:.0f}%)"
+                "Explosive XP rate — constant fights and pushes ({delta:.0f}%)"
             ]
         }
     },
     "imp": {
         "tiers": {
             "mild": [
-                "Had some impact, especially midgame (+{delta:.0f}% IMP)"
+                "Had some impact, especially midgame ({delta:.0f}% IMP)"
             ],
             "strong": [
-                "Strong influence across fights (+{delta:.0f}% IMP)"
+                "Strong influence across fights ({delta:.0f}% IMP)"
             ],
             "extreme": [
-                "Dominated the game — high impact throughout (+{delta:.0f}% IMP)"
+                "Dominated the game — high impact throughout ({delta:.0f}% IMP)"
             ]
         }
     },
     "deaths": {
         "tiers": {
             "mild": [
-                "A bit death-heavy — stay tighter to team next time (-{delta:.0f}%)"
+                "A bit death-heavy — stay tighter to team next time ({delta:.0f}%)"
             ],
             "strong": [
-                "Too many deaths. Think about position and map awareness (-{delta:.0f}%)"
+                "Too many deaths. Think about position and map awareness ({delta:.0f}%)"
             ],
             "extreme": [
-                "Severe feeding — rethink your engagements (-{delta:.0f}%)"
+                "Severe feeding — rethink your engagements ({delta:.0f}%)"
             ]
         }
     },
     "campStack": {
         "tiers": {
             "mild": [
-                "Minimal stacking. Look for downtime to stack more (+{delta:.0f}%)"
+                "Minimal stacking. Look for downtime to stack more ({delta:.0f}%)"
             ],
             "strong": [
-                "Good stacking game — nice support efficiency (+{delta:.0f}%)"
+                "Good stacking game — nice support efficiency ({delta:.0f}%)"
             ],
             "extreme": [
-                "Excellent stacking — you juiced the jungle (+{delta:.0f}%)"
+                "Excellent stacking — you juiced the jungle ({delta:.0f}%)"
             ]
         }
     },
     "killParticipation": {
         "tiers": {
             "mild": [
-                "Some fight presence — room to be more involved (+{delta:.0f}%)"
+                "Some fight presence — room to be more involved ({delta:.0f}%)"
             ],
             "strong": [
-                "High participation — you showed up when it counted (+{delta:.0f}%)"
+                "High participation — you showed up when it counted ({delta:.0f}%)"
             ],
             "extreme": [
-                "Nearly every kill involved you. Team player (+{delta:.0f}%)"
+                "Nearly every kill involved you. Team player ({delta:.0f}%)"
             ]
         }
     },
     "assists": {
         "tiers": {
             "mild": [
-                "Some solid assists (+{delta:.0f}%) — you backed up your team."
+                "Some solid assists ({delta:.0f}%) — you backed up your team."
             ],
             "strong": [
-                "You were setting up kills consistently (+{delta:.0f}%)"
+                "You were setting up kills consistently ({delta:.0f}%)"
             ],
             "extreme": [
-                "Assist god — you enabled everyone (+{delta:.0f}%)"
+                "Assist god — you enabled everyone ({delta:.0f}%)"
             ]
         }
     },
     "kills": {
         "tiers": {
             "mild": [
-                "Picked up a few kills (+{delta:.0f}%) — nice pickoffs."
+                "Picked up a few kills ({delta:.0f}%) — nice pickoffs."
             ],
             "strong": [
-                "Reliable finisher — strong kill count (+{delta:.0f}%)"
+                "Reliable finisher — strong kill count ({delta:.0f}%)"
             ],
             "extreme": [
-                "Slaughtered them. You were the carry (+{delta:.0f}%)"
+                "Slaughtered them. You were the carry ({delta:.0f}%)"
             ]
         }
     },
     "level": {
         "tiers": {
             "mild": [
-                "Respectable leveling pace (+{delta:.0f}%)"
+                "Respectable leveling pace ({delta:.0f}%)"
             ],
             "strong": [
-                "You leveled fast — good fight participation and XP usage (+{delta:.0f}%)"
+                "You leveled fast — good fight participation and XP usage ({delta:.0f}%)"
             ],
             "extreme": [
-                "XP king — massive level lead (+{delta:.0f}%)"
+                "XP king — massive level lead ({delta:.0f}%)"
             ]
         }
     }
