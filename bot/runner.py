@@ -4,46 +4,11 @@ from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match
 from bot.config import CONFIG
-from time import sleep, time
-from collections import deque
+from time import sleep
+from bot.throttle import throttle  # ✅ Import externalized throttle
 import os
 
 TOKEN = os.getenv("TOKEN")
-
-# --- Throttle Logic ---
-api_calls = deque()
-
-MAX_CALLS_PER_SECOND = 20
-MAX_CALLS_PER_MINUTE = 250
-MAX_CALLS_PER_HOUR = 2000
-MAX_CALLS_PER_DAY = 10000
-
-def throttle():
-    now = time()
-
-    # Prune expired entries (older than 1 day)
-    while api_calls and now - api_calls[0] > 86400:
-        api_calls.popleft()
-
-    # Count active windows
-    count_1s   = sum(1 for t in api_calls if now - t <= 1)
-    count_60s  = sum(1 for t in api_calls if now - t <= 60)
-    count_3600 = sum(1 for t in api_calls if now - t <= 3600)
-
-    # Back off if limits hit
-    if count_1s >= MAX_CALLS_PER_SECOND:
-        sleep(0.05)
-        return throttle()
-    if count_60s >= MAX_CALLS_PER_MINUTE:
-        sleep(1)
-        return throttle()
-    if count_3600 >= MAX_CALLS_PER_HOUR:
-        sleep(5)
-        return throttle()
-    if len(api_calls) >= MAX_CALLS_PER_DAY:
-        raise RuntimeError("🛑 Daily Stratz API limit reached (10,000 calls)")
-
-    api_calls.append(now)
 
 # --- Bot Execution ---
 def run_bot():
