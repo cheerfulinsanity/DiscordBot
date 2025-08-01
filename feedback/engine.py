@@ -3,9 +3,20 @@
 from typing import Dict, Any
 import json
 
-LOW_DELTA_THRESHOLD = -0.25   # Underperforming by 25% or more
-HIGH_DELTA_THRESHOLD = 0.25   # Overperforming by 25% or more
+# --- Debug toggle ---
+DEBUG = False  # Set to True for diagnostic logging
 
+# --- Canonical Normal-mode stats ---
+NORMAL_STATS = [
+    "gpm", "xpm", "imp", "kills", "deaths", "assists",
+    "campStack", "level", "killParticipation"
+]
+
+# --- Delta thresholds ---
+LOW_DELTA_THRESHOLD = -0.25
+HIGH_DELTA_THRESHOLD = 0.25
+
+# --- Role weights ---
 ROLE_WEIGHTS = {
     'core': {
         'gpm': 1.2,
@@ -32,23 +43,34 @@ ROLE_WEIGHTS = {
 }
 
 def _get_role_category(role: str) -> str:
-    return 'support' if role in ['softSupport', 'hardSupport'] else 'core'
-
-def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any]) -> Dict[str, float]:
-    return {
-        k: (player_stats[k] - v) / v
-        for k, v in baseline_stats.items()
-        if isinstance(player_stats.get(k), (int, float)) and isinstance(v, (int, float)) and v != 0
-    }
+    role = role.lower()
+    if role in ['softsupport', 'hardsupport']:
+        return 'support'
+    return 'core'
 
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
-    return (kills + assists) / team_kills if team_kills > 0 else 0.0
+    try:
+        return (kills + assists) / team_kills if team_kills > 0 else 0.0
+    except Exception:
+        return 0.0
 
-def _score_performance(deltas: Dict[str, float], role: str) -> float:
-    weights = ROLE_WEIGHTS[_get_role_category(role)]
-    return sum(deltas.get(k, 0) * weights.get(k, 0) for k in deltas)
+def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], weights: Dict[str, float]) -> Dict[str, float]:
+    deltas = {}
+    for stat in weights:
+        p_val = player_stats.get(stat)
+        b_val = baseline_stats.get(stat)
+        if isinstance(p_val, (int, float)) and isinstance(b_val, (int, float)) and b_val != 0:
+            try:
+                deltas[stat] = (p_val - b_val) / b_val
+            except ZeroDivisionError:
+                deltas[stat] = 0.0
+    return deltas
+
+def _score_performance(deltas: Dict[str, float], weights: Dict[str, float]) -> float:
+    return sum(deltas[stat] * weights.get(stat, 0) for stat in deltas)
 
 def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    role_category = _get_role_category(role)
     result = {
         'highlight': None,
         'lowlight': None,
@@ -70,8 +92,8 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
         elif delta >= HIGH_DELTA_THRESHOLD:
             result['praises'].append(stat)
 
-    # Compound feedback logic
-    if 'campStack' in deltas and deltas['campStack'] <= -0.8 and _get_role_category(role) == 'support':
+    # Compound flags
+    if 'campStack' in deltas and deltas['campStack'] <= -0.8 and role_category == 'support':
         result['compound_flags'].append('no_stacking_support')
 
     if 'gpm' in deltas and 'imp' in deltas:
@@ -89,20 +111,36 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
     return result
 
 def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
-    print(f"🧪 analyze_player input:")
-    print(f"  player_stats: {json.dumps(player_stats, indent=2)}")
-    print(f"  baseline_stats: {json.dumps(baseline_stats, indent=2)}")
-    print(f"  role: {role}, team_kills: {team_kills}")
+    """
+    Analyze a normal-mode player stat block against role baseline.
+    Expects player_stats to contain only NORMAL_STATS.
+    """
 
-    player_stats["killParticipation"] = _compute_kp(
-        player_stats.get("kills", 0),
-        player_stats.get("assists", 0),
+    role_category = _get_role_category(role)
+    if role_category not in ROLE_WEIGHTS:
+        raise ValueError(f"Invalid role category derived from role: {role}")
+
+    weights = ROLE_WEIGHTS[role_category]
+
+    stats = dict(player_stats)
+    stats["killParticipation"] = _compute_kp(
+        stats.get("kills", 0),
+        stats.get("assists", 0),
         team_kills
     )
 
-    deltas = _calculate_deltas(player_stats, baseline_stats)
-    score = _score_performance(deltas, role)
-    feedback_tags = _select_priority_feedback(deltas, role, context=player_stats)
+    deltas = _calculate_deltas(stats, baseline_stats, weights)
+    score = _score_performance(deltas, weights)
+    feedback_tags = _select_priority_feedback(deltas, role, context=stats)
+
+    if DEBUG:
+        print("🧪 analyze_player debug:")
+        print("  Stats:", json.dumps(stats, indent=2))
+        print("  Baseline:", json.dumps(baseline_stats, indent=2))
+        print("  Role:", role, "→", role_category)
+        print("  Deltas:", json.dumps(deltas, indent=2))
+        print("  Score:", round(score, 2))
+        print("  Tags:", json.dumps(feedback_tags, indent=2))
 
     return {
         'deltas': deltas,
