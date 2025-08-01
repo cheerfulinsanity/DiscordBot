@@ -3,20 +3,16 @@
 from typing import Dict, Any
 import json
 
-# --- Debug toggle ---
 DEBUG = False  # Set to True for logging output
 
-# --- Canonical Turbo stat set (no GPM/XPM) ---
 TURBO_STATS = [
     "imp", "kills", "deaths", "assists",
     "campStack", "level", "killParticipation"
 ]
 
-# --- Delta thresholds ---
 LOW_DELTA_THRESHOLD = -0.25
 HIGH_DELTA_THRESHOLD = 0.25
 
-# --- Role-specific Turbo weights ---
 ROLE_WEIGHTS = {
     'core': {
         'imp': 1.0,
@@ -48,9 +44,6 @@ def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
         return 0.0
 
 def _filter_and_sanitize(stats: Dict[str, Any]) -> Dict[str, float]:
-    """
-    Keeps only valid numeric Turbo stats. Missing or invalid stats are treated as 0.0
-    """
     clean = {}
     for stat in TURBO_STATS:
         val = stats.get(stat, 0)
@@ -69,8 +62,9 @@ def _calculate_deltas(player_stats: Dict[str, float], baseline_stats: Dict[str, 
                 deltas[stat] = 0.0
     return deltas
 
-def _score_performance(deltas: Dict[str, float], weights: Dict[str, float]) -> float:
-    return sum(deltas[stat] * weights.get(stat, 0) for stat in deltas)
+def _score_performance(deltas: Dict[str, float], weights: Dict[str, float], won: bool) -> float:
+    base_score = sum(deltas[stat] * weights.get(stat, 0) for stat in deltas)
+    return base_score + (0.2 if won else 0.0)
 
 def _select_priority_feedback(deltas: Dict[str, float], role_category: str, context: Dict[str, float]) -> Dict[str, Any]:
     result = {
@@ -88,33 +82,39 @@ def _select_priority_feedback(deltas: Dict[str, float], role_category: str, cont
     result['highlight'] = sorted_deltas[0][0]
     result['lowlight'] = sorted_deltas[-1][0]
 
+    combined_contribution = context.get("kills", 0) + context.get("assists", 0)
+    game_duration = context.get("durationSeconds", 0)
+    level = context.get("level", 0)
+
     for stat, delta in deltas.items():
         if delta <= LOW_DELTA_THRESHOLD:
             result['critiques'].append(stat)
         elif delta >= HIGH_DELTA_THRESHOLD:
+            # avoid praising carry potential if no impact
+            if stat == "kills" and combined_contribution < 3:
+                continue
             result['praises'].append(stat)
 
-    # Turbo-appropriate flagging logic
+    # Turbo-specific compound flags
     if 'campStack' in deltas and deltas['campStack'] <= -0.8 and role_category == 'support':
         result['compound_flags'].append('no_stacking_support')
 
-    if 'killParticipation' in deltas and deltas['killParticipation'] < -0.3:
-        result['compound_flags'].append('low_kp')
+    if 'killParticipation' in deltas:
+        if deltas['killParticipation'] < -0.3 and game_duration > 1200:
+            result['compound_flags'].append('low_kp')
 
     if 'deaths' in deltas and deltas['deaths'] > 0.5 and context.get('imp', 0) < 0:
         result['compound_flags'].append('fed_no_impact')
 
+    if context.get("deaths", 0) >= 5 and level < 10:
+        result['compound_flags'].append('fed_early')
+
     return result
 
 def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
-    """
-    Turbo-only stat analyzer.
-    Inputs must be prefiltered to exclude GPM/XPM upstream.
-    """
     role_category = _get_role_category(role)
     weights = ROLE_WEIGHTS[role_category]
 
-    # Clean and enforce stat scope
     stats = _filter_and_sanitize(player_stats)
     stats["killParticipation"] = _compute_kp(
         stats.get("kills", 0),
@@ -123,7 +123,9 @@ def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any],
     )
 
     deltas = _calculate_deltas(stats, baseline_stats, weights)
-    score = _score_performance(deltas, weights)
+    score = _score_performance(deltas, weights, won=player_stats.get("won", False))
+    stats["durationSeconds"] = player_stats.get("durationSeconds", 0)
+
     feedback_tags = _select_priority_feedback(deltas, role_category, context=stats)
 
     if DEBUG:
