@@ -2,7 +2,9 @@ import os
 import json
 from bot.formatter import format_match
 
+# Enable stat logging inside formatter
 os.environ["DEBUG_MODE"] = "1"
+
 
 def test_format_normal_match():
     with open("tests/samples/match_normal.json") as f:
@@ -19,7 +21,9 @@ def test_format_normal_match():
         full_match=match
     )
 
-    print("✅ Normal Match:\n", result)
+    mode = match.get("gameMode", "Unknown")
+    print(f"✅ Output from Match {match['id']} (mode {mode}):\n")
+    print(result)
 
 
 def test_format_turbo_match():
@@ -37,11 +41,13 @@ def test_format_turbo_match():
         full_match=match
     )
 
-    print("✅ Turbo Match:\n", result)
+    mode = match.get("gameMode", "Unknown")
+    print(f"✅ Output from Match {match['id']} (mode {mode}):\n")
+    print(result)
 
 
-# ✅ This triggers tests when you run `python -m tests.test_formatter`
+# ✅ This triggers both tests when run from CLI
 if __name__ == "__main__":
     test_format_normal_match()
-    print("\n" + "="*80 + "\n")
+    print("\n" + "=" * 80 + "\n")
     test_format_turbo_match()
