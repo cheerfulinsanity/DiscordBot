@@ -75,17 +75,17 @@ def format_match(player_name, player_id, hero_name, kills, deaths, assists, won,
 
     match_id = full_match.get("id")
     match_players = full_match.get("players", [])
-    game_mode_id = full_match.get("gameMode")
+    game_mode_str = str(full_match.get("gameMode", "")).upper()
 
     if not isinstance(match_players, list):
         return f"❌ 'players' field is not a list. Got: {type(match_players)}"
 
-    if game_mode_id is None:
+    if not game_mode_str:
         return f"❌ Missing gameMode field in match {match_id}"
 
-    is_turbo = game_mode_id == 23
+    is_turbo = game_mode_str == "TURBO"
     mode_flag = "TURBO" if is_turbo else "NON_TURBO"
-    game_mode_name = GAME_MODE_NAMES.get(game_mode_id, f"Mode {game_mode_id}")
+    game_mode_name = game_mode_str.title()
     stat_keys = TURBO_STATS if is_turbo else NORMAL_STATS
 
     player = next((p for p in match_players if p.get("steamAccountId") == player_id), None)
