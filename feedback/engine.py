@@ -89,12 +89,13 @@ def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict
     if 'campStack' in filtered_deltas and filtered_deltas['campStack'] <= -0.8 and _get_role_category(role) == 'support':
         result['compound_flags'].append('no_stacking_support')
 
-    # Carry with low impact despite good farm (disabled if gpm/imp excluded)
+    # Carry with low impact despite good farm
     if all(s in filtered_deltas for s in ['gpm', 'imp']):
-        if filtered_deltas['gpm'] < -0.3 and filtered_deltas['imp'] >= 0:
-            result['compound_flags'].append('impact_without_farm')
-        if filtered_deltas['gpm'] >= 0.2 and filtered_deltas['imp'] < -0.2:
-            result['compound_flags'].append('farmed_did_nothing')
+        if 'gpm' not in ignore_stats and 'imp' not in ignore_stats:
+            if filtered_deltas['gpm'] < -0.3 and filtered_deltas['imp'] >= 0:
+                result['compound_flags'].append('impact_without_farm')
+            if filtered_deltas['gpm'] >= 0.2 and filtered_deltas['imp'] < -0.2:
+                result['compound_flags'].append('farmed_did_nothing')
 
     # Low kill participation
     if 'killParticipation' in filtered_deltas and filtered_deltas['killParticipation'] < -0.3:
