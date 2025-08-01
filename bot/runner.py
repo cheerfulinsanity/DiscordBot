@@ -46,6 +46,12 @@ def run_bot():
         deaths = player_data.get("deaths", 0)
         assists = player_data.get("assists", 0)
         won = player_data.get("isVictory", False)
+        game_mode_id = match_data.get("gameMode", 0)
+        mode_label = "TURBO" if game_mode_id == 23 else "NORMAL"
+        mode_emoji = "⚡" if mode_label == "TURBO" else "🎮"
+
+        print(f"{mode_emoji} {player_name} — {hero_name}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id}, Mode: {mode_label})")
+        print("📊 Performance Analysis:")
 
         try:
             feedback = format_match(
