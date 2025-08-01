@@ -1,12 +1,10 @@
 # feedback/advice.py
 
 import random
-from typing import Dict, List
+from typing import Dict, List, Optional
 from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES
 
-# --- LOGIC ---
-
-def get_tier(delta: float) -> str | None:
+def get_tier(delta: float) -> Optional[str]:
     abs_delta = abs(delta)
     if abs_delta < 0.15:
         return None
@@ -16,17 +14,21 @@ def get_tier(delta: float) -> str | None:
         return "strong"
     return "extreme"
 
-def stat_allowed(stat: str, mode: str, ignore_stats: List[str] = []) -> bool:
-    if stat in ignore_stats:
-        return False
+def stat_allowed(stat: str, mode: str) -> bool:
+    """
+    Check if a stat is allowed in this mode for phrasing.
+    """
     stat_def = PHRASE_BOOK.get(stat)
     if not stat_def:
         return False
     allowed_modes = stat_def.get("modes", ["ALL"])
     return "ALL" in allowed_modes or mode in allowed_modes
 
-def pick_line(tag: str, delta: float, mode: str, ignore_stats: List[str]) -> str | None:
-    if not stat_allowed(tag, mode, ignore_stats):
+def pick_line(tag: str, delta: float, mode: str) -> Optional[str]:
+    """
+    Pick a phrased line from the phrase book, based on delta tier.
+    """
+    if not stat_allowed(tag, mode):
         return None
     tier = get_tier(delta)
     if not tier:
@@ -37,59 +39,80 @@ def pick_line(tag: str, delta: float, mode: str, ignore_stats: List[str]) -> str
     template = random.choice(lines)
     return template.format(delta=delta * 100)
 
-def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str] = [], mode: str = "NON_TURBO") -> Dict[str, List[str]]:
+def generate_advice(
+    tags: Dict,
+    deltas: Dict[str, float],
+    ignore_stats: Optional[List[str]] = None,
+    mode: str = "NON_TURBO"
+) -> Dict[str, List[str]]:
+    """
+    Convert stat deltas and feedback tags into natural language feedback.
+    Fully mode-aware; avoids filtered stats and restricts compound flags.
+    """
+    if ignore_stats is None:
+        ignore_stats = []
+
     positives = []
     negatives = []
     tips = []
     flags = []
 
-    # Filtered deltas
-    filtered_deltas = {k: v for k, v in deltas.items() if stat_allowed(k, mode, ignore_stats)}
+    # Filter deltas based on stat allowance and ignore list
+    filtered_deltas = {
+        stat: delta
+        for stat, delta in deltas.items()
+        if stat_allowed(stat, mode) and stat not in ignore_stats
+    }
+
+    hi = tags.get("highlight")
+    lo = tags.get("lowlight")
+    used = set()
 
     # Highlight
-    hi = tags.get("highlight")
-    if hi and hi in filtered_deltas:
-        line = pick_line(hi, filtered_deltas[hi], mode, ignore_stats)
-        if line and filtered_deltas[hi] > 0:
-            positives.append(line)
-        elif line:
-            negatives.append(line)
+    if isinstance(hi, str) and hi in filtered_deltas:
+        delta = filtered_deltas[hi]
+        line = pick_line(hi, delta, mode)
+        if line:
+            (positives if delta > 0 else negatives).append(line)
+            used.add(hi)
 
     # Lowlight
-    lo = tags.get("lowlight")
-    if lo and lo != hi and lo in filtered_deltas:
-        line = pick_line(lo, filtered_deltas[lo], mode, ignore_stats)
-        if line and filtered_deltas[lo] > 0:
-            positives.append(line)
-        elif line:
-            negatives.append(line)
+    if isinstance(lo, str) and lo != hi and lo in filtered_deltas:
+        delta = filtered_deltas[lo]
+        line = pick_line(lo, delta, mode)
+        if line:
+            (positives if delta > 0 else negatives).append(line)
+            used.add(lo)
 
-    # Compound flags (mode-aware)
+    # Compound flags
     for flag in tags.get("compound_flags", []):
+        if not isinstance(flag, str):
+            continue
         entry = COMPOUND_FLAGS.get(flag)
-        if not entry:
+        if not isinstance(entry, dict):
             continue
         allowed_modes = entry.get("modes", ["ALL"])
         if "ALL" in allowed_modes or mode in allowed_modes:
             lines = entry.get("lines", [])
-            if lines:
+            if isinstance(lines, list) and lines:
                 flags.append(random.choice(lines))
-                break  # Only one flag included
+                break  # Only include one flag
 
-    # Additional top remaining delta
-    used = {hi, lo}
+    # Additional delta commentary (1 extra stat not used yet)
     remaining = sorted(
-        ((k, v) for k, v in filtered_deltas.items() if k not in used),
+        ((stat, delta) for stat, delta in filtered_deltas.items() if stat not in used),
         key=lambda x: abs(x[1]),
         reverse=True
     )
     for stat, delta in remaining:
-        line = pick_line(stat, delta, mode, ignore_stats)
+        line = pick_line(stat, delta, mode)
         if line:
             (positives if delta > 0 else negatives).append(line)
             tip = TIP_LINES.get(stat)
-            if tip and ("ALL" in tip.get("modes", []) or mode in tip.get("modes", [])):
-                tips.append(tip["text"])
+            if isinstance(tip, dict):
+                modes = tip.get("modes", ["ALL"])
+                if "ALL" in modes or mode in modes:
+                    tips.append(tip.get("text", ""))
             break
 
     return {
