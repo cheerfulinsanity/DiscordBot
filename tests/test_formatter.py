@@ -1,59 +1,36 @@
 import os
 import json
-from bot.formatter import format_match
+from bot.formatter import _extract_stats, TURBO_STATS, NORMAL_STATS
 
-# Enable stat logging inside formatter
+# Enable debug printout from formatter.py
 os.environ["DEBUG_MODE"] = "1"
 
-
-def run_match_test(sample_path, player_name, player_id, hero_name, kills, deaths, assists, won):
-    with open(sample_path) as f:
+def run_extraction_test(path: str, player_id: int):
+    with open(path, "r") as f:
         match = json.load(f)
 
-    result = format_match(
-        player_name=player_name,
-        player_id=player_id,
-        hero_name=hero_name,
-        kills=kills,
-        deaths=deaths,
-        assists=assists,
-        won=won,
-        full_match=match
-    )
+    match_id = match.get("id", "???")
+    game_mode = str(match.get("gameMode", 0))
+    players = match.get("players", [])
+    player = next((p for p in players if p.get("steamAccountId") == player_id), None)
 
-    game_mode = match.get("gameMode", "Unknown")
-    print(f"✅ Output from Match {match.get('id', '???')} (mode {game_mode}):\n")
-    print(result)
-    print("\n" + "=" * 80 + "\n")
+    if not player:
+        print(f"❌ Player {player_id} not found in match {match_id}")
+        return
 
+    is_radiant = player.get("isRadiant", True)
+    team_kills = sum(p.get("kills", 0) for p in players if p.get("isRadiant") == is_radiant)
+    player["_team_kills"] = team_kills
 
-def test_format_normal_match():
-    run_match_test(
-        sample_path="tests/samples/match_normal.json",
-        player_name="TestPlayer",
-        player_id=123456789,
-        hero_name="npc_dota_hero_vengefulspirit",
-        kills=9,
-        deaths=4,
-        assists=15,
-        won=True
-    )
+    stat_keys = TURBO_STATS if game_mode == "23" else NORMAL_STATS
+    stats_block = player.get("stats", {})
+
+    print(f"\n📦 Testing match {match_id} — {'TURBO' if game_mode == '23' else 'NORMAL'} mode")
+    stats = _extract_stats(player, stats_block, stat_keys)
+    print("🧪 Extracted stats:")
+    print(json.dumps(stats, indent=2))
 
 
-def test_format_turbo_match():
-    run_match_test(
-        sample_path="tests/samples/match_turbo.json",
-        player_name="TestPlayer",
-        player_id=123456789,
-        hero_name="npc_dota_hero_sniper",
-        kills=12,
-        deaths=8,
-        assists=6,
-        won=False
-    )
-
-
-# ✅ Entry point for CLI
 if __name__ == "__main__":
-    test_format_normal_match()
-    test_format_turbo_match()
+    run_extraction_test("tests/samples/match_normal.json", 123456789)
+    run_extraction_test("tests/samples/match_turbo.json", 123456789)
