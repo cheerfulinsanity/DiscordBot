@@ -2,17 +2,31 @@
 
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
-from bot.formatter import format_match
+from bot.formatter import format_match, format_match_embed
 from bot.config import CONFIG
 from bot.throttle import throttle
 import os
+import requests
 
 TOKEN = os.getenv("TOKEN")
+
+def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
+    payload = {"embeds": [embed]}
+    try:
+        response = requests.post(webhook_url, json=payload, timeout=10)
+        if response.status_code == 204:
+            return True
+        else:
+            print(f"⚠️ Discord webhook responded {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Failed to post embed to Discord: {e}")
+        return False
 
 def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> None:
     """
     Fetch and format the latest match for a player. Updates state if successful.
-    Now runs with no retries to avoid unnecessary API calls.
+    Now supports posting embedded messages to Discord webhook if enabled.
     """
     throttle()  # ✅ Rate-limit before each player's call
     match_bundle = get_latest_new_match(steam_id, last_posted_id, TOKEN)
@@ -35,26 +49,32 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
 
     hero_info = player_data.get("hero", {})
     hero_name = hero_info.get("name", "unknown")  # raw: "npc_dota_hero_xyz"
-    hero_display = hero_info.get("displayName", hero_name.replace("npc_dota_hero_", "").title())  # fallback
 
     kills = player_data.get("kills", 0)
     deaths = player_data.get("deaths", 0)
     assists = player_data.get("assists", 0)
     won = player_data.get("isVictory", False)
 
-    readable_mode = game_mode.title().replace("_", " ") if isinstance(game_mode, str) else f"Mode {game_mode}"
-
-    print(f"🎮 {player_name} — {hero_display}: {kills}/{deaths}/{assists} — {'🏆 Win' if won else '💀 Loss'} (Match ID: {match_id})")
-    print(f"📊 Performance Analysis:")
-    print(f"🧠 Mode: {game_mode} → Using {'Turbo' if game_mode == 'TURBO' else 'Normal'} engine")
+    print(f"🎮 {player_name} — processing match {match_id}")
 
     try:
-        feedback = format_match(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
-        print(feedback)
-        state[str(steam_id)] = match_id
-    except Exception as e:
-        print(f"❌ Failed to format match for {player_name}: {e}")
+        if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
+            embed = format_match_embed(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
+            posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
+            if posted:
+                print(f"✅ Posted embed for {player_name} match {match_id}")
+                state[str(steam_id)] = match_id
+            else:
+                print(f"⚠️ Failed to post embed for {player_name} match {match_id}, falling back to console output")
+                feedback = format_match(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
+                print(feedback)
+        else:
+            feedback = format_match(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
+            print(feedback)
+            state[str(steam_id)] = match_id
 
+    except Exception as e:
+        print(f"❌ Error formatting or posting match for {player_name}: {e}")
 
 # --- Bot Execution ---
 def run_bot():
