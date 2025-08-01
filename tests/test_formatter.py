@@ -1,8 +1,16 @@
 import os
 import json
+import sys
+from pathlib import Path
+
+# Ensure root dir is in sys.path so we can import like runner.py does
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+
+# Now import using your existing project structure
 from bot.formatter import format_match
 
-# ✅ Force debug logging inside formatter (for stat dumps)
+# Enable debug mode
 os.environ["DEBUG_MODE"] = "1"
 
 def run_match_test(sample_path, player_name, player_id, hero_name, kills, deaths, assists, won):
@@ -53,7 +61,6 @@ def test_format_turbo_match():
     )
 
 
-# ✅ Entry point when running: python -m tests.test_formatter
 if __name__ == "__main__":
     test_format_normal_match()
     test_format_turbo_match()
