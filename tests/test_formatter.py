@@ -2,22 +2,30 @@ import os
 import json
 import sys
 from pathlib import Path
+import importlib.util
 
-# Insert project root into path
-ROOT_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT_DIR))
-
-# Import whole module (function not promoted with `__all__`)
-import bot.formatter
-
-# Enable debug logging
+# ✅ Set DEBUG mode to enable stat dumps
 os.environ["DEBUG_MODE"] = "1"
+
+# ✅ Locate formatter manually
+ROOT_DIR = Path(__file__).resolve().parent.parent
+FORMATTER_PATH = ROOT_DIR / "bot" / "formatter.py"
+
+spec = importlib.util.spec_from_file_location("formatter", FORMATTER_PATH)
+formatter = importlib.util.module_from_spec(spec)
+sys.modules["formatter"] = formatter
+spec.loader.exec_module(formatter)
+
+# ✅ Pull function directly from loaded module
+format_match = getattr(formatter, "format_match", None)
+if not callable(format_match):
+    raise RuntimeError("❌ Could not locate format_match in formatter.py")
 
 def run_match_test(sample_path, player_name, player_id, hero_name, kills, deaths, assists, won):
     with open(sample_path) as f:
         match = json.load(f)
 
-    result = bot.formatter.format_match(
+    result = format_match(
         player_name=player_name,
         player_id=player_id,
         hero_name=hero_name,
