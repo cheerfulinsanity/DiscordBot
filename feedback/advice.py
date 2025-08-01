@@ -63,12 +63,17 @@ def generate_advice(tags: Dict, deltas: Dict[str, float], ignore_stats: List[str
         elif line:
             negatives.append(line)
 
-    # Compound flags (not filtered — assume upstream logic handled this)
+    # Compound flags (mode-aware)
     for flag in tags.get("compound_flags", []):
-        options = COMPOUND_FLAGS.get(flag)
-        if options:
-            flags.append(random.choice(options))
-            break  # Only one for now
+        entry = COMPOUND_FLAGS.get(flag)
+        if not entry:
+            continue
+        allowed_modes = entry.get("modes", ["ALL"])
+        if "ALL" in allowed_modes or mode in allowed_modes:
+            lines = entry.get("lines", [])
+            if lines:
+                flags.append(random.choice(lines))
+                break  # Only one flag included
 
     # Additional high/low performers
     used = {hi, lo}
