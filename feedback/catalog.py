@@ -19,6 +19,14 @@ PHRASE_BOOK = {
             ]
         }
     },
+    "xpm": {
+        "modes": ["NON_TURBO"],
+        "tiers": {
+            "mild": ["Reasonable XP gain (+{delta:.0f}%) — steady flow."],
+            "strong": ["Strong XPM — you were always in the action (+{delta:.0f}%)"],
+            "extreme": ["Explosive XP rate — constant fights and pushes (+{delta:.0f}%)"]
+        }
+    },
     "imp": {
         "modes": ["ALL"],
         "tiers": {
@@ -74,39 +82,46 @@ PHRASE_BOOK = {
             "strong": ["Leveled fast — good map presence and lane XP (+{delta:.0f}%)"],
             "extreme": ["XP king — massive level lead (+{delta:.0f}%)"]
         }
-    },
-    "xpm": {
-        "modes": ["NON_TURBO"],
-        "tiers": {
-            "mild": ["Reasonable XP gain (+{delta:.0f}%) — steady flow."],
-            "strong": ["Strong XPM — you were always in the action (+{delta:.0f}%)"],
-            "extreme": ["Explosive XP rate — constant fights and pushes (+{delta:.0f}%)"]
-        }
     }
 }
 
 # Phrases triggered by specific behavior tags
 COMPOUND_FLAGS = {
-    "farmed_did_nothing": [
-        "You had farm but no impact. Focus more on fight timing and positioning.",
-        "High GPM, low presence. Next time convert gold into pressure."
-    ],
-    "no_stacking_support": [
-        "Very low stacks. If nothing's happening, get to the jungle and stack.",
-        "Supports create space too — stacking helps your carry a lot."
-    ],
-    "low_kp": [
-        "Low kill participation — be more active in team fights.",
-        "You missed a lot of fights. Stay more connected to your team."
-    ],
-    "fed_no_impact": [
-        "High deaths with little impact. Play safer when behind.",
-        "Died a lot and didn’t turn fights. Focus on smarter positioning."
-    ],
-    "impact_without_farm": [
-        "Low GPM, high impact — great support work.",
-        "Not much gold, but you still contributed. Nice job."
-    ]
+    "farmed_did_nothing": {
+        "modes": ["NON_TURBO"],
+        "lines": [
+            "You had farm but no impact. Focus more on fight timing and positioning.",
+            "High GPM, low presence. Next time convert gold into pressure."
+        ]
+    },
+    "no_stacking_support": {
+        "modes": ["ALL"],
+        "lines": [
+            "Very low stacks. If nothing's happening, get to the jungle and stack.",
+            "Supports create space too — stacking helps your carry a lot."
+        ]
+    },
+    "low_kp": {
+        "modes": ["ALL"],
+        "lines": [
+            "Low kill participation — be more active in team fights.",
+            "You missed a lot of fights. Stay more connected to your team."
+        ]
+    },
+    "fed_no_impact": {
+        "modes": ["ALL"],
+        "lines": [
+            "High deaths with little impact. Play safer when behind.",
+            "Died a lot and didn’t turn fights. Focus on smarter positioning."
+        ]
+    },
+    "impact_without_farm": {
+        "modes": ["NON_TURBO"],
+        "lines": [
+            "Low GPM, high impact — great support work.",
+            "Not much gold, but you still contributed. Nice job."
+        ]
+    }
 }
 
 # Optional tips based on delta patterns or missed roles
