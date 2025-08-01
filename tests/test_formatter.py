@@ -1,25 +1,10 @@
 import os
 import json
-import sys
-from pathlib import Path
-import importlib.util
+from bot.formatter import format_match
 
-# ✅ Set DEBUG mode to enable stat dumps
+# Enable stat logging inside formatter
 os.environ["DEBUG_MODE"] = "1"
 
-# ✅ Locate formatter manually
-ROOT_DIR = Path(__file__).resolve().parent.parent
-FORMATTER_PATH = ROOT_DIR / "bot" / "formatter.py"
-
-spec = importlib.util.spec_from_file_location("formatter", FORMATTER_PATH)
-formatter = importlib.util.module_from_spec(spec)
-sys.modules["formatter"] = formatter
-spec.loader.exec_module(formatter)
-
-# ✅ Pull function directly from loaded module
-format_match = getattr(formatter, "format_match", None)
-if not callable(format_match):
-    raise RuntimeError("❌ Could not locate format_match in formatter.py")
 
 def run_match_test(sample_path, player_name, player_id, hero_name, kills, deaths, assists, won):
     with open(sample_path) as f:
@@ -36,9 +21,8 @@ def run_match_test(sample_path, player_name, player_id, hero_name, kills, deaths
         full_match=match
     )
 
-    mode = match.get("gameMode", "Unknown")
-    match_id = match.get("id", "???")
-    print(f"✅ Output from Match {match_id} (mode {mode}):\n")
+    game_mode = match.get("gameMode", "Unknown")
+    print(f"✅ Output from Match {match.get('id', '???')} (mode {game_mode}):\n")
     print(result)
     print("\n" + "=" * 80 + "\n")
 
@@ -69,6 +53,7 @@ def test_format_turbo_match():
     )
 
 
+# ✅ Entry point for CLI
 if __name__ == "__main__":
     test_format_normal_match()
     test_format_turbo_match()
