@@ -1,25 +1,21 @@
 # server.py
 
 from flask import Flask
-from multiprocessing import Process
-import fcntl
-import os
+from threading import Thread, Lock
 from bot.runner import run_bot
 
 app = Flask(__name__)
 
-LOCK_FILE = "/tmp/guildbot.lock"
+run_lock = Lock()
 
 def safe_run_bot():
-    try:
-        with open(LOCK_FILE, "w") as f:
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            print("🔐 Acquired lock. Running GuildBot.")
-            run_bot()
-            print("✅ Bot finished. Releasing lock.")
-    except BlockingIOError:
+    if run_lock.locked():
         print("🛑 GuildBot is already running. Skipping.")
         return
+    with run_lock:
+        print("🔐 Running GuildBot.")
+        run_bot()
+        print("✅ GuildBot complete.")
 
 @app.route("/")
 def index():
@@ -28,11 +24,12 @@ def index():
 @app.route("/run")
 def run():
     try:
-        Process(target=safe_run_bot).start()
+        Thread(target=safe_run_bot).start()
         return "✅ GuildBot run triggered. Check logs for progress."
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
 if __name__ == "__main__":
+    import os
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
