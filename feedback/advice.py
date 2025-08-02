@@ -2,16 +2,6 @@ import random
 from typing import Dict, List, Optional
 from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES
 
-def get_tier(delta: float) -> Optional[str]:
-    abs_delta = abs(delta)
-    if abs_delta < 0.15:
-        return None
-    elif abs_delta < 0.35:
-        return "mild"
-    elif abs_delta < 0.6:
-        return "strong"
-    return "extreme"
-
 def stat_allowed(stat: str, mode: str) -> bool:
     """
     Check if a stat is allowed in this mode for phrasing.
@@ -22,31 +12,15 @@ def stat_allowed(stat: str, mode: str) -> bool:
     allowed_modes = stat_def.get("modes", ["ALL"])
     return "ALL" in allowed_modes or mode in allowed_modes
 
-def pick_line(tag: str, delta: float, mode: str) -> Optional[str]:
-    """
-    Pick a phrased line from the phrase book, based on delta tier.
-    Formats the delta using absolute value to avoid sign confusion.
-    """
-    if not stat_allowed(tag, mode):
-        return None
-    tier = get_tier(delta)
-    if not tier:
-        return None
-    lines = PHRASE_BOOK.get(tag, {}).get("tiers", {}).get(tier, [])
-    if not lines:
-        return None
-    template = random.choice(lines)
-    return template.format(delta=abs(delta) * 100)  # Use absolute delta here
-
 def generate_advice(
     tags: Dict,
-    deltas: Dict[str, float],
+    context: Dict[str, float],
     ignore_stats: Optional[List[str]] = None,
     mode: str = "NON_TURBO"
 ) -> Dict[str, List[str]]:
     """
-    Convert stat deltas and feedback tags into natural language feedback.
-    Fully mode-aware; avoids filtered stats and restricts compound flags.
+    Convert feedback tags into phrased feedback. Delta-free version for v3.5.
+    Uses only stat tags and compound flags. One line per section max.
     """
     if ignore_stats is None:
         ignore_stats = []
@@ -55,36 +29,50 @@ def generate_advice(
     negatives = []
     tips = []
     flags = []
-
-    # Filter deltas based on stat allowance and ignore list
-    filtered_deltas = {
-        stat: delta
-        for stat, delta in deltas.items()
-        if stat_allowed(stat, mode) and stat not in ignore_stats
-    }
+    used = set()
 
     hi = tags.get("highlight")
     lo = tags.get("lowlight")
-    used = set()
+    praises = tags.get("praises", [])
+    critiques = tags.get("critiques", [])
+    compound_flags = tags.get("compound_flags", [])
 
-    # Highlight
-    if isinstance(hi, str) and hi in filtered_deltas:
-        delta = filtered_deltas[hi]
-        line = pick_line(hi, delta, mode)
-        if line:
-            (positives if delta > 0 else negatives).append(line)
+    # --- Praise: from highlight or tagged stat ---
+    if isinstance(hi, str) and hi not in ignore_stats and stat_allowed(hi, mode):
+        lines = PHRASE_BOOK.get(hi, {}).get("positive", [])
+        if lines:
+            positives.append(random.choice(lines))
             used.add(hi)
 
-    # Lowlight
-    if isinstance(lo, str) and lo != hi and lo in filtered_deltas:
-        delta = filtered_deltas[lo]
-        line = pick_line(lo, delta, mode)
-        if line:
-            (positives if delta > 0 else negatives).append(line)
+    # Fallback praise from list
+    if not positives:
+        for stat in praises:
+            if stat not in ignore_stats or stat_allowed(stat, mode):
+                lines = PHRASE_BOOK.get(stat, {}).get("positive", [])
+                if lines:
+                    positives.append(random.choice(lines))
+                    used.add(stat)
+                    break
+
+    # --- Critique: from lowlight or tagged stat ---
+    if isinstance(lo, str) and lo != hi and lo not in ignore_stats and stat_allowed(lo, mode):
+        lines = PHRASE_BOOK.get(lo, {}).get("negative", [])
+        if lines:
+            negatives.append(random.choice(lines))
             used.add(lo)
 
-    # Compound flags
-    for flag in tags.get("compound_flags", []):
+    # Fallback critique from list
+    if not negatives:
+        for stat in critiques:
+            if stat not in used and stat_allowed(stat, mode):
+                lines = PHRASE_BOOK.get(stat, {}).get("negative", [])
+                if lines:
+                    negatives.append(random.choice(lines))
+                    used.add(stat)
+                    break
+
+    # --- Compound flag (one max) ---
+    for flag in compound_flags:
         if not isinstance(flag, str):
             continue
         entry = COMPOUND_FLAGS.get(flag)
@@ -95,24 +83,18 @@ def generate_advice(
             lines = entry.get("lines", [])
             if isinstance(lines, list) and lines:
                 flags.append(random.choice(lines))
-                break  # Only include one flag
+                break
 
-    # Additional delta commentary (1 extra stat not used yet)
-    remaining = sorted(
-        ((stat, delta) for stat, delta in filtered_deltas.items() if stat not in used),
-        key=lambda x: abs(x[1]),
-        reverse=True
-    )
-    for stat, delta in remaining:
-        line = pick_line(stat, delta, mode)
-        if line:
-            (positives if delta > 0 else negatives).append(line)
-            tip = TIP_LINES.get(stat)
-            if isinstance(tip, dict):
-                modes = tip.get("modes", ["ALL"])
-                if "ALL" in modes or mode in modes:
-                    tips.append(tip.get("text", ""))
-            break
+    # --- Tip (optional, from praise/critiqued stat) ---
+    for stat in list(used) + praises + critiques:
+        if stat in ignore_stats:
+            continue
+        tip = TIP_LINES.get(stat)
+        if isinstance(tip, dict):
+            allowed = tip.get("modes", ["ALL"])
+            if "ALL" in allowed or mode in allowed:
+                tips.append(tip.get("text", ""))
+                break
 
     return {
         "positives": positives,
