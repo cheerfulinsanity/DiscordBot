@@ -24,7 +24,7 @@ TURBO_STATS = [
     if stat not in {"gpm", "xpm", "gold", "goldSpent", "networth", "networthPerMinute"}
 ]
 
-# --- Game mode map (reference only) ---
+# --- Game mode name mappings ---
 GAME_MODE_NAMES = {
     1: "All Pick",
     2: "Captains Mode",
@@ -35,6 +35,18 @@ GAME_MODE_NAMES = {
     16: "Captains Draft",
     22: "Ranked All Pick",
     23: "Turbo"
+}
+
+# --- Raw label fix map (from Stratz's gameModeName) ---
+RAW_MODE_LABELS = {
+    "MODE_TURBO": "Turbo",
+    "MODE_ALL_PICK": "All Pick",
+    "ALL_PICK_RANKED": "Ranked All Pick",
+    "CAPTAINS_MODE": "Captains Mode",
+    "SINGLE_DRAFT": "Single Draft",
+    "RANDOM_DRAFT": "Random Draft",
+    "ABILITY_DRAFT": "Ability Draft",
+    "CAPTAINS_DRAFT": "Captains Draft"
 }
 
 # --- Utility: Normalize hero name from full name string ---
@@ -58,13 +70,8 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     mode = "TURBO" if is_turbo else "NON_TURBO"
     game_mode_id = match.get("gameMode")
 
-    # ✅ Clean and safe game mode label handling
-    raw_label = match.get("gameModeName")
-    raw_mode = raw_label if raw_label and not raw_label.upper().startswith("MODE_") else ""
-    if raw_mode:
-        game_mode_name = GAME_MODE_NAMES.get(game_mode_id) or raw_mode.replace("_", " ").title()
-    else:
-        game_mode_name = GAME_MODE_NAMES.get(game_mode_id) or "Unknown Mode"
+    raw_label = (match.get("gameModeName") or "").upper()
+    game_mode_name = RAW_MODE_LABELS.get(raw_label) or GAME_MODE_NAMES.get(game_mode_id) or "Unknown Mode"
 
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in match.get("players", [])
