@@ -3,39 +3,25 @@
 from typing import Dict, Any
 import json
 
-DEBUG = False  # Set to True for logging output
+DEBUG = False  # Set to True to enable debug logging
 
+# --- Canonical Turbo-mode stats (no GPM/XPM/Gold) ---
 TURBO_STATS = [
     "imp", "kills", "deaths", "assists",
     "campStack", "level", "killParticipation"
 ]
 
-LOW_DELTA_THRESHOLD = -0.25
-HIGH_DELTA_THRESHOLD = 0.25
-
-ROLE_WEIGHTS = {
-    'core': {
-        'imp': 1.0,
-        'kills': 0.9,
-        'deaths': -0.8,
-        'assists': 0.5,
-        'level': 0.6,
-        'killParticipation': 0.7
-    },
-    'support': {
-        'imp': 1.2,
-        'kills': 0.4,
-        'deaths': -0.6,
-        'assists': 1.1,
-        'campStack': 1.0,
-        'level': 0.5,
-        'killParticipation': 0.8
-    }
-}
-
-def _get_role_category(role: str) -> str:
-    role = role.lower()
-    return 'support' if role in ['softsupport', 'hardsupport'] else 'core'
+def _get_role_category(role: str, lane: str) -> str:
+    """
+    Maps roleBasic + lane to a simplified 'core' or 'support' tag.
+    """
+    role = (role or "").lower()
+    lane = (lane or "").lower()
+    if role in ["softsupport", "hardsupport"]:
+        return "support"
+    if lane in ["offlane", "safelane", "mid"]:
+        return "core"
+    return "unknown"
 
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     try:
@@ -43,102 +29,103 @@ def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     except Exception:
         return 0.0
 
-def _filter_and_sanitize(stats: Dict[str, Any]) -> Dict[str, float]:
-    clean = {}
-    for stat in TURBO_STATS:
-        val = stats.get(stat, 0)
-        clean[stat] = float(val) if isinstance(val, (int, float)) else 0.0
-    return clean
-
-def _calculate_deltas(player_stats: Dict[str, float], baseline_stats: Dict[str, float], weights: Dict[str, float]) -> Dict[str, float]:
-    deltas = {}
-    for stat in TURBO_STATS:
-        p_val = player_stats.get(stat)
-        b_val = baseline_stats.get(stat)
-        if isinstance(p_val, (int, float)) and isinstance(b_val, (int, float)) and b_val != 0:
-            try:
-                deltas[stat] = (p_val - b_val) / b_val
-            except ZeroDivisionError:
-                deltas[stat] = 0.0
-    return deltas
-
-def _score_performance(deltas: Dict[str, float], weights: Dict[str, float], won: bool) -> float:
-    base_score = sum(deltas[stat] * weights.get(stat, 0) for stat in deltas)
-    return base_score + (0.2 if won else 0.0)
-
-def _select_priority_feedback(deltas: Dict[str, float], role_category: str, context: Dict[str, float]) -> Dict[str, Any]:
+def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Returns praise, critique, and compound behavior flags based on flat thresholds.
+    """
     result = {
         'highlight': None,
         'lowlight': None,
-        'critiques': [],
         'praises': [],
+        'critiques': [],
         'compound_flags': []
     }
 
-    if not deltas:
-        return result
-
-    sorted_deltas = sorted(deltas.items(), key=lambda x: x[1], reverse=True)
-    result['highlight'] = sorted_deltas[0][0]
-    result['lowlight'] = sorted_deltas[-1][0]
-
-    combined_contribution = context.get("kills", 0) + context.get("assists", 0)
-    game_duration = context.get("durationSeconds", 0)
+    # Pull context values safely
+    imp = context.get("imp", 0)
+    kills = context.get("kills", 0)
+    assists = context.get("assists", 0)
+    deaths = context.get("deaths", 0)
+    camp_stack = context.get("campStack", 0)
     level = context.get("level", 0)
+    kp = context.get("killParticipation", 0)
+    duration = context.get("durationSeconds", 0)
+    lane = context.get("lane", "")
+    role = context.get("roleBasic", "")
+    intentional_feeding = context.get("intentionalFeeding", False)
 
-    for stat, delta in deltas.items():
-        if delta <= LOW_DELTA_THRESHOLD:
-            result['critiques'].append(stat)
-        elif delta >= HIGH_DELTA_THRESHOLD:
-            # avoid praising carry potential if no impact
-            if stat == "kills" and combined_contribution < 3:
-                continue
-            result['praises'].append(stat)
+    # --- Highlight / lowlight: more nuanced pool ---
+    ranked_stats = {
+        "imp": imp,
+        "kills": kills,
+        "assists": assists,
+        "campStack": camp_stack,
+        "killParticipation": kp,
+        "deaths": -deaths  # invert for lowlight fairness
+    }
+    result["highlight"] = max(ranked_stats, key=ranked_stats.get)
+    result["lowlight"] = min(ranked_stats, key=ranked_stats.get)
 
-    # Turbo-specific compound flags
-    if 'campStack' in deltas and deltas['campStack'] <= -0.8 and role_category == 'support':
-        result['compound_flags'].append('no_stacking_support')
+    # --- Praise tags ---
+    if kills >= 10: result["praises"].append("kills")
+    if assists >= 15: result["praises"].append("assists")
+    if imp >= 1.3: result["praises"].append("imp")
+    if camp_stack >= 5: result["praises"].append("campStack")
+    if kp >= 0.7: result["praises"].append("killParticipation")
 
-    if 'killParticipation' in deltas:
-        if deltas['killParticipation'] < -0.3 and game_duration > 1200:
-            result['compound_flags'].append('low_kp')
+    # --- Critique tags ---
+    if deaths >= 10: result["critiques"].append("deaths")
+    if kp < 0.3: result["critiques"].append("killParticipation")
 
-    if 'deaths' in deltas and deltas['deaths'] > 0.5 and context.get('imp', 0) < 0:
-        result['compound_flags'].append('fed_no_impact')
+    # --- Compound flags ---
+    if role_category == "support" and camp_stack == 0:
+        result['compound_flags'].append("no_stacking_support")
 
-    if context.get("deaths", 0) >= 5 and level < 10:
-        result['compound_flags'].append('fed_early')
+    if kp < 0.3 and duration > 900:
+        result['compound_flags'].append("low_kp")
+
+    if deaths >= 10 and imp < 0.2:
+        result['compound_flags'].append("fed_no_impact")
+
+    if deaths >= 5 and level < 10:
+        result['compound_flags'].append("fed_early")
+
+    if lane in ['mid', 'jungle'] and role_category == 'support':
+        result['compound_flags'].append("lane_violation")
+
+    if intentional_feeding:
+        result['compound_flags'].append("intentional_feeder")
 
     return result
 
-def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
-    role_category = _get_role_category(role)
-    weights = ROLE_WEIGHTS[role_category]
+def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
+    """
+    Turbo-mode analyzer using raw stats only. No deltas or baselines.
+    Preserves expected return fields (deltas, score, feedback_tags).
+    """
+    lane = player_stats.get("lane", "")
+    role_basic = player_stats.get("roleBasic", "")
+    role_category = _get_role_category(role_basic, lane)
 
-    stats = _filter_and_sanitize(player_stats)
+    # Copy stats and compute KP
+    stats = dict(player_stats)
     stats["killParticipation"] = _compute_kp(
         stats.get("kills", 0),
         stats.get("assists", 0),
         team_kills
     )
+    stats["durationSeconds"] = stats.get("durationSeconds", 0)
 
-    deltas = _calculate_deltas(stats, baseline_stats, weights)
-    score = _score_performance(deltas, weights, won=player_stats.get("won", False))
-    stats["durationSeconds"] = player_stats.get("durationSeconds", 0)
-
-    feedback_tags = _select_priority_feedback(deltas, role_category, context=stats)
+    tags = _select_priority_feedback(role_category, stats)
 
     if DEBUG:
-        print("🧪 TURBO DEBUG")
+        print("🧪 TURBO analyze_player debug:")
+        print("  Role:", role_basic, "| Lane:", lane, "→", role_category)
         print("  Stats:", json.dumps(stats, indent=2))
-        print("  Baseline:", json.dumps(baseline_stats, indent=2))
-        print("  Role:", role, "→", role_category)
-        print("  Deltas:", json.dumps(deltas, indent=2))
-        print("  Score:", round(score, 2))
-        print("  Tags:", json.dumps(feedback_tags, indent=2))
+        print("  Tags:", json.dumps(tags, indent=2))
 
     return {
-        'deltas': deltas,
-        'score': score,
-        'feedback_tags': feedback_tags
+        "deltas": {},         # preserved for formatter compatibility
+        "score": 0.0,         # turbo disables scoring
+        "feedback_tags": tags
     }
