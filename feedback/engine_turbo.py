@@ -1,5 +1,3 @@
-# feedback/engine_turbo.py
-
 from typing import Dict, Any
 import json
 
@@ -116,6 +114,10 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
     )
     stats["durationSeconds"] = stats.get("durationSeconds", 0)
 
+    # ✅ Fix: inject imp from statsBlock
+    stats_block = player_stats.get("statsBlock", {})
+    stats["imp"] = stats_block.get("imp", 0.0)
+
     tags = _select_priority_feedback(role_category, stats)
 
     if DEBUG:
@@ -126,6 +128,6 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
 
     return {
         "deltas": {},         # preserved for formatter compatibility
-        "score": 0.0,         # turbo disables scoring
+        "score": stats.get("imp", 0.0),  # 🔄 use imp as the score in Turbo mode
         "feedback_tags": tags
     }
