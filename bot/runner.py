@@ -48,7 +48,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     print(f"🎮 {player_name} — processing match {match_id}")
 
     try:
-        result = format_match_embed(player_data, match_data, player_data.get("stats", {}))
+        result = format_match_embed(player_data, match_data, player_data.get("stats", {}), player_name)
         embed = build_discord_embed(result)
 
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
