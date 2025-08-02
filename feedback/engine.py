@@ -130,7 +130,7 @@ def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Di
 def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
     """
     Normal-mode raw stat analyzer (v4.0). Ignores hero deltas.
-    Returns stat tags, compound flags, and dummy deltas for legacy compatibility.
+    Returns stat tags, compound flags, and impact score for title logic.
     """
     lane = player_stats.get("lane", "")
     role_basic = player_stats.get("roleBasic", "")
@@ -153,7 +153,7 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
         print("  Tags:", json.dumps(tags, indent=2))
 
     return {
-        "deltas": {},        # legacy compatibility
-        "score": 0.0,        # delta-free engine has no score
+        "deltas": {},  # legacy compatibility
+        "score": stats.get("imp", 0.0),
         "feedback_tags": tags
     }
