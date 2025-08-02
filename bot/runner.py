@@ -1,5 +1,3 @@
-# bot/runner.py
-
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed
@@ -49,8 +47,9 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     print(f"🎮 {player_name} — processing match {match_id}")
 
     try:
+        embed = format_match_embed(player_data, match_data, player_data.get("stats", {}))
+
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
-            embed = format_match_embed(player_data, match_data, player_data.get("stats", {}))
             posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
             if posted:
                 print(f"✅ Posted embed for {player_name} match {match_id}")
@@ -58,7 +57,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
             else:
                 print(f"⚠️ Failed to post embed for {player_name} match {match_id}")
         else:
-            print("⚠️ Webhook disabled — no embed posted.")
+            print("⚠️ Webhook disabled or misconfigured — printing instead.")
+            print(json.dumps(embed, indent=2))
             state[str(steam_id)] = match_id
 
     except Exception as e:
