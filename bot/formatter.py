@@ -57,7 +57,10 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     is_turbo = match.get("gameMode") == 23
     mode = "TURBO" if is_turbo else "NON_TURBO"
     game_mode_id = match.get("gameMode")
-    game_mode_name = GAME_MODE_NAMES.get(game_mode_id, f"Mode {game_mode_id}")
+
+    # 🩹 Human-readable fallback for unknown or enum-style labels
+    raw_mode = match.get("gameModeName") or f"Mode {game_mode_id}"
+    game_mode_name = GAME_MODE_NAMES.get(game_mode_id) or raw_mode.replace("_", " ").title()
 
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in match.get("players", [])
