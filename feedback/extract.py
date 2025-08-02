@@ -47,11 +47,9 @@ def extract_player_stats(
             val = len(stats_block.get("wards") or [])
 
         elif key == "sentryWardsPlaced":
-            # Fallback: assume 50/50 split when type info is gone
             val = round(len(stats_block.get("wards") or []) / 2)
 
         elif key == "observerWardsPlaced":
-            # Same as above — heuristic split
             val = round(len(stats_block.get("wards") or []) / 2)
 
         elif key == "wardsDestroyed":
@@ -59,6 +57,9 @@ def extract_player_stats(
 
         elif key == "killParticipation":
             val = None  # set below
+
+        elif key == "imp":
+            val = stats_block.get("imp", 0.0)  # 💡 fix: pull from stats_block explicitly
 
         else:
             val = stats_block.get(key, player.get(key, 0)) or 0
