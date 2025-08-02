@@ -75,6 +75,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
 
     score = result.get("score", 0.0)
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
+    title = title[:1].lower() + title[1:]  # lowercased first letter
 
     return {
         "playerName": player_name,
@@ -111,10 +112,26 @@ def build_discord_embed(result: dict) -> dict:
     timestamp = now.isoformat()
 
     fields = [
-        {"name": "🧮 Score", "value": f"{result.get('score', 0.0):.2f}", "inline": True},
-        {"name": "🧭 Role", "value": result.get("role", "unknown").capitalize(), "inline": True},
-        {"name": "⚙️ Mode", "value": result.get("gameModeName", "Unknown Mode"), "inline": True},
-        {"name": "⏱️ Duration", "value": duration_str, "inline": True},
+        {
+            "name": "🧮 Impact",
+            "value": f"{result.get('score', 0.0):.2f} (typical: 0.2–1.5)",
+            "inline": True
+        },
+        {
+            "name": "🧭 Role",
+            "value": result.get("role", "unknown").capitalize(),
+            "inline": True
+        },
+        {
+            "name": "⚙️ Mode",
+            "value": result.get("gameModeName", "Unknown Mode"),
+            "inline": True
+        },
+        {
+            "name": "⏱️ Duration",
+            "value": duration_str,
+            "inline": True
+        },
     ]
 
     if result.get("positives"):
