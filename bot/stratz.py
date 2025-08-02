@@ -56,29 +56,20 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
     query ($matchId: Long!) {
       match(id: $matchId) {
         id
-        gameMode
         durationSeconds
+        gameMode
         startDateTime
-        radiantNetworthLeads
-        radiantExperienceLeads
-        fightEvents {
-          time
-          team
-          value
-        }
-
         players {
           steamAccountId
           isVictory
           isRadiant
           lane
           role
+          roleBasic
           position
           partyId
           behavior
           intentionalFeeding
-
-          # Combat + economy
           kills
           deaths
           assists
@@ -89,8 +80,6 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
           goldPerMinute
           experiencePerMinute
           level
-
-          # Inventory
           item0Id
           item1Id
           item2Id
@@ -101,59 +90,25 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
           backpack1Id
           backpack2Id
           neutral0Id
-
-          # Hero identity
           hero {
             id
             name
             displayName
           }
-
           stats {
-            level
             campStack
-            healPerMinute
-            heroDamagePerMinute
-            towerDamagePerMinute
             networthPerMinute
             experiencePerMinute
             actionsPerMinute
-
-            # Ward placement and destruction
-            wards {
-              time
-              isObserver
-              isSentry
-            }
-            wardDestruction {
-              time
-              isObserver
-              isSentry
-            }
-
-            # Rune control
-            runes {
-              time
-              type
-            }
-
-            # Courier kills
-            courierKills {
-              time
-            }
-
-            # Combat timeline events (optional)
-            killEvents {
-              time
-              target
-            }
-            deathEvents {
-              time
-            }
-            assistEvents {
-              time
-              target
-            }
+            heroDamagePerMinute
+            towerDamagePerMinute
+            killEvents { time target }
+            deathEvents { time }
+            assistEvents { time target }
+            wards { time }
+            wardDestruction { time }
+            courierKills { time }
+            runes { time }
           }
         }
       }
