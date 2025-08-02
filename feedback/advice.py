@@ -19,8 +19,8 @@ def generate_advice(
     mode: str = "NON_TURBO"
 ) -> Dict[str, List[str]]:
     """
-    Convert feedback tags into phrased feedback. Delta-free version for v3.5.
-    Uses only stat tags and compound flags. One line per section max.
+    Convert feedback tags into phrased feedback. v3.5 stat-only model.
+    Returns one praise, one critique, one compound flag, and one tip if available.
     """
     if ignore_stats is None:
         ignore_stats = []
@@ -37,41 +37,29 @@ def generate_advice(
     critiques = tags.get("critiques", [])
     compound_flags = tags.get("compound_flags", [])
 
-    # --- Praise: from highlight or tagged stat ---
-    if isinstance(hi, str) and hi not in ignore_stats and stat_allowed(hi, mode):
-        lines = PHRASE_BOOK.get(hi, {}).get("positive", [])
+    # --- Praise ---
+    candidates = [hi] + praises
+    for stat in candidates:
+        if not isinstance(stat, str) or stat in ignore_stats or not stat_allowed(stat, mode):
+            continue
+        lines = PHRASE_BOOK.get(stat, {}).get("positive", [])
         if lines:
             positives.append(random.choice(lines))
-            used.add(hi)
+            used.add(stat)
+            break
 
-    # Fallback praise from list
-    if not positives:
-        for stat in praises:
-            if stat not in ignore_stats or stat_allowed(stat, mode):
-                lines = PHRASE_BOOK.get(stat, {}).get("positive", [])
-                if lines:
-                    positives.append(random.choice(lines))
-                    used.add(stat)
-                    break
-
-    # --- Critique: from lowlight or tagged stat ---
-    if isinstance(lo, str) and lo != hi and lo not in ignore_stats and stat_allowed(lo, mode):
-        lines = PHRASE_BOOK.get(lo, {}).get("negative", [])
+    # --- Critique ---
+    candidates = [lo] + critiques
+    for stat in candidates:
+        if not isinstance(stat, str) or stat in ignore_stats or stat in used or not stat_allowed(stat, mode):
+            continue
+        lines = PHRASE_BOOK.get(stat, {}).get("negative", [])
         if lines:
             negatives.append(random.choice(lines))
-            used.add(lo)
+            used.add(stat)
+            break
 
-    # Fallback critique from list
-    if not negatives:
-        for stat in critiques:
-            if stat not in used and stat_allowed(stat, mode):
-                lines = PHRASE_BOOK.get(stat, {}).get("negative", [])
-                if lines:
-                    negatives.append(random.choice(lines))
-                    used.add(stat)
-                    break
-
-    # --- Compound flag (one max) ---
+    # --- Flag (one compound only) ---
     for flag in compound_flags:
         if not isinstance(flag, str):
             continue
@@ -79,13 +67,14 @@ def generate_advice(
         if not isinstance(entry, dict):
             continue
         allowed_modes = entry.get("modes", ["ALL"])
-        if "ALL" in allowed_modes or mode in allowed_modes:
-            lines = entry.get("lines", [])
-            if isinstance(lines, list) and lines:
-                flags.append(random.choice(lines))
-                break
+        if "ALL" not in allowed_modes and mode not in allowed_modes:
+            continue
+        lines = entry.get("lines", [])
+        if lines:
+            flags.append(random.choice(lines))
+            break
 
-    # --- Tip (optional, from praise/critiqued stat) ---
+    # --- Tip (optional, from praise/critique stat) ---
     for stat in list(used) + praises + critiques:
         if stat in ignore_stats:
             continue
@@ -133,7 +122,6 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
         else:
             return "☠️", "Inted it all away"
     else:
-        # Loss phrases can be more empathetic or harsher
         if score >= 2.0:
             return "😓", "Tried hard but lost"
         elif score >= 0.5:
