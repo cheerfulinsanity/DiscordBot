@@ -114,7 +114,7 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
     )
     stats["durationSeconds"] = stats.get("durationSeconds", 0)
 
-    # ✅ Fix: inject imp from statsBlock
+    # ✅ Fix: inject imp from statsBlock (Stratz-specific)
     stats_block = player_stats.get("statsBlock", {})
     stats["imp"] = stats_block.get("imp", 0.0)
 
@@ -128,6 +128,6 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
 
     return {
         "deltas": {},         # preserved for formatter compatibility
-        "score": stats.get("imp", 0.0),  # 🔄 use imp as the score in Turbo mode
+        "score": stats.get("imp", 0.0),  # ✅ use IMP as impact score
         "feedback_tags": tags
     }
