@@ -1,3 +1,5 @@
+# bot/stratz.py
+
 import json
 import os
 import requests
