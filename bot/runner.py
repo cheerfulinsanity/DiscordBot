@@ -37,7 +37,6 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
 
     match_id = match_bundle["match_id"]
     match_data = match_bundle["full_data"]
-    game_mode = match_bundle.get("game_mode", "UNKNOWN")
 
     player_data = next(
         (p for p in match_data["players"] if p.get("steamAccountId") == steam_id),
@@ -59,7 +58,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
 
     try:
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
-            embed = format_match_embed(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
+            # ✅ Updated: use stat-aware formatter
+            embed = format_match_embed(player_data, match_data, player_data.get("stats", {}))
             posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
             if posted:
                 print(f"✅ Posted embed for {player_name} match {match_id}")
