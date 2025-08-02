@@ -2,7 +2,7 @@
 
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
-from bot.formatter import format_match, format_match_embed
+from bot.formatter import format_match_embed
 from bot.config import CONFIG
 from bot.throttle import throttle
 import os
@@ -46,31 +46,19 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         print(f"❌ Player data missing in match {match_id} for {player_name}")
         return
 
-    hero_info = player_data.get("hero", {})
-    hero_name = hero_info.get("name", "unknown")  # raw: "npc_dota_hero_xyz"
-
-    kills = player_data.get("kills", 0)
-    deaths = player_data.get("deaths", 0)
-    assists = player_data.get("assists", 0)
-    won = player_data.get("isVictory", False)
-
     print(f"🎮 {player_name} — processing match {match_id}")
 
     try:
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
-            # ✅ Updated: use stat-aware formatter
             embed = format_match_embed(player_data, match_data, player_data.get("stats", {}))
             posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
             if posted:
                 print(f"✅ Posted embed for {player_name} match {match_id}")
                 state[str(steam_id)] = match_id
             else:
-                print(f"⚠️ Failed to post embed for {player_name} match {match_id}, falling back to console output")
-                feedback = format_match(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
-                print(feedback)
+                print(f"⚠️ Failed to post embed for {player_name} match {match_id}")
         else:
-            feedback = format_match(player_name, steam_id, hero_name, kills, deaths, assists, won, match_data)
-            print(feedback)
+            print("⚠️ Webhook disabled — no embed posted.")
             state[str(steam_id)] = match_id
 
     except Exception as e:
