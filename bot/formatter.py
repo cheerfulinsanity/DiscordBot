@@ -115,7 +115,7 @@ def build_discord_embed(result: dict) -> dict:
     fields = [
         {
             "name": "🧮 Impact",
-            "value": f"{result.get('score', 0.0):.2f} (typical: 0.2–1.5)",
+            "value": f"{result.get('score', 0.0):.2f} (typical in‑game: −10 to +10, high‑end ~+20–30)",
             "inline": True
         },
         {
