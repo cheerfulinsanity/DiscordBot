@@ -45,7 +45,7 @@ def normalize_hero_name(raw_name: str) -> str:
         return raw_name.replace("npc_dota_hero_", "").lower()
     return raw_name.lower()
 
-# --- Deprecated fallback functions (preserved for stability) ---
+# --- Deprecated fallback functions ---
 def get_role(hero_name: str) -> str:
     return "unknown"
 
@@ -53,12 +53,7 @@ def get_baseline(hero_name: str, mode: str) -> dict | None:
     return None
 
 # --- Main match analysis entrypoint ---
-def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
-    """
-    Analyze and generate match feedback fields for a single player.
-    This is the v3.5 stat-tag-based formatter. Assumes engine and extract are raw-mode.
-    Returns a dict suitable for use in Discord embeds or fallback plaintext.
-    """
+def format_match_embed(player: dict, match: dict, stats_block: dict, player_name: str = "Player") -> dict:
     is_turbo = match.get("gameMode") == 23
     mode = "TURBO" if is_turbo else "NON_TURBO"
 
@@ -80,12 +75,13 @@ def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
 
     return {
+        "playerName": player_name,
         "emoji": emoji,
         "title": title,
         "score": score,
         "mode": mode,
         "role": player.get("roleBasic", "unknown"),
-        "hero": normalize_hero_name(player.get("hero", {}).get("name", "")),
+        "hero": player.get("hero", {}).get("displayName") or normalize_hero_name(player.get("hero", {}).get("name", "")),
         "kda": f"{player.get('kills', 0)}/{player.get('deaths', 0)}/{player.get('assists', 0)}",
         "duration": match.get("durationSeconds", 0),
         "isVictory": is_victory,
@@ -100,10 +96,10 @@ def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
 def build_discord_embed(result: dict) -> dict:
     from datetime import datetime, timezone
 
-    hero = result.get("hero", "unknown").capitalize()
+    hero = result.get("hero", "unknown")
     kda = result.get("kda", "0/0/0")
     victory = "Win" if result.get("isVictory") else "Loss"
-    title = f"{result.get('emoji', '')} {result.get('title')} {kda} as {hero} — {victory}"
+    title = f"{result.get('emoji', '')} {result.get('playerName', 'Player')} {result.get('title')} {kda} as {hero} — {victory}"
 
     duration = result.get("duration", 0)
     duration_str = f"{duration // 60}:{duration % 60:02d}"
