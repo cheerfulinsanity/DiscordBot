@@ -56,6 +56,8 @@ def get_baseline(hero_name: str, mode: str) -> dict | None:
 def format_match_embed(player: dict, match: dict, stats_block: dict, player_name: str = "Player") -> dict:
     is_turbo = match.get("gameMode") == 23
     mode = "TURBO" if is_turbo else "NON_TURBO"
+    game_mode_id = match.get("gameMode")
+    game_mode_name = GAME_MODE_NAMES.get(game_mode_id, f"Mode {game_mode_id}")
 
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in match.get("players", [])
@@ -80,6 +82,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         "title": title,
         "score": score,
         "mode": mode,
+        "gameModeName": game_mode_name,
         "role": player.get("roleBasic", "unknown"),
         "hero": player.get("hero", {}).get("displayName") or normalize_hero_name(player.get("hero", {}).get("name", "")),
         "kda": f"{player.get('kills', 0)}/{player.get('deaths', 0)}/{player.get('assists', 0)}",
@@ -110,7 +113,7 @@ def build_discord_embed(result: dict) -> dict:
     fields = [
         {"name": "🧮 Score", "value": f"{result.get('score', 0.0):.2f}", "inline": True},
         {"name": "🧭 Role", "value": result.get("role", "unknown").capitalize(), "inline": True},
-        {"name": "⚙️ Mode", "value": f"Mode {result.get('mode', 'NORMAL')}", "inline": True},
+        {"name": "⚙️ Mode", "value": result.get("gameModeName", "Unknown Mode"), "inline": True},
         {"name": "⏱️ Duration", "value": duration_str, "inline": True},
     ]
 
