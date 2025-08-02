@@ -1,5 +1,3 @@
-# bot/formatter.py
-
 import json
 from pathlib import Path
 from feedback.engine import analyze_player as analyze_normal
