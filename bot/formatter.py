@@ -82,7 +82,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
     score = result.get("score", 0.0)
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
 
-    # Final payload
+    # Final payload (for internal use or fallback display)
     return {
         "emoji": emoji,
         "title": title,
@@ -98,4 +98,47 @@ def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
         "flags": advice.get("flags", []),
         "tips": advice.get("tips", []),
         "matchId": match.get("id")
+    }
+
+# --- Embed formatting for Discord output ---
+def build_discord_embed(result: dict) -> dict:
+    """
+    Convert internal match analysis dict into a Discord-compatible embed.
+    """
+    fields = []
+
+    if result.get("positives"):
+        fields.append({
+            "name": "🎯 What went well",
+            "value": "\n".join(f"• {line}" for line in result["positives"]),
+            "inline": False
+        })
+
+    if result.get("negatives"):
+        fields.append({
+            "name": "🚰 What to work on",
+            "value": "\n".join(f"• {line}" for line in result["negatives"]),
+            "inline": False
+        })
+
+    if result.get("flags"):
+        fields.append({
+            "name": "💼 Flagged behavior",
+            "value": "\n".join(f"• {line}" for line in result["flags"]),
+            "inline": False
+        })
+
+    if result.get("tips"):
+        fields.append({
+            "name": "🗾 Tips",
+            "value": "\n".join(f"• {line}" for line in result["tips"]),
+            "inline": False
+        })
+
+    return {
+        "title": f"{result['emoji']} {result['title']} {result['kda']} as {result['hero'].capitalize()} — {'Win' if result['isVictory'] else 'Loss'}",
+        "fields": fields,
+        "footer": {
+            "text": f"Match ID: {result['matchId']}"
+        }
     }
