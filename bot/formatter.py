@@ -24,7 +24,7 @@ TURBO_STATS = [
     if stat not in {"gpm", "xpm", "gold", "goldSpent", "networth", "networthPerMinute"}
 ]
 
-# --- Game mode name mappings ---
+# --- Game mode ID to label mapping ---
 GAME_MODE_NAMES = {
     0: "Unknown",
     1: "All Pick",
@@ -53,6 +53,18 @@ GAME_MODE_NAMES = {
     25: "Ranked Random Draft"
 }
 
+# --- Raw Stratz gameModeName fallback mappings ---
+RAW_MODE_LABELS = {
+    "MODE_TURBO": "Turbo",
+    "MODE_ALL_PICK": "All Pick",
+    "ALL_PICK_RANKED": "Ranked All Pick",
+    "CAPTAINS_MODE": "Captains Mode",
+    "SINGLE_DRAFT": "Single Draft",
+    "RANDOM_DRAFT": "Random Draft",
+    "ABILITY_DRAFT": "Ability Draft",
+    "CAPTAINS_DRAFT": "Captains Draft"
+}
+
 # --- Utility: Normalize hero name from full name string ---
 def normalize_hero_name(raw_name: str) -> str:
     if not raw_name:
@@ -72,8 +84,15 @@ def get_baseline(hero_name: str, mode: str) -> dict | None:
 def format_match_embed(player: dict, match: dict, stats_block: dict, player_name: str = "Player") -> dict:
     is_turbo = match.get("gameMode") == 23
     mode = "TURBO" if is_turbo else "NON_TURBO"
-    game_mode_id = match.get("gameMode", 0)
-    game_mode_name = GAME_MODE_NAMES.get(game_mode_id, "Unknown Mode")
+    game_mode_id = match.get("gameMode")
+    raw_label = (match.get("gameModeName") or "").upper()
+
+    game_mode_name = (
+        GAME_MODE_NAMES.get(game_mode_id)
+        or RAW_MODE_LABELS.get(raw_label)
+        or raw_label.replace("_", " ").title()
+        or f"Mode {game_mode_id}"
+    )
 
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in match.get("players", [])
