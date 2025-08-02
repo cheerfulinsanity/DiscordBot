@@ -1,10 +1,11 @@
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
-from bot.formatter import format_match_embed
+from bot.formatter import format_match_embed, build_discord_embed
 from bot.config import CONFIG
 from bot.throttle import throttle
 import os
 import requests
+import json
 
 TOKEN = os.getenv("TOKEN")
 
@@ -47,7 +48,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     print(f"🎮 {player_name} — processing match {match_id}")
 
     try:
-        embed = format_match_embed(player_data, match_data, player_data.get("stats", {}))
+        result = format_match_embed(player_data, match_data, player_data.get("stats", {}))
+        embed = build_discord_embed(result)
 
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
             posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
