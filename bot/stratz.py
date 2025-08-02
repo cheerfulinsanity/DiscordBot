@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+from bot.throttle import throttle  # ✅ Add this line
 
 # --- Shared Stratz query runner ---
 def post_stratz_query(query: str, variables: dict, token: str, timeout: int = 10) -> dict | None:
@@ -9,6 +10,8 @@ def post_stratz_query(query: str, variables: dict, token: str, timeout: int = 10
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+
+    throttle()  # ✅ Enforce rate-limiting before request
 
     try:
         response = requests.post(
