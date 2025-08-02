@@ -1,6 +1,6 @@
 import random
 from typing import Dict, List, Optional
-from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES
+from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES, TITLE_BOOK
 
 def stat_allowed(stat: str, mode: str) -> bool:
     """
@@ -97,36 +97,47 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
     Return (emoji, phrase) tuple for title line based on
     performance score, win/loss, and important flags.
     """
-    # Priority: flags that indicate severe negative or positive behavior
-    if "fed_no_impact" in compound_flags:
-        return "☠️", "Fed hard and lost the game"
-    if "farmed_did_nothing" in compound_flags:
-        return "💀", "Farmed but made no impact"
-    if "no_stacking_support" in compound_flags:
-        return "🧺", "Support who forgot to stack jungle"
-    if "low_kp" in compound_flags:
-        return "🤷", "Low kill participation"
 
-    # Then handle win/loss + score tiers
+    # Priority: flags that override title
+    if "fed_no_impact" in compound_flags:
+        return "☠️", "fed hard and lost the game"
+    if "farmed_did_nothing" in compound_flags:
+        return "💀", "farmed but made no impact"
+    if "no_stacking_support" in compound_flags:
+        return "🧺", "support who forgot to stack jungle"
+    if "low_kp" in compound_flags:
+        return "🤷", "low kill participation"
+
+    # Title banks
+    tier = ""
     if won:
         if score >= 3.5:
-            return "💨", "Blew up the game"
+            tier = "high"
+            emoji = "💨"
         elif score >= 2.0:
-            return "🔥", "Went off"
+            tier = "mid"
+            emoji = "🔥"
         elif score >= 0.5:
-            return "🎯", "Went steady"
-        elif score >= -0.5:
-            return "🎲", "Turned up"
-        elif score >= -2.0:
-            return "💀", "Struggled"
+            tier = "low"
+            emoji = "🎯"
         else:
-            return "☠️", "Inted it all away"
+            tier = "very_low"
+            emoji = "🎲"
+        bank = TITLE_BOOK["win"].get(tier, [])
     else:
-        if score >= 2.0:
-            return "😓", "Tried hard but lost"
+        if score >= 2.5:
+            tier = "high"
+            emoji = "😓"
         elif score >= 0.5:
-            return "💀", "Gave it a shot but lost"
+            tier = "mid"
+            emoji = "💀"
         elif score >= -1.0:
-            return "☠️", "Was a major factor in loss"
+            tier = "low"
+            emoji = "☠️"
         else:
-            return "☠️", "Got wrecked hard"
+            tier = "very_low"
+            emoji = "☠️"
+        bank = TITLE_BOOK["loss"].get(tier, [])
+
+    phrase = random.choice(bank) if bank else "played a game"
+    return emoji, phrase
