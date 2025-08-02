@@ -1,8 +1,7 @@
 from typing import Dict, Any
 import json
 
-# --- Debug toggle ---
-DEBUG = False  # Set to True for diagnostic logging
+DEBUG = False  # Enable for local stat printout
 
 # --- Canonical Normal-mode stats ---
 NORMAL_STATS = [
@@ -10,139 +9,128 @@ NORMAL_STATS = [
     "campStack", "level", "killParticipation"
 ]
 
-# --- Delta thresholds ---
-LOW_DELTA_THRESHOLD = -0.25
-HIGH_DELTA_THRESHOLD = 0.25
-
-# --- Role weights ---
-ROLE_WEIGHTS = {
-    'core': {
-        'gpm': 1.2,
-        'xpm': 1.0,
-        'imp': 1.0,
-        'kills': 0.8,
-        'deaths': -0.7,
-        'assists': 0.4,
-        'campStack': 0.2,
-        'level': 0.6,
-        'killParticipation': 0.7,
-    },
-    'support': {
-        'gpm': 0.6,
-        'xpm': 0.8,
-        'imp': 1.2,
-        'kills': 0.4,
-        'deaths': -0.6,
-        'assists': 1.0,
-        'campStack': 1.0,
-        'level': 0.5,
-        'killParticipation': 0.8,
-    }
-}
-
-def _get_role_category(role: str) -> str:
-    role = role.lower()
+# --- Role inference (from roleBasic and lane) ---
+def _get_role_category(role: str, lane: str) -> str:
+    role = (role or "").lower()
+    lane = (lane or "").lower()
     if role in ['softsupport', 'hardsupport']:
         return 'support'
-    return 'core'
+    if lane in ['offlane', 'safelane', 'mid']:
+        return 'core'
+    return 'unknown'
 
+# --- Kill participation helper ---
 def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     try:
         return (kills + assists) / team_kills if team_kills > 0 else 0.0
     except Exception:
         return 0.0
 
-def _calculate_deltas(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], weights: Dict[str, float]) -> Dict[str, float]:
-    deltas = {}
-    for stat in weights:
-        p_val = player_stats.get(stat)
-        b_val = baseline_stats.get(stat)
-        if isinstance(p_val, (int, float)) and isinstance(b_val, (int, float)) and b_val != 0:
-            try:
-                deltas[stat] = (p_val - b_val) / b_val
-            except ZeroDivisionError:
-                deltas[stat] = 0.0
-    return deltas
+# --- Phase stub ---
+def _segment_phases(stats_block: dict) -> dict:
+    # Stub — placeholder for future analyze_timeline logic
+    return {
+        "early": {},
+        "mid": {},
+        "late": {}
+    }
 
-def _score_performance(deltas: Dict[str, float], weights: Dict[str, float], won: bool) -> float:
-    base_score = sum(deltas[stat] * weights.get(stat, 0) for stat in deltas)
-    if won:
-        base_score += 0.2
-    return base_score
-
-def _select_priority_feedback(deltas: Dict[str, float], role: str, context: Dict[str, Any]) -> Dict[str, Any]:
-    role_category = _get_role_category(role)
+# --- Main feedback selector ---
+def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Dict[str, Any]:
     result = {
         'highlight': None,
         'lowlight': None,
-        'critiques': [],
         'praises': [],
+        'critiques': [],
         'compound_flags': []
     }
 
-    if not deltas:
-        return result
-
-    sorted_deltas = sorted(deltas.items(), key=lambda x: x[1], reverse=True)
-    result['highlight'] = sorted_deltas[0][0]
-    result['lowlight'] = sorted_deltas[-1][0]
-
-    won = context.get("isVictory", False)
-    kills = context.get("kills", 0)
-    assists = context.get("assists", 0)
+    # Shortcut pulls
     imp = context.get("imp", 0)
+    gpm = context.get("gpm", 0)
+    xpm = context.get("xpm", 0)
+    deaths = context.get("deaths", 0)
+    assists = context.get("assists", 0)
+    kills = context.get("kills", 0)
+    level = context.get("level", 0)
+    camp_stack = context.get("campStack", 0)
+    kp = context.get("killParticipation", 0)
+    duration = context.get("durationSeconds", 0)
+    neutral_id = context.get("neutral0Id", 0)
+    gold = context.get("gold", 0)
+    networth = context.get("networth", 1)
+    party_id = context.get("partyId")
+    intentional_feeding = context.get("intentionalFeeding", False)
+    lane = context.get("lane", "").lower()
+    role = context.get("roleBasic", "").lower()
 
-    for stat, delta in deltas.items():
-        if delta <= LOW_DELTA_THRESHOLD:
-            result['critiques'].append(stat)
-            continue
+    # --- Highlight / lowlight
+    ranked_stats = {
+        "kills": kills,
+        "assists": assists,
+        "gpm": gpm,
+        "xpm": xpm,
+        "imp": imp,
+        "campStack": camp_stack
+    }
+    result["highlight"] = max(ranked_stats, key=ranked_stats.get)
+    result["lowlight"] = min(ranked_stats, key=ranked_stats.get)
 
-        if role_category == 'support' and stat in ['gpm', 'xpm']:
-            continue
+    # --- Praises
+    if kills >= 10: result['praises'].append("kills")
+    if assists >= 15: result['praises'].append("assists")
+    if gpm >= 600: result['praises'].append("gpm")
+    if xpm >= 600: result['praises'].append("xpm")
+    if imp >= 1.3: result['praises'].append("imp")
+    if camp_stack >= 5: result['praises'].append("campStack")
 
-        if stat == 'kills' and (kills + assists) <= 3:
-            continue
+    # --- Critiques
+    if deaths >= 10: result['critiques'].append("deaths")
+    if gpm < 350: result['critiques'].append("gpm")
+    if xpm < 350: result['critiques'].append("xpm")
+    if kp < 0.3: result['critiques'].append("killParticipation")
 
-        if stat == 'gpm' and imp < 0:
-            continue
+    # --- Compound flags
+    if role_category == 'support' and camp_stack == 0:
+        result['compound_flags'].append("no_stacking_support")
 
-        if not won and stat in ['gpm', 'xpm', 'kills']:
-            continue
+    if gpm >= 600 and imp < 0.3:
+        result['compound_flags'].append("farmed_did_nothing")
+    elif gpm < 400 and imp >= 1.0:
+        result['compound_flags'].append("impact_without_farm")
 
-        if delta >= HIGH_DELTA_THRESHOLD:
-            result['praises'].append(stat)
+    if kp < 0.3 and duration >= 900:
+        result['compound_flags'].append("low_kp")
 
-    # --- Compound flags ---
-    if 'campStack' in deltas and deltas['campStack'] <= -0.8 and role_category == 'support':
-        result['compound_flags'].append('no_stacking_support')
+    if deaths >= 10 and imp < 0.2:
+        result['compound_flags'].append("fed_no_impact")
 
-    if 'gpm' in deltas and 'imp' in deltas:
-        if deltas['gpm'] < -0.3 and deltas['imp'] >= 0:
-            result['compound_flags'].append('impact_without_farm')
-        if deltas['gpm'] >= 0.2 and deltas['imp'] < -0.2:
-            result['compound_flags'].append('farmed_did_nothing')
+    if deaths >= 5 and level < 10:
+        result['compound_flags'].append("fed_early")
 
-    if 'killParticipation' in deltas and deltas['killParticipation'] < -0.3:
-        result['compound_flags'].append('low_kp')
+    if neutral_id in [0, None]:
+        result['compound_flags'].append("no_neutral_item")
 
-    if 'deaths' in deltas and deltas['deaths'] > 0.5 and deltas.get('imp', 0) < 0:
-        result['compound_flags'].append('fed_no_impact')
+    if gold / networth >= 0.15 and gold >= 1200:
+        result['compound_flags'].append("hoarded_gold")
 
-    if context.get('deaths', 0) >= 5 and context.get('level', 0) < 10:
-        result['compound_flags'].append('fed_early')
+    if lane in ['mid', 'jungle'] and role_category == 'support':
+        result['compound_flags'].append("lane_violation")
+
+    if intentional_feeding:
+        result['compound_flags'].append("intentional_feeder")
 
     return result
 
-def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
+# --- Top-level entrypoint ---
+def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
     """
-    Analyze a normal-mode player stat block against role baseline.
-    Expects player_stats to contain only NORMAL_STATS.
+    Normal-mode raw stat analyzer (v4.0). Ignores baselines.
+    Expects player_stats to contain NORMAL_STATS plus roleBasic/lane/meta fields.
     """
-    role_category = _get_role_category(role)
-    if role_category not in ROLE_WEIGHTS:
-        raise ValueError(f"Invalid role category derived from role: {role}")
-
-    weights = ROLE_WEIGHTS[role_category]
+    lane = player_stats.get("lane", "")
+    role_basic = player_stats.get("roleBasic", "")
+    role_category = _get_role_category(role_basic, lane)
 
     stats = dict(player_stats)
     stats["killParticipation"] = _compute_kp(
@@ -151,21 +139,18 @@ def analyze_player(player_stats: Dict[str, Any], baseline_stats: Dict[str, Any],
         team_kills
     )
 
-    deltas = _calculate_deltas(stats, baseline_stats, weights)
-    score = _score_performance(deltas, weights, won=stats.get("isVictory", False))
-    feedback_tags = _select_priority_feedback(deltas, role, context=stats)
+    stats["phaseStats"] = _segment_phases(player_stats.get("statsBlock", {}))
+
+    tags = _select_priority_feedback(role_category, stats)
 
     if DEBUG:
         print("🧪 analyze_player debug:")
+        print("  Role:", role_basic, "| Lane:", lane, "→", role_category)
         print("  Stats:", json.dumps(stats, indent=2))
-        print("  Baseline:", json.dumps(baseline_stats, indent=2))
-        print("  Role:", role, "→", role_category)
-        print("  Deltas:", json.dumps(deltas, indent=2))
-        print("  Score:", round(score, 2))
-        print("  Tags:", json.dumps(feedback_tags, indent=2))
+        print("  Tags:", json.dumps(tags, indent=2))
 
     return {
-        'deltas': deltas,
-        'score': score,
-        'feedback_tags': feedback_tags
+        "deltas": {},  # legacy compatibility
+        "score": 0.0,  # disabled in raw engine
+        "feedback_tags": tags
     }
