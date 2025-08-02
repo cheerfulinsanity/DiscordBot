@@ -6,6 +6,7 @@ from bot.throttle import throttle
 import os
 import requests
 import json
+import time  # ✅ Added for inter-player delay
 
 TOKEN = os.getenv("TOKEN")
 
@@ -80,6 +81,7 @@ def run_bot():
         print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({steam_id})...")
         last_posted_id = state.get(str(steam_id))
         process_player(player_name, steam_id, last_posted_id, state)
+        time.sleep(0.2)  # 🛡️ Soft cooldown between players to ease API burst pressure
 
     save_state(state)
     print("📝 Updated state.json on GitHub Gist")
