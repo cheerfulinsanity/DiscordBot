@@ -108,35 +108,34 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
     if "low_kp" in compound_flags:
         return "🤷", "low kill participation"
 
-    # Title banks
-    tier = ""
+    # Tier mapping
     if won:
-        if score >= 3.5:
-            tier = "high"
-            emoji = "💨"
-        elif score >= 2.0:
-            tier = "mid"
-            emoji = "🔥"
-        elif score >= 0.5:
-            tier = "low"
-            emoji = "🎯"
+        if score >= 30:
+            tier, emoji = "legendary", "🧨"
+        elif score >= 15:
+            tier, emoji = "high", "💥"
+        elif score >= 7:
+            tier, emoji = "mid", "🔥"
+        elif score >= 2:
+            tier, emoji = "low", "🎯"
+        elif score >= -5:
+            tier, emoji = "very_low", "🎲"
         else:
-            tier = "very_low"
-            emoji = "🎲"
+            tier, emoji = "negative", "🎁"
         bank = TITLE_BOOK["win"].get(tier, [])
     else:
-        if score >= 2.5:
-            tier = "high"
-            emoji = "😓"
-        elif score >= 0.5:
-            tier = "mid"
-            emoji = "💀"
-        elif score >= -1.0:
-            tier = "low"
-            emoji = "☠️"
+        if score >= 30:
+            tier, emoji = "legendary", "🧨"
+        elif score >= 15:
+            tier, emoji = "high", "💪"
+        elif score >= 7:
+            tier, emoji = "mid", "😓"
+        elif score >= 2:
+            tier, emoji = "low", "☠️"
+        elif score >= -5:
+            tier, emoji = "very_low", "💀"
         else:
-            tier = "very_low"
-            emoji = "☠️"
+            tier, emoji = "negative", "🤡"
         bank = TITLE_BOOK["loss"].get(tier, [])
 
     phrase = random.choice(bank) if bank else "played a game"
