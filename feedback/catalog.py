@@ -274,6 +274,13 @@ TIP_LINES = {
 # --- Title phrasing banks for match performance summaries ---
 TITLE_BOOK = {
     "win": {
+        "legendary": [
+            "obliterated the enemy team",
+            "made it a highlight reel",
+            "went god mode this match",
+            "was on another level entirely",
+            "absolutely shredded the opposition"
+        ],
         "high": [
             "carried the game hard",
             "dominated from start to finish",
@@ -301,9 +308,23 @@ TITLE_BOOK = {
             "was dead weight but the team prevailed",
             "didn’t throw hard enough to lose",
             "won — but it wasn’t your doing"
+        ],
+        "negative": [
+            "won despite being a liability",
+            "barely functioned this match",
+            "was carried kicking and screaming",
+            "was an anchor, not a sail",
+            "somehow won despite everything"
         ]
     },
     "loss": {
+        "legendary": [
+            "put the team on their back and still lost",
+            "was legendary even in defeat",
+            "did everything — except win",
+            "was a solo act in a tragedy",
+            "outperformed everyone — but couldn’t carry harder"
+        ],
         "high": [
             "was the only reason this was close",
             "fought hard in a losing battle",
@@ -331,6 +352,13 @@ TITLE_BOOK = {
             "had zero presence this match",
             "actively harmed the team effort",
             "sank the game with poor play"
+        ],
+        "negative": [
+            "griefed their way to a loss",
+            "made every mistake imaginable",
+            "dragged the whole team down",
+            "looked completely lost out there",
+            "barely contributed to anything all game"
         ]
     }
 }
