@@ -88,8 +88,8 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     raw_label = (match.get("gameModeName") or "").upper()
 
     game_mode_name = (
-        GAME_MODE_NAMES.get(game_mode_id)
-        or RAW_MODE_LABELS.get(raw_label)
+        RAW_MODE_LABELS.get(raw_label)
+        or GAME_MODE_NAMES.get(game_mode_id)
         or raw_label.replace("_", " ").title()
         or f"Mode {game_mode_id}"
     )
