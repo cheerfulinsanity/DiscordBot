@@ -22,13 +22,13 @@ def extract_player_stats(
     player: dict,
     stats_block: dict,
     team_kills: int,
-    mode: str = "NORMAL"
+    mode: str = "NON_TURBO"
 ) -> Dict[str, float]:
     """
     Extracts a clean stat dict for analysis engine from raw Stratz player/match payloads.
-    Includes role/lane context, derived fields, and timeline stub support.
+    Includes all stat keys, lane/role context, feeding flags, derived KP, and statsBlock.
     """
-    keys = NORMAL_STATS if mode == "NORMAL" else TURBO_STATS
+    keys = NORMAL_STATS if mode == "NON_TURBO" else TURBO_STATS
     stats_block = stats_block or {}
     stats: Dict[str, float] = {}
 
