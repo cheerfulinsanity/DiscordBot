@@ -58,10 +58,13 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     mode = "TURBO" if is_turbo else "NON_TURBO"
     game_mode_id = match.get("gameMode")
 
-    # ✅ Ignore garbage like "MODE_TURBO", fallback to ID or map
+    # ✅ Clean and safe game mode label handling
     raw_label = match.get("gameModeName")
     raw_mode = raw_label if raw_label and not raw_label.upper().startswith("MODE_") else ""
-    game_mode_name = GAME_MODE_NAMES.get(game_mode_id) or raw_mode.replace("_", " ").title() or f"Mode {game_mode_id}"
+    if raw_mode:
+        game_mode_name = GAME_MODE_NAMES.get(game_mode_id) or raw_mode.replace("_", " ").title()
+    else:
+        game_mode_name = GAME_MODE_NAMES.get(game_mode_id) or "Unknown Mode"
 
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in match.get("players", [])
