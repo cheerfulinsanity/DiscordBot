@@ -59,7 +59,7 @@ def extract_player_stats(
             val = None  # set below
 
         elif key == "imp":
-            val = stats_block.get("imp", 0.0)  # 💡 fix: pull from stats_block explicitly
+            val = stats_block.get("imp", 0.0)  # ✅ explicitly from statsBlock
 
         else:
             val = stats_block.get(key, player.get(key, 0)) or 0
