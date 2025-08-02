@@ -6,163 +6,236 @@ PHRASE_BOOK = {
         "modes": ["NON_TURBO"],
         "positive": [
             "Excellent GPM — you farmed efficiently.",
-            "You kept your gold income high the whole game."
+            "Gold income stayed high throughout the game.",
+            "Your farming patterns were clean and effective.",
+            "You hit item timings fast — solid GPM.",
+            "You created a net worth lead early and built on it."
         ],
         "negative": [
-            "Your gold gain was too low — you need better farming patterns.",
-            "Low GPM. Look at your downtime between fights and waves."
+            "Your GPM was too low — optimize farming routes.",
+            "You struggled to gain gold — check jungle efficiency.",
+            "Low farm output. Try to split push or rotate better.",
+            "Gold income never took off — focus on creep waves.",
+            "You didn’t convert time into gold effectively."
         ]
     },
     "xpm": {
         "modes": ["NON_TURBO"],
         "positive": [
-            "Strong XPM — you stayed active and leveled well.",
-            "Your experience gain was solid — good tempo."
+            "Great XPM — you scaled quickly.",
+            "Strong tempo — you leveled ahead of pace.",
+            "You gained XP reliably throughout the match.",
+            "High uptime in fights and lane helped your XP.",
+            "Good wave presence — XP flowed naturally."
         ],
         "negative": [
-            "You fell behind on XP — stay active in fights and lanes.",
-            "Low XPM — consider staying in lane longer or joining fights earlier."
+            "Slow XP gain — stay in lane longer or rotate smarter.",
+            "You fell behind in levels early.",
+            "Low XPM suggests too much idle time.",
+            "Try to be near kills and soak wave XP more often.",
+            "You didn’t match the pace of the game’s XP curve."
         ]
     },
     "imp": {
         "positive": [
-            "You had solid impact — your presence was felt.",
-            "Strong game presence — you contributed meaningfully."
+            "You had high impact — consistently contributed.",
+            "Good influence in fights and objectives.",
+            "You made your presence known every phase.",
+            "You pressured effectively with rotations.",
+            "Clutch spell usage raised your impact rating."
         ],
         "negative": [
-            "Low impact — consider your positioning and spell usage.",
-            "You struggled to affect key fights. Look at your map involvement."
+            "Low impact — try joining fights earlier.",
+            "You didn’t affect enough team fights.",
+            "Poor positioning or usage limited your presence.",
+            "You were alive but distant. Find better angles.",
+            "Minimal influence on momentum shifts."
         ]
     },
     "kills": {
         "positive": [
-            "Great kill count — you secured the fights.",
-            "You finished a lot of enemies. Clean execution."
+            "You secured key kills — well played.",
+            "Strong kill count — you punished mistakes.",
+            "You finished targets reliably.",
+            "You were a finisher in most fights.",
+            "Great kill score — you set the pace."
         ],
         "negative": [
-            "Low kill count — focus on target selection and spell timing.",
-            "You struggled to finish kills. Think about follow-up opportunities."
+            "Low kill count — try to connect better in fights.",
+            "You couldn’t secure kills — look for squishier targets.",
+            "Lack of damage or poor timing hurt kill chances.",
+            "Missed follow-ups cost kill opportunities.",
+            "Your hero wasn’t threatening enough."
         ]
     },
     "deaths": {
         "positive": [
-            "Low deaths — you played safely and efficiently.",
-            "Good survival — you stayed alive through pressure."
+            "Low death count — good survival instincts.",
+            "Stayed alive through pressure — smart plays.",
+            "Strong positioning kept you safe.",
+            "Good use of defensive items or escapes.",
+            "You gave away little gold — efficient survival."
         ],
         "negative": [
-            "Too many deaths — work on positioning and awareness.",
-            "Frequent deaths slowed your momentum. Consider safer paths."
+            "Too many deaths — work on map awareness.",
+            "You fed heavily — reconsider your movement paths.",
+            "Deaths stacked up and hurt your impact.",
+            "You respawned too often to stay relevant.",
+            "Getting picked off delayed your team’s plans."
         ]
     },
     "assists": {
         "positive": [
-            "High assist count — great team contribution.",
-            "You backed up your team consistently. Nice support."
+            "High assist count — you supported well.",
+            "Great backup — you enabled your cores.",
+            "You showed up when needed. Reliable.",
+            "Clean team play — you were involved.",
+            "Good vision and follow-up boosted assists."
         ],
         "negative": [
-            "Low assists — be more present in fights and rotations.",
-            "You weren’t nearby for fights. Try to follow your core's moves."
+            "Low assists — not enough presence in fights.",
+            "You weren’t with your team during engagements.",
+            "No impact on your allies’ kills.",
+            "You arrived late or missed team rotations.",
+            "Your hero wasn’t enabling your team enough."
         ]
     },
     "campStack": {
         "positive": [
-            "You stacked well — strong support habits.",
-            "Great use of downtime — jungle economy boosted."
+            "Good stacking — you created farm opportunities.",
+            "Smart support play — you stacked efficiently.",
+            "You made the jungle profitable.",
+            "Excellent use of downtime for stacks.",
+            "Carry appreciated your jungle work."
         ],
         "negative": [
-            "You didn’t stack much — it's a free way to help.",
-            "No jungle stacks. Supports can create gold for others too."
+            "No jungle stacks — missed value as support.",
+            "You didn’t help your cores farm faster.",
+            "Downtime wasn’t used productively.",
+            "Supports should stack — it snowballs cores.",
+            "You skipped a fundamental support habit."
         ]
     },
     "level": {
         "positive": [
-            "High level gain — you scaled well.",
-            "You stayed ahead in XP — good tempo management."
+            "You kept your level up with the pace.",
+            "Fast leveling — good XP decisions.",
+            "You stayed relevant throughout the game.",
+            "You scaled naturally with the game tempo.",
+            "Well-distributed XP gains."
         ],
         "negative": [
-            "You fell behind in XP — focus on staying active.",
-            "Low level by midgame. Consider how you move between lanes."
+            "You were underleveled much of the game.",
+            "Not enough time in XP zones.",
+            "Low impact due to slow scaling.",
+            "XP gain lagged behind lane partner.",
+            "Level deficit held back your spell timings."
         ]
     },
     "killParticipation": {
         "positive": [
-            "Great kill participation — always involved.",
-            "You contributed to nearly every fight. Team player."
+            "You were active in fights — great presence.",
+            "High kill participation — team player.",
+            "Always showed up when needed.",
+            "You followed the team’s tempo well.",
+            "Tight coordination led to shared kills."
         ],
         "negative": [
-            "Low kill participation — missed too many engagements.",
-            "You were often absent from fights. Stay more connected."
+            "Low participation — disconnected from team.",
+            "You weren’t present for most kills.",
+            "You missed too many fights.",
+            "Slow rotations led to missed fights.",
+            "Team fought without you too often."
         ]
     }
 }
 
-# --- Phrasing for compound behavior tags ---
+# --- Behavior-based flags ---
 COMPOUND_FLAGS = {
     "farmed_did_nothing": {
         "modes": ["NON_TURBO"],
         "lines": [
             "You farmed well, but didn’t convert it into pressure.",
-            "High GPM with low impact. Work on map presence."
+            "High GPM with low impact. Work on map presence.",
+            "Farm isn’t enough — your gold did nothing.",
+            "You were rich, but invisible. Time to fight."
         ]
     },
     "no_stacking_support": {
         "lines": [
             "Zero stacks as support — use quiet moments to help your cores.",
-            "If nothing's happening, go stack jungle camps."
+            "You forgot to stack. Big value lost for your carry.",
+            "Supports must stack. It's expected.",
+            "Jungle economy was untouched. Missed role responsibility."
         ]
     },
     "low_kp": {
         "lines": [
             "Low fight involvement — too much solo play.",
-            "You missed too many engagements. Stay tighter to team."
+            "You missed key fights. Watch your minimap more.",
+            "The team fought without you. Try shadowing your core.",
+            "Your absence hurt team engagements."
         ]
     },
     "fed_no_impact": {
         "lines": [
-            "High deaths with little impact — try defensive items or safer paths.",
-            "Died too often without contributing — rethink your timing."
+            "Died too much with nothing to show. That’s a liability.",
+            "High deaths, low contribution — rethink your fights.",
+            "Feeding without pressure — brutal combo.",
+            "Try to die for a reason, not just habit."
         ]
     },
     "impact_without_farm": {
         "modes": ["NON_TURBO"],
         "lines": [
-            "Low gold, high impact — great support effort.",
-            "Even without much farm, you made it count."
+            "Great contribution with low gold — excellent support play.",
+            "Low farm, big impact. Well played.",
+            "You squeezed value out of little. Smart support instincts.",
+            "Minimal gold, maximum presence. Impressive."
         ]
     },
     "fed_early": {
         "lines": [
-            "Rough start — early deaths set you back hard.",
-            "You fed early and never recovered. Focus on safer lanes."
+            "Rough early game — multiple deaths put you behind.",
+            "Fed early and never recovered. Be more cautious.",
+            "Your lane was a disaster — bounce back next time.",
+            "Early feed snowballed the enemy. Rethink lane safety."
         ]
     },
     "no_neutral_item": {
         "lines": [
             "You didn’t equip a neutral item — that’s free power.",
-            "No neutral item found — check drops more closely."
+            "No neutral item found — check drops more closely.",
+            "Missing neutral item all game. That’s just value lost."
         ]
     },
     "hoarded_gold": {
         "lines": [
             "You sat on a lot of gold. Consider spending earlier.",
-            "Holding too much gold — buy impact items sooner."
+            "Gold does nothing in your pocket. Buy items sooner.",
+            "Delayed purchases slowed your timing.",
+            "Big savings, small impact. Spend proactively."
         ]
     },
     "lane_violation": {
         "lines": [
             "As support, don’t take core lanes like mid or jungle.",
-            "Lane assignment mismatch — make sure your role fits your lane."
+            "Lane assignment mismatch — don’t grief mid.",
+            "Wrong lane for your role. Stick to the plan.",
+            "Supports don’t need to jungle farm early. Let cores scale."
         ]
     },
     "intentional_feeder": {
         "lines": [
-            "Multiple intentional feeds detected. That’s not it chief.",
-            "This game had griefing behavior. Not a good look."
+            "This game had griefing behavior. Not a good look.",
+            "Multiple intentional feeds detected. Don't ruin games.",
+            "Deliberate feeding ruins the experience for others.",
+            "Please queue when you're ready to play."
         ]
     }
 }
 
-# --- Strategic tips triggered by stat tag presence ---
+# --- Situational tip lines ---
 TIP_LINES = {
     "campStack": {
         "text": "Try to stack during quiet moments — it adds up quickly.",
@@ -177,7 +250,7 @@ TIP_LINES = {
         "modes": ["ALL"]
     },
     "gpm": {
-        "text": "Push waves before jungling to get more out of rotations.",
+        "text": "Push lanes before jungling to get more out of rotations.",
         "modes": ["NON_TURBO"]
     },
     "assists": {
