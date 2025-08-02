@@ -65,6 +65,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     )
 
     stats = extract_player_stats(player, stats_block, team_kills, mode)
+    stats["statsBlock"] = stats_block  # ✅ Ensure imp gets passed to engine_turbo
 
     engine = analyze_turbo if is_turbo else analyze_normal
     result = engine(stats, {}, player.get("roleBasic", ""), team_kills)
