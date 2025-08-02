@@ -1,5 +1,3 @@
-# bot/stratz.py
-
 import json
 import os
 import requests
@@ -7,6 +5,7 @@ import requests
 # --- Shared Stratz query runner ---
 def post_stratz_query(query: str, variables: dict, token: str, timeout: int = 10) -> dict | None:
     headers = {
+        "User-Agent": "STRATZ_API",
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
