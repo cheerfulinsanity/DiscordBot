@@ -8,12 +8,11 @@ def get_latest_new_match(steam_id: int, last_posted_id: str | None, token: str) 
     Otherwise, return None to skip.
     """
     try:
-        latest = fetch_latest_match(steam_id, token)
-        if not latest:
+        match_id = fetch_latest_match(steam_id, token)
+        if not match_id:
             print(f"⚠️ No latest match found for {steam_id}")
             return None
 
-        match_id = latest["match_id"]
         if str(match_id) == str(last_posted_id):
             print(f"⏩ Match {match_id} already posted for {steam_id}")
             return None
