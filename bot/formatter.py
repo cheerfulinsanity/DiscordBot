@@ -41,14 +41,16 @@ GAME_MODE_NAMES = {
 def normalize_hero_name(raw_name: str) -> str:
     if not raw_name:
         return "unknown"
-    return raw_name.replace("npc_dota_hero_", "").lower()
+    if raw_name.startswith("npc_dota_hero_"):
+        return raw_name.replace("npc_dota_hero_", "").lower()
+    return raw_name.lower()
 
 # --- Deprecated fallback functions (preserved for stability) ---
 def get_role(hero_name: str) -> str:
-    return "unknown"  # no longer used
+    return "unknown"
 
 def get_baseline(hero_name: str, mode: str) -> dict | None:
-    return None  # legacy
+    return None
 
 # --- Main match analysis entrypoint ---
 def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
@@ -57,11 +59,9 @@ def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
     This is the v3.5 stat-tag-based formatter. Assumes engine and extract are raw-mode.
     Returns a dict suitable for use in Discord embeds or fallback plaintext.
     """
-    # Determine game mode
     is_turbo = match.get("gameMode") == 23
     mode = "TURBO" if is_turbo else "NON_TURBO"
 
-    # Extract canonical stat bundle
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in match.get("players", [])
         if p.get("isRadiant") == player.get("isRadiant")
@@ -69,20 +69,16 @@ def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
 
     stats = extract_player_stats(player, stats_block, team_kills, mode)
 
-    # Route to appropriate engine
     engine = analyze_turbo if is_turbo else analyze_normal
     result = engine(stats, {}, player.get("roleBasic", ""), team_kills)
 
-    # Tag-based phrasing
     tags = result.get("feedback_tags", {})
     is_victory = player.get("isVictory", False)
     advice = generate_advice(tags, stats, mode=mode)
 
-    # Title and score
     score = result.get("score", 0.0)
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
 
-    # Final payload (for internal use or fallback display)
     return {
         "emoji": emoji,
         "title": title,
@@ -102,10 +98,25 @@ def format_match_embed(player: dict, match: dict, stats_block: dict) -> dict:
 
 # --- Embed formatting for Discord output ---
 def build_discord_embed(result: dict) -> dict:
-    """
-    Convert internal match analysis dict into a Discord-compatible embed.
-    """
-    fields = []
+    from datetime import datetime, timezone
+
+    hero = result.get("hero", "unknown").capitalize()
+    kda = result.get("kda", "0/0/0")
+    victory = "Win" if result.get("isVictory") else "Loss"
+    title = f"{result.get('emoji', '')} {result.get('title')} {kda} as {hero} — {victory}"
+
+    duration = result.get("duration", 0)
+    duration_str = f"{duration // 60}:{duration % 60:02d}"
+
+    now = datetime.now(timezone.utc).astimezone()
+    timestamp = now.isoformat()
+
+    fields = [
+        {"name": "🧮 Score", "value": f"{result.get('score', 0.0):.2f}", "inline": True},
+        {"name": "🧭 Role", "value": result.get("role", "unknown").capitalize(), "inline": True},
+        {"name": "⚙️ Mode", "value": f"Mode {result.get('mode', 'NORMAL')}", "inline": True},
+        {"name": "⏱️ Duration", "value": duration_str, "inline": True},
+    ]
 
     if result.get("positives"):
         fields.append({
@@ -116,29 +127,31 @@ def build_discord_embed(result: dict) -> dict:
 
     if result.get("negatives"):
         fields.append({
-            "name": "🚰 What to work on",
+            "name": "🧱 What to work on",
             "value": "\n".join(f"• {line}" for line in result["negatives"]),
             "inline": False
         })
 
     if result.get("flags"):
         fields.append({
-            "name": "💼 Flagged behavior",
+            "name": "📌 Flagged behavior",
             "value": "\n".join(f"• {line}" for line in result["flags"]),
             "inline": False
         })
 
     if result.get("tips"):
         fields.append({
-            "name": "🗾 Tips",
+            "name": "🗺️ Tips",
             "value": "\n".join(f"• {line}" for line in result["tips"]),
             "inline": False
         })
 
     return {
-        "title": f"{result['emoji']} {result['title']} {result['kda']} as {result['hero'].capitalize()} — {'Win' if result['isVictory'] else 'Loss'}",
+        "title": title,
+        "description": "",
         "fields": fields,
         "footer": {
-            "text": f"Match ID: {result['matchId']}"
-        }
+            "text": f"Match ID: {result['matchId']} • {now.strftime('%b %d at %-I:%M %p')}"
+        },
+        "timestamp": timestamp
     }
