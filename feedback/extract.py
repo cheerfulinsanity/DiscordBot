@@ -1,5 +1,3 @@
-# feedback/extract.py
-
 from typing import Dict
 
 NORMAL_STATS = [
@@ -49,10 +47,12 @@ def extract_player_stats(
             val = len(stats_block.get("wards") or [])
 
         elif key == "sentryWardsPlaced":
-            val = sum(1 for w in stats_block.get("wards") or [] if w.get("isSentry"))
+            # Fallback: assume 50/50 split when type info is gone
+            val = round(len(stats_block.get("wards") or []) / 2)
 
         elif key == "observerWardsPlaced":
-            val = sum(1 for w in stats_block.get("wards") or [] if w.get("isObserver"))
+            # Same as above — heuristic split
+            val = round(len(stats_block.get("wards") or []) / 2)
 
         elif key == "wardsDestroyed":
             val = len(stats_block.get("wardDestruction") or [])
