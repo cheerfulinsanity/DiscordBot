@@ -154,6 +154,6 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
 
     return {
         "deltas": {},  # legacy compatibility
-        "score": stats.get("imp", 0.0),
+        "score": stats.get("imp", 0.0),  # ✅ Inject actual IMP as score
         "feedback_tags": tags
     }
