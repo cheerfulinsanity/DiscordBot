@@ -1,5 +1,3 @@
-# bot/fetch.py
-
 from bot.stratz import fetch_latest_match, fetch_full_match
 
 def get_latest_new_match(steam_id: int, last_posted_id: str | None, token: str) -> dict | None:
@@ -13,7 +11,7 @@ def get_latest_new_match(steam_id: int, last_posted_id: str | None, token: str) 
             print(f"⚠️ No latest match found for {steam_id}")
             return None
 
-        if str(match_id) == str(last_posted_id):
+        if str(match_id) == str(last_posted_id or ""):
             print(f"⏩ Match {match_id} already posted for {steam_id}")
             return None
 
