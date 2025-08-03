@@ -1,17 +1,19 @@
+# bot/stratz.py
+
 import json
 import os
 import requests
-from bot.throttle import throttle  # ✅ Add this line
+from bot.throttle import throttle  # ✅ Enforce rate limit before each request
 
 # --- Shared Stratz query runner ---
-def post_stratz_query(query: str, variables: dict, token: str, timeout: int = 10) -> dict | None:
+def post_stratz_query(query: str, variables: dict, token: str, timeout: int = 10) -> dict | str | None:
     headers = {
         "User-Agent": "STRATZ_API",
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
 
-    throttle()  # ✅ Enforce rate-limiting before request
+    throttle()  # ✅ Rate-limit per second/minute/hour caps
 
     try:
         response = requests.post(
@@ -20,14 +22,19 @@ def post_stratz_query(query: str, variables: dict, token: str, timeout: int = 10
             json={"query": query, "variables": variables},
             timeout=timeout
         )
+        if response.status_code == 429:
+            print("🛑 Stratz API returned 429 Too Many Requests")
+            return "quota_exceeded"
         response.raise_for_status()
         return response.json().get("data")
     except Exception as e:
         print(f"❌ Stratz query failed: {e}")
+        if "quota" in str(e).lower():
+            return "quota_exceeded"
         return None
 
 # --- Minimal match summary: for checking most recent match ID ---
-def fetch_latest_match(steam_id: int, token: str) -> int | None:
+def fetch_latest_match(steam_id: int, token: str) -> dict | None:
     """
     Fetch the most recent match ID for a given Steam32 ID.
     Used for polling latest match played.
@@ -44,10 +51,13 @@ def fetch_latest_match(steam_id: int, token: str) -> int | None:
     variables = {"steamId": steam_id}
     data = post_stratz_query(query, variables, token)
 
+    if data == "quota_exceeded":
+        return {"error": "quota_exceeded"}
+
     if not data or "player" not in data or not data["player"].get("matches"):
         return None
 
-    return data["player"]["matches"][0]["id"]
+    return {"match_id": data["player"]["matches"][0]["id"]}
 
 # --- Full match payload including extended stats and timeline ---
 def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
@@ -118,6 +128,9 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
     """
     variables = {"matchId": match_id}
     data = post_stratz_query(query, variables, token, timeout=15)
+
+    if data == "quota_exceeded":
+        return {"error": "quota_exceeded"}
 
     if not data:
         return None
