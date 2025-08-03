@@ -1,3 +1,5 @@
+# bot/runner.py
+
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed, build_discord_embed
@@ -23,17 +25,21 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
         print(f"❌ Failed to post embed to Discord: {e}")
         return False
 
-def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> None:
+def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> bool:
     """
     Fetch and format the latest match for a player. Updates state if successful.
-    Now supports posting embedded messages to Discord webhook if enabled.
+    Returns True if processing should continue, False if quota was exceeded.
     """
     throttle()  # ✅ Rate-limit before each player's call
     match_bundle = get_latest_new_match(steam_id, last_posted_id, TOKEN)
 
+    if isinstance(match_bundle, dict) and match_bundle.get("error") == "quota_exceeded":
+        print(f"🛑 Skipping remaining players — quota exceeded.")
+        return False
+
     if not match_bundle:
         print(f"⏩ No new match or failed to fetch for {player_name}. Skipping.")
-        return
+        return True
 
     match_id = match_bundle["match_id"]
     match_data = match_bundle["full_data"]
@@ -44,7 +50,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     )
     if not player_data:
         print(f"❌ Player data missing in match {match_id} for {player_name}")
-        return
+        return True
 
     print(f"🎮 {player_name} — processing match {match_id}")
 
@@ -67,6 +73,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     except Exception as e:
         print(f"❌ Error formatting or posting match for {player_name}: {e}")
 
+    return True
+
 # --- Bot Execution ---
 def run_bot():
     print("🚀 GuildBot started")
@@ -80,7 +88,10 @@ def run_bot():
     for index, (player_name, steam_id) in enumerate(players.items(), start=1):
         print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({steam_id})...")
         last_posted_id = state.get(str(steam_id))
-        process_player(player_name, steam_id, last_posted_id, state)
+        should_continue = process_player(player_name, steam_id, last_posted_id, state)
+        if not should_continue:
+            print("🧯 Ending run early to preserve API quota.")
+            break
         time.sleep(0.2)  # 🛡️ Soft cooldown between players to ease API burst pressure
 
     save_state(state)
