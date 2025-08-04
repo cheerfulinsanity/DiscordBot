@@ -140,3 +140,37 @@ def fetch_full_match(steam_id: int, match_id: int, token: str) -> dict | None:
         print(json.dumps(data, indent=2))
 
     return data.get("match")
+
+# --- Timeline-only fetch for clip selection ---
+def fetch_timeline_data(match_id: int, token: str) -> dict | None:
+    """
+    Fetch timeline data for clip selection — includes kill/assist moments and teamfights.
+    """
+    query = """
+    query ($matchId: Long!) {
+      match(id: $matchId) {
+        playerStats {
+          steamAccountId
+          killTimeline
+          assistTimeline
+        }
+        teamfights {
+          startTime
+          endTime
+          deaths {
+            steamAccountId
+          }
+        }
+      }
+    }
+    """
+    variables = {"matchId": match_id}
+    data = post_stratz_query(query, variables, token)
+
+    if data == "quota_exceeded":
+        return {"error": "quota_exceeded"}
+
+    if not data or "match" not in data:
+        return None
+
+    return data["match"]
