@@ -1,5 +1,3 @@
-# bot/stratz.py
-
 import json
 import os
 import requests
@@ -174,3 +172,29 @@ def fetch_timeline_data(match_id: int, token: str) -> dict | None:
         return None
 
     return data["match"]
+
+# --- Replay metadata from Steam Web API ---
+def get_replay_meta_from_steam(match_id: int) -> dict | None:
+    """
+    Fetch replaySalt and clusterId from Steam Web API for downloading replay file.
+    """
+    key = os.getenv("STEAM_API_KEY")
+    if not key:
+        print("❌ STEAM_API_KEY not set")
+        return None
+
+    url = "https://api.steampowered.com/IDOTA2Match_570/GetMatchDetails/v1/"
+    params = {"key": key, "match_id": match_id}
+
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        result = response.json().get("result", {})
+
+        return {
+            "clusterId": result.get("cluster"),
+            "replaySalt": result.get("replay_salt")
+        }
+    except Exception as e:
+        print(f"❌ Steam API failed: {e}")
+        return None
