@@ -1,4 +1,4 @@
-from bot.fetch import get_latest_new_match
+from bot.fetch import get_latest_new_match 
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed, build_discord_embed
 from bot.config import CONFIG
@@ -12,7 +12,8 @@ from bot.replay import (
     upload_clip
 )
 from bot.clip_selector import pick_best_clip_from_timelines
-from bot.stratz import fetch_timeline_data, get_replay_meta_from_steam
+from bot.stratz import fetch_timeline_data
+from bot.steam import get_replay_meta_from_steam  # ✅ Corrected source
 
 import os
 import requests
