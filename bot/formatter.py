@@ -129,7 +129,8 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         "negatives": advice.get("negatives", []),
         "flags": advice.get("flags", []),
         "tips": advice.get("tips", []),
-        "matchId": match.get("id")
+        "matchId": match.get("id"),
+        "clipUrl": None  # ✅ Optional clip field injected externally
     }
 
 # --- Embed formatting for Discord output ---
@@ -195,6 +196,13 @@ def build_discord_embed(result: dict) -> dict:
         fields.append({
             "name": "🗺️ Tips",
             "value": "\n".join(f"• {line}" for line in result["tips"]),
+            "inline": False
+        })
+
+    if result.get("clipUrl"):
+        fields.append({
+            "name": "🎥 Auto Clip",
+            "value": f"[Watch Clip]({result['clipUrl']})",
             "inline": False
         })
 
