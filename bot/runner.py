@@ -1,5 +1,3 @@
-# bot/runner.py
-
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed, build_discord_embed
@@ -14,7 +12,7 @@ from bot.replay import (
     upload_clip
 )
 from bot.clip_selector import pick_best_clip_from_timelines
-from bot.stratz import fetch_timeline_data, fetch_full_match
+from bot.stratz import fetch_timeline_data, get_replay_meta_from_steam
 
 import os
 import requests
@@ -69,22 +67,18 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     clip_url = None
     try:
         clip_target = pick_best_clip_from_timelines(match_id, steam_id, TOKEN)
-        meta = match_data.get("replaySalt") and match_data.get("cluster")
-        if not meta:
-            match_meta = fetch_full_match(steam_id, match_id, TOKEN)
-            replay_salt = match_meta.get("replaySalt")
-            cluster = match_meta.get("cluster")
-        else:
-            replay_salt = match_data.get("replaySalt")
-            cluster = match_data.get("cluster")
+        meta = get_replay_meta_from_steam(match_id)
 
-        url = build_replay_url(match_id, cluster, replay_salt)
-        os.makedirs("tmp", exist_ok=True)
-        if download_replay(url, "tmp/replay.dem.bz2"):
-            decompress_bz2("tmp/replay.dem.bz2", "tmp/replay.dem")
-            if extract_clip_segment("tmp/replay.dem", clip_target["timestamp"], "tmp/clip.dem"):
-                if render_clip_to_video("tmp/clip.dem", "tmp/clip.mp4"):
-                    clip_url = upload_clip("tmp/clip.mp4")
+        if not meta or not meta.get("replaySalt") or not meta.get("clusterId"):
+            print(f"⚠️ Missing replaySalt or clusterId for match {match_id} — skipping clip.")
+        else:
+            url = build_replay_url(match_id, meta["clusterId"], meta["replaySalt"])
+            os.makedirs("tmp", exist_ok=True)
+            if download_replay(url, "tmp/replay.dem.bz2"):
+                decompress_bz2("tmp/replay.dem.bz2", "tmp/replay.dem")
+                if extract_clip_segment("tmp/replay.dem", clip_target["timestamp"], "tmp/clip.dem"):
+                    if render_clip_to_video("tmp/clip.dem", "tmp/clip.mp4"):
+                        clip_url = upload_clip("tmp/clip.mp4")
     except Exception as e:
         print(f"⚠️ Clip generation failed: {e}")
 
