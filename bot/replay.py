@@ -4,6 +4,9 @@ import os
 import bz2
 import requests
 from subprocess import run
+import dropbox  # ✅ Dropbox SDK for upload
+
+DROPBOX_TOKEN = os.getenv("DROPBOX_TOKEN")
 
 def build_replay_url(match_id: int, cluster: int, salt: int) -> str:
     """
@@ -62,8 +65,24 @@ def render_clip_to_video(dem_clip_path: str, out_mp4: str) -> bool:
 
 def upload_clip(path: str) -> str:
     """
-    Upload the final .mp4 to a shareable location. Placeholder for cloud storage.
+    Upload the final .mp4 to Dropbox and return a direct shareable link.
     """
-    # TODO: replace with actual upload target (e.g. Supabase, R2, file.io)
-    print(f"🛰️ Clip ready at {path} (mock URL returned)")
-    return f"https://example.com/clips/{os.path.basename(path)}"
+    if not DROPBOX_TOKEN:
+        print("❌ No Dropbox token found in environment.")
+        return ""
+
+    dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+    filename = os.path.basename(path)
+    dest_path = f"/guildbot-clips/{filename}"
+
+    try:
+        with open(path, "rb") as f:
+            dbx.files_upload(f.read(), dest_path, mode=dropbox.files.WriteMode.overwrite)
+
+        shared = dbx.sharing_create_shared_link_with_settings(dest_path)
+        # Return a direct video streamable link
+        return shared.url.replace("?dl=0", "?raw=1")
+
+    except Exception as e:
+        print(f"❌ Dropbox upload failed: {e}")
+        return ""
