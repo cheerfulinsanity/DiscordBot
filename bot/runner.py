@@ -5,6 +5,17 @@ from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed, build_discord_embed
 from bot.config import CONFIG
 from bot.throttle import throttle
+from bot.replay import (
+    build_replay_url,
+    download_replay,
+    decompress_bz2,
+    extract_clip_segment,
+    render_clip_to_video,
+    upload_clip
+)
+from bot.clip_selector import pick_best_clip_from_timelines
+from bot.stratz import fetch_timeline_data, fetch_full_match
+
 import os
 import requests
 import json
@@ -54,8 +65,33 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
 
     print(f"🎮 {player_name} — processing match {match_id}")
 
+    # --- Clip selection and processing ---
+    clip_url = None
+    try:
+        clip_target = pick_best_clip_from_timelines(match_id, steam_id, TOKEN)
+        meta = match_data.get("replaySalt") and match_data.get("cluster")
+        if not meta:
+            match_meta = fetch_full_match(steam_id, match_id, TOKEN)
+            replay_salt = match_meta.get("replaySalt")
+            cluster = match_meta.get("cluster")
+        else:
+            replay_salt = match_data.get("replaySalt")
+            cluster = match_data.get("cluster")
+
+        url = build_replay_url(match_id, cluster, replay_salt)
+        os.makedirs("tmp", exist_ok=True)
+        if download_replay(url, "tmp/replay.dem.bz2"):
+            decompress_bz2("tmp/replay.dem.bz2", "tmp/replay.dem")
+            if extract_clip_segment("tmp/replay.dem", clip_target["timestamp"], "tmp/clip.dem"):
+                if render_clip_to_video("tmp/clip.dem", "tmp/clip.mp4"):
+                    clip_url = upload_clip("tmp/clip.mp4")
+    except Exception as e:
+        print(f"⚠️ Clip generation failed: {e}")
+
     try:
         result = format_match_embed(player_data, match_data, player_data.get("stats", {}), player_name)
+        if clip_url:
+            result["clipUrl"] = clip_url
         embed = build_discord_embed(result)
 
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
@@ -69,6 +105,20 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
             print("⚠️ Webhook disabled or misconfigured — printing instead.")
             print(json.dumps(embed, indent=2))
             state[str(steam_id)] = match_id
+
+        # --- Optional: Highlights channel post ---
+        score = result.get("score", 0.0)
+        flags = result.get("flags", [])
+        if clip_url and CONFIG.get("highlight_webhook_url"):
+            if score >= 3.5 or score <= -2.0 or "fed_no_impact" in flags:
+                highlight_embed = {
+                    "title": f"{player_name} — {result.get('hero', 'Unknown')} Clip",
+                    "video": {"url": clip_url}
+                }
+                requests.post(CONFIG["highlight_webhook_url"], json={
+                    "content": f"🌟 **{player_name} Highlight Clip**",
+                    "embeds": [highlight_embed]
+                })
 
     except Exception as e:
         print(f"❌ Error formatting or posting match for {player_name}: {e}")
