@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 import json
 
 DEBUG = False  # Set to True to enable debug logging
@@ -10,9 +10,6 @@ TURBO_STATS = [
 ]
 
 def _get_role_category(role: str, lane: str) -> str:
-    """
-    Maps roleBasic + lane to a simplified 'core' or 'support' tag.
-    """
     role = (role or "").lower()
     lane = (lane or "").lower()
     if role in ["softsupport", "hardsupport"]:
@@ -27,10 +24,29 @@ def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
     except Exception:
         return 0.0
 
+def _safe_avg(arr: List[float]) -> float:
+    if not arr:
+        return 0.0
+    return sum(arr) / len(arr)
+
+def _segment_phases(stats_block: Dict[str, Any], duration: int) -> Dict[str, Dict[str, List[float]]]:
+    """Splits per-minute arrays into early/mid/late segments."""
+    if duration <= 0:
+        return {}
+    total_minutes = max(1, duration // 60)
+    early_cut = total_minutes // 3
+    mid_cut = (total_minutes * 2) // 3
+    segmented = {}
+    for key, arr in stats_block.items():
+        if isinstance(arr, list) and arr and all(isinstance(x, (int, float)) for x in arr):
+            segmented[key] = {
+                "early": arr[:early_cut],
+                "mid": arr[early_cut:mid_cut],
+                "late": arr[mid_cut:]
+            }
+    return segmented
+
 def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Returns praise, critique, and compound behavior flags based on flat thresholds.
-    """
     result = {
         'highlight': None,
         'lowlight': None,
@@ -39,7 +55,6 @@ def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Di
         'compound_flags': []
     }
 
-    # Pull context values safely
     imp = context.get("imp", 0)
     kills = context.get("kills", 0)
     assists = context.get("assists", 0)
@@ -49,33 +64,28 @@ def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Di
     kp = context.get("killParticipation", 0)
     duration = context.get("durationSeconds", 0)
     lane = context.get("lane", "")
-    role = context.get("roleBasic", "")
     intentional_feeding = context.get("intentionalFeeding", False)
 
-    # --- Highlight / lowlight: more nuanced pool ---
     ranked_stats = {
         "imp": imp,
         "kills": kills,
         "assists": assists,
         "campStack": camp_stack,
         "killParticipation": kp,
-        "deaths": -deaths  # invert for lowlight fairness
+        "deaths": -deaths
     }
     result["highlight"] = max(ranked_stats, key=ranked_stats.get)
     result["lowlight"] = min(ranked_stats, key=ranked_stats.get)
 
-    # --- Praise tags ---
     if kills >= 10: result["praises"].append("kills")
     if assists >= 15: result["praises"].append("assists")
     if imp >= 1.3: result["praises"].append("imp")
     if camp_stack >= 5: result["praises"].append("campStack")
     if kp >= 0.7: result["praises"].append("killParticipation")
 
-    # --- Critique tags ---
     if deaths >= 10: result["critiques"].append("deaths")
     if kp < 0.3: result["critiques"].append("killParticipation")
 
-    # --- Compound flags ---
     if role_category == "support" and camp_stack == 0:
         result['compound_flags'].append("no_stacking_support")
 
@@ -94,18 +104,26 @@ def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Di
     if intentional_feeding:
         result['compound_flags'].append("intentional_feeder")
 
+    # --- New: IMP trend analysis from timeline arrays ---
+    stats_block = context.get("statsBlock", {})
+    phases = _segment_phases(stats_block, duration)
+    imp_pm = stats_block.get("impPerMinute", [])
+
+    if isinstance(imp_pm, list) and imp_pm:
+        early_avg = _safe_avg(phases.get("impPerMinute", {}).get("early", []))
+        late_avg = _safe_avg(phases.get("impPerMinute", {}).get("late", []))
+        if early_avg < 0.5 and late_avg > early_avg + 0.5:
+            result["compound_flags"].append("slow_start")
+        if late_avg < early_avg - 0.5:
+            result["compound_flags"].append("late_game_falloff")
+
     return result
 
 def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
-    """
-    Turbo-mode analyzer using raw stats only. No deltas or baselines.
-    Preserves expected return fields (deltas, score, feedback_tags).
-    """
     lane = player_stats.get("lane", "")
     role_basic = player_stats.get("roleBasic", "")
     role_category = _get_role_category(role_basic, lane)
 
-    # Copy stats and compute KP
     stats = dict(player_stats)
     stats["killParticipation"] = _compute_kp(
         stats.get("kills", 0),
@@ -114,9 +132,7 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
     )
     stats["durationSeconds"] = stats.get("durationSeconds", 0)
 
-    # ✅ Correct IMP handling: use player.imp if present
     if "imp" not in stats or stats["imp"] is None:
-        # Optional: derive from impPerMinute if available
         imp_per_min = player_stats.get("statsBlock", {}).get("impPerMinute")
         if isinstance(imp_per_min, list) and imp_per_min:
             stats["imp"] = sum(imp_per_min) / len(imp_per_min)
@@ -132,7 +148,7 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
         print("  Tags:", json.dumps(tags, indent=2))
 
     return {
-        "deltas": {},  # preserved for formatter compatibility
-        "score": stats.get("imp", 0.0),  # use total IMP as score
+        "deltas": {},
+        "score": stats.get("imp", 0.0),
         "feedback_tags": tags
     }
