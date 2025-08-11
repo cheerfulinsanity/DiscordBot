@@ -108,13 +108,8 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         if p.get("isRadiant") == player.get("isRadiant")
     )
 
-    # Always pass statsBlock including impPerMinute for Turbo IMP fallback
+    # Extract player stats (now includes full statsBlock with all timeline arrays)
     stats = extract_player_stats(player, stats_block, team_kills, mode)
-    stats["statsBlock"] = stats_block or {}
-    if "impPerMinute" not in stats["statsBlock"]:
-        stats["statsBlock"]["impPerMinute"] = (
-            player.get("stats", {}).get("impPerMinute") or []
-        )
 
     engine = analyze_turbo if is_turbo else analyze_normal
     result = engine(stats, {}, player.get("roleBasic", ""), team_kills)
