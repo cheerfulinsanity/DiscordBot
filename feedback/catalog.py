@@ -232,6 +232,22 @@ COMPOUND_FLAGS = {
             "Deliberate feeding ruins the experience for others.",
             "Please queue when you're ready to play."
         ]
+    },
+    "slow_start": {
+        "modes": ["ALL"],
+        "lines": [
+            "Took a while to get going — early impact was low but you found your footing later.",
+            "Slow out of the gate, but improved as the match went on.",
+            "Early game was quiet, but you made your presence felt in the mid to late game."
+        ]
+    },
+    "late_game_falloff": {
+        "modes": ["ALL"],
+        "lines": [
+            "Started strong but faded late — keep momentum into the final fights.",
+            "Dominated early but couldn't maintain pressure late game.",
+            "Great start, but the impact dropped off in the closing stages."
+        ]
     }
 }
 
@@ -362,3 +378,4 @@ TITLE_BOOK = {
         ]
     }
 }
+
