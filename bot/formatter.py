@@ -95,8 +95,12 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         or f"Mode {game_mode_id}"
     )
 
-    # Hardened Turbo detection: accept IDs {20, 23} or raw MODE_TURBO
-    is_turbo = (game_mode_id in (20, 23)) or (RAW_MODE_LABELS.get(raw_label) == "Turbo") or (raw_label == "MODE_TURBO")
+    # Hardened Turbo detection
+    is_turbo = (
+        game_mode_id in (20, 23)
+        or RAW_MODE_LABELS.get(raw_label) == "Turbo"
+        or raw_label == "MODE_TURBO"
+    )
     mode = "TURBO" if is_turbo else "NON_TURBO"
 
     team_kills = player.get("_team_kills") or sum(
@@ -104,8 +108,13 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         if p.get("isRadiant") == player.get("isRadiant")
     )
 
+    # Always pass statsBlock including impPerMinute for Turbo IMP fallback
     stats = extract_player_stats(player, stats_block, team_kills, mode)
-    stats["statsBlock"] = stats_block  # ✅ Ensure imp gets passed to engine_turbo
+    stats["statsBlock"] = stats_block or {}
+    if "impPerMinute" not in stats["statsBlock"]:
+        stats["statsBlock"]["impPerMinute"] = (
+            player.get("stats", {}).get("impPerMinute") or []
+        )
 
     engine = analyze_turbo if is_turbo else analyze_normal
     result = engine(stats, {}, player.get("roleBasic", ""), team_kills)
@@ -113,7 +122,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     tags = result.get("feedback_tags", {})
     is_victory = player.get("isVictory", False)
 
-    # ✅ Determinism: seed phrasing by (matchId, steamId) before advice/title
+    # Deterministic phrasing
     try:
         seed_str = f"{match.get('id')}:{player.get('steamAccountId')}"
         random.seed(hashlib.md5(seed_str.encode()).hexdigest())
@@ -124,7 +133,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
 
     score = result.get("score", 0.0)
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
-    title = title[:1].lower() + title[1:]  # lowercased first letter
+    title = title[:1].lower() + title[1:]
 
     return {
         "playerName": player_name,
@@ -138,10 +147,10 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         "kda": f"{player.get('kills', 0)}/{player.get('deaths', 0)}/{player.get('assists', 0)}",
         "duration": match.get("durationSeconds", 0),
         "isVictory": is_victory,
-        "positives": advice.get("positives", []),
-        "negatives": advice.get("negatives", []),
-        "flags": advice.get("flags", []),
-        "tips": advice.get("tips", []),
+        "positives": advice.get("positives", [])[:3],
+        "negatives": advice.get("negatives", [])[:3],
+        "flags": advice.get("flags", [])[:3],
+        "tips": advice.get("tips", [])[:3],
         "matchId": match.get("id")
     }
 
@@ -160,16 +169,10 @@ def build_discord_embed(result: dict) -> dict:
     now = datetime.now(timezone.utc).astimezone()
     timestamp = now.isoformat()
 
-    # Max 3 lines per advice section (per Bible), preserving order
-    positives = (result.get("positives") or [])[:3]
-    negatives = (result.get("negatives") or [])[:3]
-    flags_list = (result.get("flags") or [])[:3]
-    tips = (result.get("tips") or [])[:3]
-
     fields = [
         {
             "name": "🧮 Impact",
-            "value": f"{result.get('score', 0.0):.2f} (typical in‑game: −10 to +10, high‑end ~+20–30)",
+            "value": f"{result.get('score', 0.0):.2f} (typical in-game: −10 to +10, high-end ~+20–30)",
             "inline": True
         },
         {
@@ -189,31 +192,31 @@ def build_discord_embed(result: dict) -> dict:
         },
     ]
 
-    if positives:
+    if result.get("positives"):
         fields.append({
             "name": "🎯 What went well",
-            "value": "\n".join(f"• {line}" for line in positives),
+            "value": "\n".join(f"• {line}" for line in result["positives"]),
             "inline": False
         })
 
-    if negatives:
+    if result.get("negatives"):
         fields.append({
             "name": "🧱 What to work on",
-            "value": "\n".join(f"• {line}" for line in negatives),
+            "value": "\n".join(f"• {line}" for line in result["negatives"]),
             "inline": False
         })
 
-    if flags_list:
+    if result.get("flags"):
         fields.append({
             "name": "📌 Flagged behavior",
-            "value": "\n".join(f"• {line}" for line in flags_list),
+            "value": "\n".join(f"• {line}" for line in result["flags"]),
             "inline": False
         })
 
-    if tips:
+    if result.get("tips"):
         fields.append({
             "name": "🗺️ Tips",
-            "value": "\n".join(f"• {line}" for line in tips),
+            "value": "\n".join(f"• {line}" for line in result["tips"]),
             "inline": False
         })
 
