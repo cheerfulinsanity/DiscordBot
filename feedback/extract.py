@@ -1,108 +1,110 @@
-# extract.py
-# Schema-aligned extraction from Stratz GraphQL match payload
-# Expanded to include all timeline and event data for richer future analysis
+from typing import Dict
 
-def extract_match_data(match_json):
+NORMAL_STATS = [
+    "kills", "deaths", "assists", "imp", "level",
+    "gold", "goldSpent", "gpm", "xpm",
+    "heroHealing", "heroDamage", "towerDamage", "buildingDamage", "damageTaken",
+    "actionsPerMinute", "killParticipation", "fightParticipationPercent",
+    "stunDuration", "disableDuration",
+    "runePickups", "wardsPlaced", "sentryWardsPlaced", "observerWardsPlaced", "wardsDestroyed",
+    "campStack", "neutralKills", "laneCreeps", "jungleCreeps",
+    "networth", "networthPerMinute", "experiencePerMinute"
+]
+
+TURBO_STATS = [
+    stat for stat in NORMAL_STATS
+    if stat not in {"gpm", "xpm", "gold", "goldSpent", "networth", "networthPerMinute"}
+]
+
+# Timeline arrays we always carry through to stats["statsBlock"]
+TIMELINE_ARRAY_KEYS = [
+    "impPerMinute",
+    "goldPerMinute",
+    "networthPerMinute",
+    "experiencePerMinute",
+    "level",
+    "heroDamagePerMinute",
+    "towerDamagePerMinute",
+    "actionsPerMinute",
+    "campStack",
+    "runes",
+    "wards",
+    "wardDestruction",
+    "courierKills"
+]
+
+def extract_player_stats(
+    player: dict,
+    stats_block: dict,
+    team_kills: int,
+    mode: str = "NON_TURBO"
+) -> Dict[str, float]:
     """
-    Extracts structured match data from a Stratz GraphQL match payload.
-
-    Returns:
-        dict: {
-            match_id, duration, game_mode, is_turbo, start_time,
-            players: [ { ... expanded player stats ... } ]
-        }
+    Extracts a clean stat dict for analysis engine from raw Stratz player/match payloads.
+    Includes all stat keys, lane/role context, feeding flags, derived KP, and full statsBlock with all timeline arrays.
     """
-    match = match_json.get("data", {}).get("match", {})
-    if not match:
-        return {}
+    keys = NORMAL_STATS if mode == "NON_TURBO" else TURBO_STATS
+    stats_block = stats_block or {}
+    stats: Dict[str, float] = {}
 
-    match_id = match.get("id")
-    duration = match.get("durationSeconds")
-    game_mode = match.get("gameMode", "")
-    start_time = match.get("startDateTime")
-    is_turbo = (game_mode.upper() == "TURBO")
+    for key in keys:
+        val = 0
 
-    players_data = []
-    for p in match.get("players", []):
-        stats = p.get("stats", {}) or {}
+        if key == "campStack":
+            val = sum(stats_block.get("campStack") or [])
 
-        player_entry = {
-            # --- Basic Info ---
-            "steam_id": p.get("steamAccountId"),
-            "is_radiant": p.get("isRadiant"),
-            "is_victory": p.get("isVictory"),
-            "lane": p.get("lane"),
-            "role": p.get("roleBasic"),
-            "party_id": p.get("partyId"),
-            "intentional_feeding": p.get("intentionalFeeding"),
+        elif key == "level":
+            levels = stats_block.get("level") or []
+            val = levels[-1] if levels else 0
 
-            # --- Totals ---
-            "kills": p.get("kills", 0),
-            "deaths": p.get("deaths", 0),
-            "assists": p.get("assists", 0),
-            "imp": p.get("imp", 0),
-            "gold": p.get("gold", 0),
-            "gold_spent": p.get("goldSpent", 0),
-            "networth": p.get("networth", 0),
-            "gpm": p.get("goldPerMinute", 0),
-            "xpm": p.get("experiencePerMinute", 0),
-            "level": p.get("level", 0),
-            "hero_damage": p.get("heroDamage", 0),
-            "tower_damage": p.get("towerDamage", 0),
-            "hero_healing": p.get("heroHealing", 0),
+        elif key == "runePickups":
+            val = len(stats_block.get("runes") or [])
 
-            # --- Timelines ---
-            "timelines": {
-                "campStack": stats.get("campStack", []),
-                "level": stats.get("level", []),
-                "networthPerMinute": stats.get("networthPerMinute", []),
-                "goldPerMinute": stats.get("goldPerMinute", []),
-                "experiencePerMinute": stats.get("experiencePerMinute", []),
-                "actionsPerMinute": stats.get("actionsPerMinute", []),
-                "heroDamagePerMinute": stats.get("heroDamagePerMinute", []),
-                "towerDamagePerMinute": stats.get("towerDamagePerMinute", []),
-                "impPerMinute": stats.get("impPerMinute", []),
-            },
+        elif key == "wardsPlaced":
+            val = len(stats_block.get("wards") or [])
 
-            # --- Events ---
-            "events": {
-                "wards": stats.get("wards", []),
-                "wardDestruction": stats.get("wardDestruction", []),
-                "runes": stats.get("runes", []),
-            }
-        }
+        elif key == "sentryWardsPlaced":
+            val = round(len(stats_block.get("wards") or []) / 2)
 
-        players_data.append(player_entry)
+        elif key == "observerWardsPlaced":
+            val = round(len(stats_block.get("wards") or []) / 2)
 
-    return {
-        "match_id": match_id,
-        "duration": duration,
-        "game_mode": game_mode,
-        "is_turbo": is_turbo,
-        "start_time": start_time,
-        "players": players_data
-    }
+        elif key == "wardsDestroyed":
+            val = len(stats_block.get("wardDestruction") or [])
 
+        elif key == "killParticipation":
+            val = None  # set below
 
-def extract_for_engine(match_json):
-    """
-    Extracts match data in a format that is compatible with both engine.py and engine_turbo.py.
+        elif key == "imp":
+            val = player.get("imp", 0.0)  # ✅ from top-level player
 
-    Hard-splits processing based on Turbo/Normal mode.
-    """
-    match_data = extract_match_data(match_json)
-    if not match_data:
-        return {}
+        else:
+            val = stats_block.get(key, player.get(key, 0)) or 0
 
-    if match_data["is_turbo"]:
-        # Turbo mode – skip certain economy stats if engines don't use them
-        return {
-            **match_data,
-            "mode": "turbo"
-        }
-    else:
-        # Normal mode – keep full set
-        return {
-            **match_data,
-            "mode": "normal"
-        }
+        stats[key] = val
+
+    # --- Derived: killParticipation ---
+    if "killParticipation" in keys:
+        kills = player.get("kills", 0)
+        assists = player.get("assists", 0)
+        stats["killParticipation"] = round((kills + assists) / team_kills, 3) if team_kills else 0.0
+
+    # --- Context fields required by engine ---
+    stats["lane"] = player.get("lane", "")
+    stats["roleBasic"] = player.get("roleBasic", "")
+    stats["partyId"] = player.get("partyId")
+    stats["intentionalFeeding"] = player.get("intentionalFeeding", False)
+    stats["neutral0Id"] = player.get("neutral0Id", 0)
+    stats["networth"] = player.get("networth", 0)
+    stats["gold"] = player.get("gold", 0)
+    stats["goldSpent"] = player.get("goldSpent", 0)
+    stats["durationSeconds"] = player.get("durationSeconds", 0)
+
+    # --- Always carry through full timeline arrays ---
+    full_stats_block = dict(stats_block)
+    for t_key in TIMELINE_ARRAY_KEYS:
+        if t_key not in full_stats_block:
+            full_stats_block[t_key] = player.get("stats", {}).get(t_key) or []
+    stats["statsBlock"] = full_stats_block
+
+    return stats
