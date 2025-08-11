@@ -1,5 +1,8 @@
+# bot/formatter.py
 import json
 from pathlib import Path
+import hashlib
+import random
 from feedback.engine import analyze_player as analyze_normal
 from feedback.engine_turbo import analyze_player as analyze_turbo
 from feedback.advice import generate_advice, get_title_phrase
@@ -82,8 +85,6 @@ def get_baseline(hero_name: str, mode: str) -> dict | None:
 
 # --- Main match analysis entrypoint ---
 def format_match_embed(player: dict, match: dict, stats_block: dict, player_name: str = "Player") -> dict:
-    is_turbo = match.get("gameMode") == 23
-    mode = "TURBO" if is_turbo else "NON_TURBO"
     game_mode_id = match.get("gameMode")
     raw_label = (match.get("gameModeName") or "").upper()
 
@@ -93,6 +94,10 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         or raw_label.replace("_", " ").title()
         or f"Mode {game_mode_id}"
     )
+
+    # Hardened Turbo detection: accept IDs {20, 23} or raw MODE_TURBO
+    is_turbo = (game_mode_id in (20, 23)) or (RAW_MODE_LABELS.get(raw_label) == "Turbo") or (raw_label == "MODE_TURBO")
+    mode = "TURBO" if is_turbo else "NON_TURBO"
 
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in match.get("players", [])
@@ -107,6 +112,14 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
 
     tags = result.get("feedback_tags", {})
     is_victory = player.get("isVictory", False)
+
+    # ✅ Determinism: seed phrasing by (matchId, steamId) before advice/title
+    try:
+        seed_str = f"{match.get('id')}:{player.get('steamAccountId')}"
+        random.seed(hashlib.md5(seed_str.encode()).hexdigest())
+    except Exception:
+        pass
+
     advice = generate_advice(tags, stats, mode=mode)
 
     score = result.get("score", 0.0)
@@ -147,6 +160,12 @@ def build_discord_embed(result: dict) -> dict:
     now = datetime.now(timezone.utc).astimezone()
     timestamp = now.isoformat()
 
+    # Max 3 lines per advice section (per Bible), preserving order
+    positives = (result.get("positives") or [])[:3]
+    negatives = (result.get("negatives") or [])[:3]
+    flags_list = (result.get("flags") or [])[:3]
+    tips = (result.get("tips") or [])[:3]
+
     fields = [
         {
             "name": "🧮 Impact",
@@ -170,31 +189,31 @@ def build_discord_embed(result: dict) -> dict:
         },
     ]
 
-    if result.get("positives"):
+    if positives:
         fields.append({
             "name": "🎯 What went well",
-            "value": "\n".join(f"• {line}" for line in result["positives"]),
+            "value": "\n".join(f"• {line}" for line in positives),
             "inline": False
         })
 
-    if result.get("negatives"):
+    if negatives:
         fields.append({
             "name": "🧱 What to work on",
-            "value": "\n".join(f"• {line}" for line in result["negatives"]),
+            "value": "\n".join(f"• {line}" for line in negatives),
             "inline": False
         })
 
-    if result.get("flags"):
+    if flags_list:
         fields.append({
             "name": "📌 Flagged behavior",
-            "value": "\n".join(f"• {line}" for line in result["flags"]),
+            "value": "\n".join(f"• {line}" for line in flags_list),
             "inline": False
         })
 
-    if result.get("tips"):
+    if tips:
         fields.append({
             "name": "🗺️ Tips",
-            "value": "\n".join(f"• {line}" for line in result["tips"]),
+            "value": "\n".join(f"• {line}" for line in tips),
             "inline": False
         })
 
