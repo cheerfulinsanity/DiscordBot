@@ -19,8 +19,10 @@ def generate_advice(
     mode: str = "NON_TURBO"
 ) -> Dict[str, List[str]]:
     """
-    Convert feedback tags into phrased feedback. v3.5 stat-only model.
+    Convert feedback tags into phrased feedback.
     Returns one praise, one critique, one compound flag, and one tip if available.
+    Pulls all phrasing from catalog.py so new flags (e.g., slow_start, late_game_falloff)
+    are supported automatically.
     """
     if ignore_stats is None:
         ignore_stats = []
@@ -59,7 +61,7 @@ def generate_advice(
             used.add(stat)
             break
 
-    # --- Flag (one compound only) ---
+    # --- Flag (one compound only, now handles all catalog flags) ---
     for flag in compound_flags:
         if not isinstance(flag, str):
             continue
@@ -97,7 +99,6 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
     Return (emoji, phrase) tuple for title line based on
     performance score, win/loss, and important flags.
     """
-
     # Priority: flags that override title
     if "fed_no_impact" in compound_flags:
         return "☠️", "fed hard and lost the game"
