@@ -114,9 +114,14 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
     )
     stats["durationSeconds"] = stats.get("durationSeconds", 0)
 
-    # ✅ Fix: inject imp from statsBlock (Stratz-specific)
-    stats_block = player_stats.get("statsBlock", {})
-    stats["imp"] = stats_block.get("imp", 0.0)
+    # ✅ Correct IMP handling: use player.imp if present
+    if "imp" not in stats or stats["imp"] is None:
+        # Optional: derive from impPerMinute if available
+        imp_per_min = player_stats.get("statsBlock", {}).get("impPerMinute")
+        if isinstance(imp_per_min, list) and imp_per_min:
+            stats["imp"] = sum(imp_per_min) / len(imp_per_min)
+        else:
+            stats["imp"] = 0.0
 
     tags = _select_priority_feedback(role_category, stats)
 
@@ -127,7 +132,7 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
         print("  Tags:", json.dumps(tags, indent=2))
 
     return {
-        "deltas": {},         # preserved for formatter compatibility
-        "score": stats.get("imp", 0.0),  # ✅ use IMP as impact score
+        "deltas": {},  # preserved for formatter compatibility
+        "score": stats.get("imp", 0.0),  # use total IMP as score
         "feedback_tags": tags
     }
