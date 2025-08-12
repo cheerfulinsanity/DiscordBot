@@ -114,7 +114,6 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     # --- Defensive: replace None with safe defaults ---
     for k, v in list(stats.items()):
         if v is None:
-            # Numeric stats default to 0, strings remain None
             stats[k] = 0 if isinstance(v, (int, float)) or k not in ("hero", "role") else v
 
     engine = analyze_turbo if is_turbo else analyze_normal
@@ -132,7 +131,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
 
     advice = generate_advice(tags, stats, mode=mode)
 
-    score = result.get("score", 0.0)
+    score = float(result.get("score") or 0.0)  # ✅ Ensure numeric
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
     title = title[:1].lower() + title[1:]
 
