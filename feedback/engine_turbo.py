@@ -9,6 +9,17 @@ TURBO_STATS = [
     "campStack", "level", "killParticipation"
 ]
 
+def _safe_num(val: Any, default: float = 0.0) -> float:
+    """Convert None or non-numeric values to a safe float."""
+    try:
+        if val is None:
+            return default
+        if isinstance(val, bool):
+            return float(val)
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
 def _get_role_category(role: str, lane: str) -> str:
     role = (role or "").lower()
     lane = (lane or "").lower()
@@ -18,8 +29,11 @@ def _get_role_category(role: str, lane: str) -> str:
         return "core"
     return "unknown"
 
-def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
+def _compute_kp(kills: Any, assists: Any, team_kills: Any) -> float:
     try:
+        kills = _safe_num(kills)
+        assists = _safe_num(assists)
+        team_kills = _safe_num(team_kills)
         return (kills + assists) / team_kills if team_kills > 0 else 0.0
     except Exception:
         return 0.0
@@ -27,13 +41,15 @@ def _compute_kp(kills: int, assists: int, team_kills: int) -> float:
 def _safe_avg(arr: List[float]) -> float:
     if not arr:
         return 0.0
-    return sum(arr) / len(arr)
+    arr = [_safe_num(x) for x in arr]
+    return sum(arr) / len(arr) if arr else 0.0
 
-def _segment_phases(stats_block: Dict[str, Any], duration: int) -> Dict[str, Dict[str, List[float]]]:
+def _segment_phases(stats_block: Dict[str, Any], duration: Any) -> Dict[str, Dict[str, List[float]]]:
     """Splits per-minute arrays into early/mid/late segments."""
+    duration = _safe_num(duration, 0)
     if duration <= 0:
         return {}
-    total_minutes = max(1, duration // 60)
+    total_minutes = max(1, int(duration) // 60)
     early_cut = total_minutes // 3
     mid_cut = (total_minutes * 2) // 3
     segmented = {}
@@ -55,16 +71,16 @@ def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Di
         'compound_flags': []
     }
 
-    imp = context.get("imp", 0)
-    kills = context.get("kills", 0)
-    assists = context.get("assists", 0)
-    deaths = context.get("deaths", 0)
-    camp_stack = context.get("campStack", 0)
-    level = context.get("level", 0)
-    kp = context.get("killParticipation", 0)
-    duration = context.get("durationSeconds", 0)
+    imp = _safe_num(context.get("imp"))
+    kills = _safe_num(context.get("kills"))
+    assists = _safe_num(context.get("assists"))
+    deaths = _safe_num(context.get("deaths"))
+    camp_stack = _safe_num(context.get("campStack"))
+    level = _safe_num(context.get("level"))
+    kp = _safe_num(context.get("killParticipation"))
+    duration = _safe_num(context.get("durationSeconds"))
     lane = context.get("lane", "")
-    intentional_feeding = context.get("intentionalFeeding", False)
+    intentional_feeding = bool(context.get("intentionalFeeding", False))
 
     ranked_stats = {
         "imp": imp,
@@ -119,25 +135,27 @@ def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Di
 
     return result
 
-def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, team_kills: int) -> Dict[str, Any]:
+def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, team_kills: Any) -> Dict[str, Any]:
     lane = player_stats.get("lane", "")
     role_basic = player_stats.get("roleBasic", "")
     role_category = _get_role_category(role_basic, lane)
 
     stats = dict(player_stats)
     stats["killParticipation"] = _compute_kp(
-        stats.get("kills", 0),
-        stats.get("assists", 0),
+        stats.get("kills"),
+        stats.get("assists"),
         team_kills
     )
-    stats["durationSeconds"] = stats.get("durationSeconds", 0)
+    stats["durationSeconds"] = _safe_num(stats.get("durationSeconds"))
 
     if "imp" not in stats or stats["imp"] is None:
         imp_per_min = player_stats.get("statsBlock", {}).get("impPerMinute")
         if isinstance(imp_per_min, list) and imp_per_min:
-            stats["imp"] = sum(imp_per_min) / len(imp_per_min)
+            stats["imp"] = _safe_avg(imp_per_min)
         else:
             stats["imp"] = 0.0
+    else:
+        stats["imp"] = _safe_num(stats["imp"])
 
     tags = _select_priority_feedback(role_category, stats)
 
@@ -149,6 +167,6 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
 
     return {
         "deltas": {},
-        "score": stats.get("imp", 0.0),
+        "score": _safe_num(stats.get("imp")),
         "feedback_tags": tags
     }
