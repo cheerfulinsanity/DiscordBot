@@ -6,7 +6,6 @@ from typing import TypedDict, Literal, Optional, Union, Any
 
 from bot.stratz import fetch_latest_match, fetch_full_match
 
-
 # ---- Types & constants (documentation + static checking) --------------------
 
 class QuotaError(TypedDict):
@@ -41,26 +40,23 @@ def _extract_match_id(latest: Any) -> Optional[int]:
         return int(mid) if isinstance(mid, (int, str)) and str(mid).isdigit() else None
     if isinstance(latest, int):
         return latest
-    # last‑ditch: attempt str-to-int if it looks numeric
+    # last-ditch: attempt str-to-int if it looks numeric
     try:
         return int(latest) if str(latest).isdigit() else None
     except Exception:
         return None
 
 
-def get_latest_new_match(steam_id: int, last_posted_id: str | None, token: str) -> ReturnType:
+def get_latest_new_match(steam_id: int, last_posted_id: str | None) -> ReturnType:
     """
     Fetch and compare most recent match for a player. If it's new, return full data.
     Otherwise, return None to skip. Detects quota exhaustion and returns signal.
     """
     try:
-        # Soft validation (do not raise; just inform operator)
         if not isinstance(steam_id, int):
             print(f"⚠️ steam_id should be int, got {type(steam_id).__name__} -> {steam_id}")
-        if not token:
-            print("⚠️ Empty STRATZ token provided to get_latest_new_match")
 
-        latest = fetch_latest_match(steam_id, token)
+        latest = fetch_latest_match(steam_id)
 
         if _is_quota(latest):
             print(f"🛑 Quota exceeded while fetching latest match for {steam_id}")
@@ -76,14 +72,13 @@ def get_latest_new_match(steam_id: int, last_posted_id: str | None, token: str) 
             print(f"⏩ Match {match_id} already posted for {steam_id}")
             return None
 
-        full_data = fetch_full_match(steam_id, match_id, token)
+        full_data = fetch_full_match(match_id)
 
         if _is_quota(full_data):
             print(f"🛑 Quota exceeded while fetching full data for match {match_id}")
             return QUOTA_SIGNAL
 
         if not full_data or not isinstance(full_data, dict):
-            # We only need truthy data; be explicit in the log if shape is unexpected.
             shape = type(full_data).__name__
             print(f"⚠️ Failed to fetch full match data for match {match_id} (got {shape})")
             return None
