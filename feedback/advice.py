@@ -197,6 +197,25 @@ def _choose_banded_line(stat: str, polarity: str, context: Dict[str, Any]) -> Op
     return None
 
 
+def _choose_banded_tip(stat: str, context: Dict[str, Any], mode: str) -> Optional[str]:
+    tip_entry = TIP_LINES.get(stat)
+    if not isinstance(tip_entry, dict):
+        return None
+    allowed_modes = tip_entry.get("modes", ["ALL"])
+    if "ALL" not in allowed_modes and mode not in allowed_modes:
+        return None
+    tip_text = tip_entry.get("text")
+    if isinstance(tip_text, str):
+        return tip_text
+    if isinstance(tip_text, dict):
+        val = _stat_value_from_context(stat, context)
+        band = _band_for_stat(stat, val, "positive")  # Tips are framed as constructive
+        lines = tip_text.get(band) or []
+        if lines and isinstance(lines, list):
+            return random.choice(lines)
+    return None
+
+
 def generate_advice(
     tags: Dict,
     context: Dict[str, float],
@@ -263,12 +282,10 @@ def generate_advice(
     for stat in list(used) + praises + critiques:
         if stat in ignore_stats:
             continue
-        tip = TIP_LINES.get(stat)
-        if isinstance(tip, dict):
-            allowed = tip.get("modes", ["ALL"])
-            if "ALL" in allowed or mode in allowed:
-                tips.append(tip.get("text", ""))
-                break
+        tip_line = _choose_banded_tip(stat, context, mode)
+        if tip_line:
+            tips.append(tip_line)
+            break
 
     return {
         "positives": positives,
