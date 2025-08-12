@@ -2,15 +2,19 @@ import random
 from typing import Dict, List, Optional
 from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES, TITLE_BOOK
 
+
 def stat_allowed(stat: str, mode: str) -> bool:
     """
     Check if a stat is allowed in this mode for phrasing.
     """
+    if not isinstance(stat, str):
+        return False
     stat_def = PHRASE_BOOK.get(stat)
     if not stat_def:
         return False
     allowed_modes = stat_def.get("modes", ["ALL"])
     return "ALL" in allowed_modes or mode in allowed_modes
+
 
 def generate_advice(
     tags: Dict,
@@ -21,8 +25,6 @@ def generate_advice(
     """
     Convert feedback tags into phrased feedback.
     Returns one praise, one critique, one compound flag, and one tip if available.
-    Pulls all phrasing from catalog.py so new flags (e.g., slow_start, late_game_falloff)
-    are supported automatically.
     """
     if ignore_stats is None:
         ignore_stats = []
@@ -42,7 +44,7 @@ def generate_advice(
     # --- Praise ---
     candidates = [hi] + praises
     for stat in candidates:
-        if not isinstance(stat, str) or stat in ignore_stats or not stat_allowed(stat, mode):
+        if not stat_allowed(stat, mode) or stat in ignore_stats:
             continue
         lines = PHRASE_BOOK.get(stat, {}).get("positive", [])
         if lines:
@@ -53,7 +55,7 @@ def generate_advice(
     # --- Critique ---
     candidates = [lo] + critiques
     for stat in candidates:
-        if not isinstance(stat, str) or stat in ignore_stats or stat in used or not stat_allowed(stat, mode):
+        if not stat_allowed(stat, mode) or stat in ignore_stats or stat in used:
             continue
         lines = PHRASE_BOOK.get(stat, {}).get("negative", [])
         if lines:
@@ -61,7 +63,7 @@ def generate_advice(
             used.add(stat)
             break
 
-    # --- Flag (one compound only, now handles all catalog flags) ---
+    # --- Flag (one compound only) ---
     for flag in compound_flags:
         if not isinstance(flag, str):
             continue
@@ -76,7 +78,7 @@ def generate_advice(
             flags.append(random.choice(lines))
             break
 
-    # --- Tip (optional, from praise/critique stat) ---
+    # --- Tip ---
     for stat in list(used) + praises + critiques:
         if stat in ignore_stats:
             continue
@@ -94,11 +96,18 @@ def generate_advice(
         "tips": tips
     }
 
+
 def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str, str):
     """
     Return (emoji, phrase) tuple for title line based on
     performance score, win/loss, and important flags.
+    Ensures score is numeric to avoid comparison errors.
     """
+    try:
+        score_val = float(score)
+    except (ValueError, TypeError):
+        score_val = 0.0
+
     # Priority: flags that override title
     if "fed_no_impact" in compound_flags:
         return "☠️", "fed hard and lost the game"
@@ -111,29 +120,29 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
 
     # Tier mapping
     if won:
-        if score >= 30:
+        if score_val >= 30:
             tier, emoji = "legendary", "🧨"
-        elif score >= 15:
+        elif score_val >= 15:
             tier, emoji = "high", "💥"
-        elif score >= 7:
+        elif score_val >= 7:
             tier, emoji = "mid", "🔥"
-        elif score >= 2:
+        elif score_val >= 2:
             tier, emoji = "low", "🎯"
-        elif score >= -5:
+        elif score_val >= -5:
             tier, emoji = "very_low", "🎲"
         else:
             tier, emoji = "negative", "🎁"
         bank = TITLE_BOOK["win"].get(tier, [])
     else:
-        if score >= 30:
+        if score_val >= 30:
             tier, emoji = "legendary", "🧨"
-        elif score >= 15:
+        elif score_val >= 15:
             tier, emoji = "high", "💪"
-        elif score >= 7:
+        elif score_val >= 7:
             tier, emoji = "mid", "😓"
-        elif score >= 2:
+        elif score_val >= 2:
             tier, emoji = "low", "☠️"
-        elif score >= -5:
+        elif score_val >= -5:
             tier, emoji = "very_low", "💀"
         else:
             tier, emoji = "negative", "🤡"
