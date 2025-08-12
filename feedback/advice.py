@@ -2,6 +2,12 @@ import random
 from typing import Dict, List, Optional
 from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES, TITLE_BOOK
 
+# Flags that *fully* override the title
+FLAG_OVERRIDES = {
+    "fed_no_impact": ("☠️", "fed hard and lost the game"),
+    "farmed_did_nothing": ("💀", "farmed but made no impact"),
+    "intentional_feeder": ("🚫", "intentionally fed")
+}
 
 def stat_allowed(stat: str, mode: str) -> bool:
     """
@@ -14,7 +20,6 @@ def stat_allowed(stat: str, mode: str) -> bool:
         return False
     allowed_modes = stat_def.get("modes", ["ALL"])
     return "ALL" in allowed_modes or mode in allowed_modes
-
 
 def generate_advice(
     tags: Dict,
@@ -96,7 +101,6 @@ def generate_advice(
         "tips": tips
     }
 
-
 def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str, str):
     """
     Return (emoji, phrase) tuple for title line based on
@@ -108,17 +112,7 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
     except (ValueError, TypeError):
         score_val = 0.0
 
-    # Priority: flags that override title
-    if "fed_no_impact" in compound_flags:
-        return "☠️", "fed hard and lost the game"
-    if "farmed_did_nothing" in compound_flags:
-        return "💀", "farmed but made no impact"
-    if "no_stacking_support" in compound_flags:
-        return "🧺", "support who forgot to stack jungle"
-    if "low_kp" in compound_flags:
-        return "🤷", "low kill participation"
-
-    # Tier mapping
+    # Step 1 – tier mapping from win/loss
     if won:
         if score_val >= 30:
             tier, emoji = "legendary", "🧨"
@@ -149,4 +143,16 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
         bank = TITLE_BOOK["loss"].get(tier, [])
 
     phrase = random.choice(bank) if bank else "played a game"
+
+    # Step 2 – override or append based on flags
+    for flag in compound_flags:
+        if flag in FLAG_OVERRIDES:
+            return FLAG_OVERRIDES[flag]
+        if flag in COMPOUND_FLAGS and flag not in FLAG_OVERRIDES:
+            # Append flag context instead of overriding
+            flag_line = COMPOUND_FLAGS[flag].get("lines", [])
+            if flag_line:
+                phrase = f"{phrase} ({flag_line[0]})"
+                break
+
     return emoji, phrase
