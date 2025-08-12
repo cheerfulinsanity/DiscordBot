@@ -59,7 +59,6 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
         return "moderate"
 
     if stat == "imp":
-        # Typical in-game IMP is roughly −10..+10, with outliers.
         if polarity == "positive":
             if value >= 15: return "extreme"
             if value >= 8:  return "high"
@@ -72,7 +71,6 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             return "light"
 
     if stat == "kills":
-        # Absolute thresholds; duration-aware logic could be added later.
         if polarity == "positive":
             if value >= 18: return "extreme"
             if value >= 12: return "high"
@@ -85,7 +83,6 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             return "light"
 
     if stat == "deaths":
-        # Lower is better.
         if polarity == "positive":
             if value <= 0:  return "extreme"
             if value <= 2:  return "high"
@@ -110,7 +107,6 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             return "light"
 
     if stat == "level":
-        # End level bands; neutral hero-agnostic cutoffs.
         if polarity == "positive":
             if value >= 26: return "extreme"
             if value >= 23: return "high"
@@ -123,7 +119,6 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             return "light"
 
     if stat == "killParticipation":
-        # Fraction 0..1; aligns with engine praise/crit triggers (0.7 / 0.3).
         if polarity == "positive":
             if value >= 0.80: return "extreme"
             if value >= 0.65: return "high"
@@ -135,7 +130,7 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             if value <= 0.45: return "moderate"
             return "light"
 
-    # NEW: Economy metrics (NON_TURBO). Catalog gating enforces mode.
+    # NEW: Economy metrics (NON_TURBO)
     if stat == "gpm":
         if polarity == "positive":
             if value >= 650: return "extreme"
@@ -160,31 +155,36 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             if value <= 460: return "moderate"
             return "light"
 
-    # Default neutral band
+    # NEW: Vision/utility - campStack
+    if stat == "campStack":
+        if polarity == "positive":
+            if value >= 10: return "extreme"
+            if value >= 7:  return "high"
+            if value >= 4:  return "moderate"
+            return "light"
+        else:
+            if value <= 0:  return "critical"
+            if value <= 1:  return "severe"
+            if value <= 3:  return "moderate"
+            return "light"
+
     return "moderate"
 
 
 def _stat_value_from_context(stat: str, ctx: Dict[str, Any]) -> Optional[float]:
     if stat == "killParticipation":
-        # Context may or may not include KP; if absent, leave None.
         return _safe_num(ctx.get("killParticipation"))
     return _safe_num(ctx.get(stat))
 
 
 def _choose_banded_line(stat: str, polarity: str, context: Dict[str, Any]) -> Optional[str]:
-    """
-    Choose an intensity-appropriate line for (stat, polarity).
-    Handles both banded dicts and legacy flat lists.
-    """
     entry = PHRASE_BOOK.get(stat, {})
     lines_def = entry.get(polarity, [])
 
-    # Legacy flat list
     if isinstance(lines_def, list):
         flat = _flatten_bands(lines_def)
         return random.choice(flat) if flat else None
 
-    # Banded dict
     if isinstance(lines_def, dict):
         val = _stat_value_from_context(stat, context)
         band = _band_for_stat(stat, val, polarity)
@@ -203,10 +203,6 @@ def generate_advice(
     ignore_stats: Optional[List[str]] = None,
     mode: str = "NON_TURBO"
 ) -> Dict[str, List[str]]:
-    """
-    Convert feedback tags into phrased feedback.
-    Returns one praise, one critique, one compound flag, and one tip if available.
-    """
     if ignore_stats is None:
         ignore_stats = []
 
@@ -222,7 +218,7 @@ def generate_advice(
     critiques = tags.get("critiques", [])
     compound_flags = tags.get("compound_flags", [])
 
-    # --- Praise (band-aware) ---
+    # --- Praise ---
     candidates = [hi] + praises
     for stat in candidates:
         if not isinstance(stat, str):
@@ -235,7 +231,7 @@ def generate_advice(
             used.add(stat)
             break
 
-    # --- Critique (band-aware) ---
+    # --- Critique ---
     candidates = [lo] + critiques
     for stat in candidates:
         if not isinstance(stat, str):
@@ -248,7 +244,7 @@ def generate_advice(
             used.add(stat)
             break
 
-    # --- Flag (one compound only; unchanged) ---
+    # --- Flag ---
     for flag in compound_flags:
         if not isinstance(flag, str):
             continue
@@ -263,7 +259,7 @@ def generate_advice(
             flags.append(random.choice(lines))
             break
 
-    # --- Tip (unchanged selection) ---
+    # --- Tip ---
     for stat in list(used) + praises + critiques:
         if stat in ignore_stats:
             continue
@@ -283,17 +279,11 @@ def generate_advice(
 
 
 def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str, str):
-    """
-    Return (emoji, phrase) tuple for title line based on
-    performance score, win/loss, and important flags.
-    Ensures score is numeric to avoid comparison errors.
-    """
     try:
         score_val = float(score)
     except (ValueError, TypeError):
         score_val = 0.0
 
-    # Priority: flags that override title
     if "fed_no_impact" in compound_flags:
         return "☠️", "fed hard and lost the game"
     if "farmed_did_nothing" in compound_flags:
@@ -303,7 +293,6 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
     if "low_kp" in compound_flags:
         return "🤷", "low kill participation"
 
-    # Tier mapping
     if won:
         if score_val >= 30:
             tier, emoji = "legendary", "🧨"
