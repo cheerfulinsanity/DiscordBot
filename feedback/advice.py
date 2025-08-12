@@ -135,6 +135,31 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             if value <= 0.45: return "moderate"
             return "light"
 
+    # NEW: Economy metrics (NON_TURBO). Catalog gating enforces mode.
+    if stat == "gpm":
+        if polarity == "positive":
+            if value >= 650: return "extreme"
+            if value >= 550: return "high"
+            if value >= 450: return "moderate"
+            return "light"
+        else:
+            if value <= 250: return "critical"
+            if value <= 320: return "severe"
+            if value <= 400: return "moderate"
+            return "light"
+
+    if stat == "xpm":
+        if polarity == "positive":
+            if value >= 700: return "extreme"
+            if value >= 600: return "high"
+            if value >= 500: return "moderate"
+            return "light"
+        else:
+            if value <= 300: return "critical"
+            if value <= 380: return "severe"
+            if value <= 460: return "moderate"
+            return "light"
+
     # Default neutral band
     return "moderate"
 
