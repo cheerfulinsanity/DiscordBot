@@ -1,3 +1,4 @@
+# feedback/extract.py
 from typing import Dict
 
 NORMAL_STATS = [
@@ -41,7 +42,12 @@ def extract_player_stats(
 ) -> Dict[str, float]:
     """
     Extracts a clean stat dict for analysis engine from raw Stratz player/match payloads.
-    Includes all stat keys, lane/role context, feeding flags, derived KP, and full statsBlock with all timeline arrays.
+    Includes all stat keys, lane/role context, feeding flags, derived KP placeholder,
+    and full statsBlock with all timeline arrays.
+
+    Notes:
+      • durationSeconds is intentionally NOT set here (match-level); formatter injects it.
+      • killParticipation is a placeholder; engines recompute deterministically.
     """
     keys = NORMAL_STATS if mode == "NON_TURBO" else TURBO_STATS
     stats_block = stats_block or {}
@@ -73,7 +79,8 @@ def extract_player_stats(
             val = len(stats_block.get("wardDestruction") or [])
 
         elif key == "killParticipation":
-            val = None  # set below
+            # Engines compute KP; use placeholder to keep shape consistent.
+            val = 0.0
 
         elif key == "imp":
             val = player.get("imp", 0.0)  # ✅ from top-level player
@@ -83,24 +90,21 @@ def extract_player_stats(
 
         stats[key] = val
 
-    # --- Derived: killParticipation ---
-    if "killParticipation" in keys:
-        kills = player.get("kills", 0)
-        assists = player.get("assists", 0)
-        stats["killParticipation"] = round((kills + assists) / team_kills, 3) if team_kills else 0.0
-
     # --- Context fields required by engine ---
     stats["lane"] = player.get("lane", "")
     stats["roleBasic"] = player.get("roleBasic", "")
     stats["partyId"] = player.get("partyId")
     stats["intentionalFeeding"] = player.get("intentionalFeeding", False)
     stats["neutral0Id"] = player.get("neutral0Id", 0)
+
+    # Keep economy fields available (engines/turbo will ignore where appropriate)
     stats["networth"] = player.get("networth", 0)
     stats["gold"] = player.get("gold", 0)
     stats["goldSpent"] = player.get("goldSpent", 0)
-    stats["durationSeconds"] = player.get("durationSeconds", 0)
 
-    # --- Always carry through full timeline arrays ---
+    # ⛔ Do not set stats["durationSeconds"] here; formatter injects match-level duration.
+
+    # --- Always carry through full timeline arrays (present or empty) ---
     full_stats_block = dict(stats_block)
     for t_key in TIMELINE_ARRAY_KEYS:
         if t_key not in full_stats_block:
