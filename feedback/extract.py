@@ -48,6 +48,7 @@ def extract_player_stats(
     Notes:
       • durationSeconds is intentionally NOT set here (match-level); formatter injects it.
       • killParticipation is a placeholder; engines recompute deterministically.
+      • imp is taken from top-level player and forced numeric for safety.
     """
     keys = NORMAL_STATS if mode == "NON_TURBO" else TURBO_STATS
     stats_block = stats_block or {}
@@ -83,7 +84,11 @@ def extract_player_stats(
             val = 0.0
 
         elif key == "imp":
-            val = player.get("imp", 0.0)  # ✅ from top-level player
+            # Take from top-level player; force numeric to avoid type issues.
+            try:
+                val = float(player.get("imp", 0.0))
+            except (ValueError, TypeError):
+                val = 0.0
 
         else:
             val = stats_block.get(key, player.get(key, 0)) or 0
