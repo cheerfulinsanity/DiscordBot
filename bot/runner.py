@@ -5,12 +5,10 @@ from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed, build_discord_embed
 from bot.config import CONFIG
 from bot.throttle import throttle
-import os
 import requests
 import json
 import time  # ✅ Added for inter-player delay
 
-TOKEN = os.getenv("TOKEN")
 
 def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
     payload = {"embeds": [embed]}
@@ -25,13 +23,14 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
         print(f"❌ Failed to post embed to Discord: {e}")
         return False
 
+
 def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> bool:
     """
     Fetch and format the latest match for a player. Updates state if successful.
     Returns True if processing should continue, False if quota was exceeded.
     """
     throttle()  # ✅ Rate-limit before each player's call
-    match_bundle = get_latest_new_match(steam_id, last_posted_id, TOKEN)
+    match_bundle = get_latest_new_match(steam_id, last_posted_id)
 
     if isinstance(match_bundle, dict) and match_bundle.get("error") == "quota_exceeded":
         print(f"🛑 Skipping remaining players — quota exceeded.")
@@ -74,6 +73,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         print(f"❌ Error formatting or posting match for {player_name}: {e}")
 
     return True
+
 
 # --- Bot Execution ---
 def run_bot():
