@@ -108,8 +108,14 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         if p.get("isRadiant") == player.get("isRadiant")
     )
 
-    # Extract player stats (now includes full statsBlock with all timeline arrays)
+    # Extract player stats
     stats = extract_player_stats(player, stats_block, team_kills, mode)
+
+    # --- Defensive: replace None with safe defaults ---
+    for k, v in list(stats.items()):
+        if v is None:
+            # Numeric stats default to 0, strings remain None
+            stats[k] = 0 if isinstance(v, (int, float)) or k not in ("hero", "role") else v
 
     engine = analyze_turbo if is_turbo else analyze_normal
     result = engine(stats, {}, player.get("roleBasic", ""), team_kills)
