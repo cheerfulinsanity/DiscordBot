@@ -5,6 +5,8 @@ import os
 import requests
 from bot.throttle import throttle  # ✅ Enforce rate limit before each request
 
+STRATZ_URL = "https://api.stratz.com/graphql"
+
 # --- Shared Stratz query runner ---
 def post_stratz_query(query: str, variables: dict, timeout: int = 10) -> dict | str | None:
     """
@@ -13,9 +15,9 @@ def post_stratz_query(query: str, variables: dict, timeout: int = 10) -> dict | 
     On other failures: return None (callers handle skip/continue logic).
     """
 
-    token = os.getenv("TOKEN")
+    token = os.getenv("STRATZ_TOKEN") or os.getenv("TOKEN")
     if not token:
-        print("❌ No TOKEN found in environment — cannot query Stratz.")
+        print("❌ No STRATZ_TOKEN or TOKEN found in environment — cannot query Stratz.")
         return None
 
     headers = {
@@ -29,7 +31,7 @@ def post_stratz_query(query: str, variables: dict, timeout: int = 10) -> dict | 
 
     try:
         response = requests.post(
-            "https://api.stratz.com/graphql",
+            STRATZ_URL,
             headers=headers,
             json={"query": query, "variables": variables},
             timeout=timeout
@@ -40,7 +42,13 @@ def post_stratz_query(query: str, variables: dict, timeout: int = 10) -> dict | 
             print("🛑 Stratz API returned 429 Too Many Requests")
             return "quota_exceeded"
 
-        # Better diagnostics for any non-200 to identify CF / auth / schema issues
+        # Cloudflare/WAF HTML challenge detection
+        if response.status_code == 403 and "text/html" in response.headers.get("Content-Type", ""):
+            snippet = (response.text or "")[:300].replace("\n", " ").strip()
+            print(f"⚠️ HTTP 403 HTML challenge from Stratz/Cloudflare | body[:300]={snippet}")
+            return None
+
+        # Better diagnostics for any non-200
         if response.status_code != 200:
             safe_headers = {
                 "status": response.status_code,
