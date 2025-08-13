@@ -1,5 +1,3 @@
-# bot/throttle.py
-
 import time
 import threading
 from collections import deque
@@ -14,13 +12,21 @@ MAX_CALLS_PER_MINUTE = 250
 MAX_CALLS_PER_HOUR = 2000
 # Note: No hard limit on daily quota enforced here
 
+# Discord webhook limits (per webhook, not per bot user)
+# Ref: ~30 requests/minute hard limit per webhook, but we stay well under
+discord_posts = deque()
+_webhook_lock = threading.Lock()
+MAX_DISCORD_POSTS_PER_MINUTE = 25  # keep a safe buffer below 30/minute
+
+
 def _now() -> float:
     """Monotonic time in seconds to avoid system clock jumps."""
     return time.monotonic()
 
+
 def throttle():
     """
-    Global, process-wide rate limiter.
+    Global, process-wide rate limiter for Stratz API calls.
     Blocks until issuing another Stratz API call would respect all caps:
       - 20 per 1 second (sliding window)
       - 250 per 60 seconds (sliding window)
@@ -40,7 +46,6 @@ def throttle():
 
             # --- Per-second window (20/sec)
             threshold_1s = now - 1.0
-            # Count items in last 1s and track the earliest in-window timestamp
             count_1s = 0
             earliest_1s = None
             for t in api_calls:
@@ -67,11 +72,38 @@ def throttle():
                 earliest_3600 = api_calls[0]
                 sleep_for = max(sleep_for, (earliest_3600 + 3600.0) - now)
 
-            # If no wait needed, record this call and return immediately
             if sleep_for <= 0:
                 api_calls.append(now)
                 return
 
-        # Sleep outside the lock so other threads can progress to compute their waits
-        # Add a tiny epsilon and cap the maximum single sleep.
+        time.sleep(min(sleep_for + 0.005, 5.0))
+
+
+def throttle_webhook():
+    """
+    Rate limiter for Discord webhook posts.
+    Discord enforces a hard cap of ~30 requests/minute per webhook.
+    We aim for <=25/minute for safety.
+    """
+    while True:
+        with _webhook_lock:
+            now = _now()
+
+            # Trim anything older than 60 seconds
+            cutoff_minute = now - 60.0
+            while discord_posts and discord_posts[0] < cutoff_minute:
+                discord_posts.popleft()
+
+            sleep_for = 0.0
+
+            # --- Per-minute window
+            count_60s = len(discord_posts)
+            if count_60s >= MAX_DISCORD_POSTS_PER_MINUTE and discord_posts:
+                earliest_60s = discord_posts[0]
+                sleep_for = max(sleep_for, (earliest_60s + 60.0) - now)
+
+            if sleep_for <= 0:
+                discord_posts.append(now)
+                return
+
         time.sleep(min(sleep_for + 0.005, 5.0))
