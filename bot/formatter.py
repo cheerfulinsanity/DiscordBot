@@ -1,7 +1,9 @@
 # bot/formatter.py
-
-# Thin compatibility shim so the rest of the bot imports stay stable.
-# The actual implementation now lives in bot/formatter_pkg/*.
+"""
+Compatibility shim that exposes the same public API while delegating to
+the modular formatter package. Keeps imports elsewhere (runner, tests)
+unchanged.
+"""
 from .formatter_pkg import format_match_embed, build_discord_embed
 
 __all__ = ["format_match_embed", "build_discord_embed"]
