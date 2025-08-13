@@ -1,7 +1,7 @@
 from __future__ import annotations
 import hashlib
 import random
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 # --- Canonical stat sets (reference only) ---
 NORMAL_STATS = [
@@ -22,31 +22,13 @@ TURBO_STATS = [
 
 # --- Game mode ID to label mapping ---
 GAME_MODE_NAMES = {
-    0: "Unknown",
-    1: "All Pick",
-    2: "Captains Mode",
-    3: "Random Draft",
-    4: "Single Draft",
-    5: "All Random",
-    6: "Intro",
-    7: "Diretide",
-    8: "Reverse Captains Mode",
-    9: "Greeviling",
-    10: "Tutorial",
-    11: "Mid Only",
-    12: "Ability Draft",
-    13: "Event",
-    14: "AR Deathmatch",
-    15: "1v1 Mid",
-    16: "Captains Draft",
-    17: "Balanced Draft",
-    18: "Ability All Pick",
-    20: "Turbo",
-    21: "Mutation",
-    22: "Ranked All Pick",
-    23: "Turbo",
-    24: "Ranked Draft",
-    25: "Ranked Random Draft",
+    0: "Unknown", 1: "All Pick", 2: "Captains Mode", 3: "Random Draft",
+    4: "Single Draft", 5: "All Random", 6: "Intro", 7: "Diretide",
+    8: "Reverse Captains Mode", 9: "Greeviling", 10: "Tutorial", 11: "Mid Only",
+    12: "Ability Draft", 13: "Event", 14: "AR Deathmatch", 15: "1v1 Mid",
+    16: "Captains Draft", 17: "Balanced Draft", 18: "Ability All Pick",
+    20: "Turbo", 21: "Mutation", 22: "Ranked All Pick", 23: "Turbo",
+    24: "Ranked Draft", 25: "Ranked Random Draft",
 }
 
 RAW_MODE_LABELS = {
@@ -72,7 +54,7 @@ def normalize_hero_name(raw_name: str) -> str:
     return raw_name.lower()
 
 def resolve_game_mode_name(match: Dict[str, Any]) -> tuple[str, Any]:
-    """Return (human-readable mode name, raw game_mode_field)"""
+    """Return (human-readable mode name, raw game_mode_field)."""
     game_mode_field = match.get("gameMode")  # int or str
     raw_label = (match.get("gameModeName") or "").upper()
 
@@ -90,7 +72,6 @@ def resolve_game_mode_name(match: Dict[str, Any]) -> tuple[str, Any]:
             or (raw_label.replace("_", " ").title() if raw_label else None)
             or "Unknown"
         )
-
     return game_mode_name, game_mode_field
 
 def is_turbo(game_mode_field: Any, raw_label_upper: str) -> bool:
