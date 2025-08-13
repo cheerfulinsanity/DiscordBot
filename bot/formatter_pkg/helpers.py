@@ -1,11 +1,11 @@
 # bot/formatter_pkg/helpers.py
 from __future__ import annotations
+from typing import Any, Dict
 import hashlib
 import random
-from typing import Any, Dict, Tuple
 
-# --- Game mode ID to label mapping (kept identical to existing behavior) ---
-GAME_MODE_NAMES = {
+# --- Game mode ID to label mapping (must match existing behavior) ---
+GAME_MODE_NAMES: Dict[int, str] = {
     0: "Unknown",
     1: "All Pick",
     2: "Captains Mode",
@@ -33,7 +33,7 @@ GAME_MODE_NAMES = {
     25: "Ranked Random Draft",
 }
 
-RAW_MODE_LABELS = {
+RAW_MODE_LABELS: Dict[str, str] = {
     "MODE_TURBO": "Turbo",
     "MODE_ALL_PICK": "All Pick",
     "ALL_PICK_RANKED": "Ranked All Pick",
@@ -56,7 +56,7 @@ def normalize_hero_name(raw_name: str) -> str:
     return raw_name.lower()
 
 def resolve_game_mode_name(match: Dict[str, Any]) -> str:
-    game_mode_field = match.get("gameMode")  # int or str
+    game_mode_field = match.get("gameMode")  # may be int or str
     raw_label = (match.get("gameModeName") or "").upper()
 
     if isinstance(game_mode_field, str) and game_mode_field:
@@ -67,7 +67,6 @@ def resolve_game_mode_name(match: Dict[str, Any]) -> str:
             or "Unknown"
         )
 
-    # numeric ID path
     return (
         RAW_MODE_LABELS.get(raw_label)
         or GAME_MODE_NAMES.get(game_mode_field)
@@ -84,28 +83,25 @@ def is_turbo(match: Dict[str, Any]) -> bool:
         or raw_label == "MODE_TURBO"
     )
 
-def deterministic_seed(match_id: Any, steam_id: Any) -> None:
-    """Keep global RNG behavior identical (existing code used random.seed)."""
-    try:
-        seed_str = f"{match_id}:{steam_id}"
-        h = hashlib.md5(seed_str.encode()).hexdigest()
-        random.seed(h)
-    except Exception:
-        # Never crash if seed input is weird; determinism is best-effort
-        pass
-
 def inject_defaults(stats: Dict[str, Any]) -> Dict[str, Any]:
-    """Replace None with safe defaults by expected type."""
-    out = dict(stats)
-    for k, v in list(out.items()):
+    for k in list(stats.keys()):
+        v = stats[k]
         if v is None:
             if k in {"lane", "roleBasic"}:
-                out[k] = ""
+                stats[k] = ""
             elif k == "statsBlock":
-                out[k] = {}
+                stats[k] = {}
             else:
-                out[k] = 0
-    return out
+                stats[k] = 0
+    return stats
+
+def deterministic_seed(match_id: Any, steam_id: Any) -> str:
+    seed_str = f"{match_id}:{steam_id}"
+    try:
+        random.seed(hashlib.md5(seed_str.encode()).hexdigest())
+    except Exception:
+        pass
+    return seed_str
 
 def seconds_to_mmss(seconds: int) -> str:
     seconds = int(seconds or 0)
