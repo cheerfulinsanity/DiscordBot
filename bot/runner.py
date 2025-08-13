@@ -1,5 +1,3 @@
-# bot/runner.py
-
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed, build_discord_embed
@@ -12,13 +10,47 @@ import time  # ✅ Added for inter-player delay
 
 def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
     payload = {"embeds": [embed]}
+    headers = {"Content-Type": "application/json"}
+
     try:
-        response = requests.post(webhook_url, json=payload, timeout=10)
+        response = requests.post(webhook_url, json=payload, headers=headers, timeout=10)
+
         if response.status_code == 204:
             return True
-        else:
-            print(f"⚠️ Discord webhook responded {response.status_code}: {response.text}")
-            return False
+
+        if response.status_code == 429:
+            # Parse retry delay from body or headers
+            retry_after = None
+            try:
+                data = response.json()
+                retry_after = float(data.get("retry_after", 0))
+            except Exception:
+                pass
+
+            if retry_after is None:
+                try:
+                    retry_after = float(response.headers.get("X-RateLimit-Reset-After", 0))
+                except Exception:
+                    retry_after = 0
+
+            retry_after = max(retry_after, 0)
+            print(f"⚠️ Rate limited by Discord — retrying after {retry_after:.2f}s...")
+            time.sleep(retry_after + 0.25)  # small safety buffer
+
+            try:
+                retry_resp = requests.post(webhook_url, json=payload, headers=headers, timeout=10)
+                if retry_resp.status_code == 204:
+                    return True
+                else:
+                    print(f"⚠️ Retry failed with status {retry_resp.status_code}: {retry_resp.text}")
+                    return False
+            except Exception as e:
+                print(f"⚠️ Retry request failed: {e}")
+                return False
+
+        print(f"⚠️ Discord webhook responded {response.status_code}: {response.text}")
+        return False
+
     except Exception as e:
         print(f"❌ Failed to post embed to Discord: {e}")
         return False
