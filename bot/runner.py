@@ -51,6 +51,11 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         print(f"❌ Player data missing in match {match_id} for {player_name}")
         return True
 
+    # ✳️ Completeness guard: if IMP is not populated yet, skip this run (do not update state)
+    if player_data.get("imp") is None:
+        print(f"⏳ IMP not ready for match {match_id} (player {steam_id}). Skipping for now; will retry on next run.")
+        return True
+
     print(f"🎮 {player_name} — processing match {match_id}")
 
     try:
