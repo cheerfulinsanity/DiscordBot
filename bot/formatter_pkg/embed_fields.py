@@ -9,8 +9,7 @@ def title_line(result: Dict[str, object]) -> str:
     return f"{result.get('emoji', '')} {result.get('playerName', 'Player')} {result.get('title')} {kda} as {hero} — {victory}"
 
 def build_fields(result: Dict[str, object]) -> List[Dict[str, object]]:
-    duration = int(result.get("duration", 0))
-    duration_str = seconds_to_mmss(duration)
+    duration_str = seconds_to_mmss(int(result.get("duration", 0)))
 
     fields: List[Dict[str, object]] = [
         {
