@@ -120,7 +120,7 @@ def _select_priority_feedback(role_category: str, context: Dict[str, Any]) -> Di
     if intentional_feeding:
         result['compound_flags'].append("intentional_feeder")
 
-    # --- New: IMP trend analysis from timeline arrays ---
+    # --- IMP trend analysis from timeline arrays (optional if available) ---
     stats_block = context.get("statsBlock", {})
     phases = _segment_phases(stats_block, duration)
     imp_pm = stats_block.get("impPerMinute", [])
@@ -148,14 +148,8 @@ def analyze_player(player_stats: Dict[str, Any], _: Dict[str, Any], role: str, t
     )
     stats["durationSeconds"] = _safe_num(stats.get("durationSeconds"))
 
-    if "imp" not in stats or stats["imp"] is None:
-        imp_per_min = player_stats.get("statsBlock", {}).get("impPerMinute")
-        if isinstance(imp_per_min, list) and imp_per_min:
-            stats["imp"] = _safe_avg(imp_per_min)
-        else:
-            stats["imp"] = 0.0
-    else:
-        stats["imp"] = _safe_num(stats["imp"])
+    # 🔒 No fallback: rely on raw IMP only (runner guard skips if IMP is not populated)
+    stats["imp"] = _safe_num(stats.get("imp"))
 
     tags = _select_priority_feedback(role_category, stats)
 
