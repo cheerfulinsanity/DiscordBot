@@ -1,4 +1,3 @@
-# bot/formatter_pkg/embed_builder.py
 from __future__ import annotations
 from typing import Dict
 from datetime import datetime, timezone
