@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict
+from typing import Dict
 
 from feedback.engine import analyze_player as analyze_normal
 from feedback.engine_turbo import analyze_player as analyze_turbo
@@ -21,7 +21,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     turbo = is_turbo(game_mode_field, raw_label_upper)
     mode = "TURBO" if turbo else "NON_TURBO"
 
-    # Team kills
+    # Team kills (side-local)
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in (match.get("players") or [])
         if p.get("isRadiant") == player.get("isRadiant")
@@ -36,7 +36,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     engine = analyze_turbo if turbo else analyze_normal
     result = engine(stats, {}, player.get("roleBasic", ""), team_kills)
 
-    # RNG seeding for deterministic phrasing
+    # Deterministic phrasing RNG
     deterministic_seed(match.get("id"), player.get("steamAccountId"))
 
     # Advice generation
