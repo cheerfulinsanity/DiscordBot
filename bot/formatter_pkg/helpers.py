@@ -3,7 +3,7 @@ import hashlib
 import random
 from typing import Any, Dict
 
-# --- Canonical stat sets (reference only) ---
+# Canonical stat sets
 NORMAL_STATS = [
     "kills", "deaths", "assists", "imp", "level",
     "gold", "goldSpent", "gpm", "xpm",
@@ -20,7 +20,7 @@ TURBO_STATS = [
     if stat not in {"gpm", "xpm", "gold", "goldSpent", "networth", "networthPerMinute"}
 ]
 
-# --- Game mode ID to label mapping ---
+# Game mode ID to label mapping
 GAME_MODE_NAMES = {
     0: "Unknown", 1: "All Pick", 2: "Captains Mode", 3: "Random Draft",
     4: "Single Draft", 5: "All Random", 6: "Intro", 7: "Diretide",
@@ -40,7 +40,6 @@ RAW_MODE_LABELS = {
     "RANDOM_DRAFT": "Random Draft",
     "ABILITY_DRAFT": "Ability Draft",
     "CAPTAINS_DRAFT": "Captains Draft",
-    # Allow raw enums without MODE_ prefix
     "TURBO": "Turbo",
     "ALL_PICK": "All Pick",
     "RANKED_ALL_PICK": "Ranked All Pick",
@@ -54,8 +53,7 @@ def normalize_hero_name(raw_name: str) -> str:
     return raw_name.lower()
 
 def resolve_game_mode_name(match: Dict[str, Any]) -> tuple[str, Any]:
-    """Return (human-readable mode name, raw game_mode_field)."""
-    game_mode_field = match.get("gameMode")  # int or str
+    game_mode_field = match.get("gameMode")
     raw_label = (match.get("gameModeName") or "").upper()
 
     if isinstance(game_mode_field, str) and game_mode_field:
@@ -82,7 +80,6 @@ def is_turbo(game_mode_field: Any, raw_label_upper: str) -> bool:
     )
 
 def deterministic_seed(match_id: Any, steam_id: Any) -> None:
-    """Keep global RNG behavior identical to original."""
     try:
         seed_str = f"{match_id}:{steam_id}"
         h = hashlib.md5(seed_str.encode()).hexdigest()
@@ -91,7 +88,6 @@ def deterministic_seed(match_id: Any, steam_id: Any) -> None:
         pass
 
 def inject_defaults(stats: Dict[str, Any]) -> Dict[str, Any]:
-    """Replace None with safe defaults by expected type."""
     out = dict(stats)
     for k, v in list(out.items()):
         if v is None:
