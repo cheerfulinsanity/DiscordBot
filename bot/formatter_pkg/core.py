@@ -15,39 +15,33 @@ from .helpers import (
 )
 
 def format_match_embed(player: dict, match: dict, stats_block: dict, player_name: str = "Player") -> Dict[str, object]:
-    # Resolve mode & turbo detection
     game_mode_name, game_mode_field = resolve_game_mode_name(match)
     raw_label_upper = (match.get("gameModeName") or "").upper()
     turbo = is_turbo(game_mode_field, raw_label_upper)
     mode = "TURBO" if turbo else "NON_TURBO"
 
-    # Team kills (side-local)
     team_kills = player.get("_team_kills") or sum(
         p.get("kills", 0) for p in (match.get("players") or [])
         if p.get("isRadiant") == player.get("isRadiant")
     )
 
-    # Stats extraction + duration + sanitization
     stats = extract_player_stats(player, stats_block, team_kills, mode)
     stats["durationSeconds"] = match.get("durationSeconds", 0)
     stats = inject_defaults(stats)
 
-    # Engine analysis
     engine = analyze_turbo if turbo else analyze_normal
     result = engine(stats, {}, player.get("roleBasic", ""), team_kills)
 
-    # Deterministic phrasing RNG
     deterministic_seed(match.get("id"), player.get("steamAccountId"))
 
-    # Advice generation
     tags = result.get("feedback_tags", {})
     advice = generate_advice(tags, stats, mode=mode)
 
-    # Title phrase
     score = float(result.get("score") or 0.0)
     is_victory = bool(player.get("isVictory", False))
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
-    title = title[:1].lower() + title[1:] if title else ""
+    if title:
+        title = title[:1].lower() + title[1:]
 
     return {
         "playerName": player_name,
@@ -61,9 +55,9 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         "kda": f"{player.get('kills', 0)}/{player.get('deaths', 0)}/{player.get('assists', 0)}",
         "duration": match.get("durationSeconds", 0),
         "isVictory": is_victory,
-        "positives": (advice.get("positives", [])[:3]),
-        "negatives": (advice.get("negatives", [])[:3]),
-        "flags": (advice.get("flags", [])[:3]),
-        "tips": (advice.get("tips", [])[:3]),
+        "positives": advice.get("positives", [])[:3],
+        "negatives": advice.get("negatives", [])[:3],
+        "flags": advice.get("flags", [])[:3],
+        "tips": advice.get("tips", [])[:3],
         "matchId": match.get("id"),
     }
