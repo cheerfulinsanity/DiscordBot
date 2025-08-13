@@ -1,3 +1,4 @@
+# feedback/advice.py
 import random
 from typing import Dict, List, Optional, Any
 from feedback.catalog import PHRASE_BOOK, COMPOUND_FLAGS, TIP_LINES, TITLE_BOOK
@@ -58,6 +59,7 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
     if value is None:
         return "moderate"
 
+    # IMP (for stat phrasing only; title bands are handled separately)
     if stat == "imp":
         if polarity == "positive":
             if value >= 15: return "extreme"
@@ -130,7 +132,7 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             if value <= 0.45: return "moderate"
             return "light"
 
-    # NEW: Economy metrics (NON_TURBO)
+    # Economy metrics (NON_TURBO only; gating handled by stat_allowed)
     if stat == "gpm":
         if polarity == "positive":
             if value >= 650: return "extreme"
@@ -155,7 +157,7 @@ def _band_for_stat(stat: str, value: Optional[float], polarity: str) -> str:
             if value <= 460: return "moderate"
             return "light"
 
-    # NEW: Vision/utility - campStack
+    # Vision/utility
     if stat == "campStack":
         if polarity == "positive":
             if value >= 10: return "extreme"
@@ -181,10 +183,12 @@ def _choose_banded_line(stat: str, polarity: str, context: Dict[str, Any]) -> Op
     entry = PHRASE_BOOK.get(stat, {})
     lines_def = entry.get(polarity, [])
 
+    # Legacy flat list support
     if isinstance(lines_def, list):
         flat = _flatten_bands(lines_def)
         return random.choice(flat) if flat else None
 
+    # Banded dict
     if isinstance(lines_def, dict):
         val = _stat_value_from_context(stat, context)
         band = _band_for_stat(stat, val, polarity)
@@ -209,7 +213,8 @@ def _choose_banded_tip(stat: str, context: Dict[str, Any], mode: str) -> Optiona
         return tip_text
     if isinstance(tip_text, dict):
         val = _stat_value_from_context(stat, context)
-        band = _band_for_stat(stat, val, "positive")  # Tips are framed as constructive
+        # Tips are constructive: map via positive polarity bands
+        band = _band_for_stat(stat, val, "positive")
         lines = tip_text.get(band) or []
         if lines and isinstance(lines, list):
             return random.choice(lines)
@@ -336,7 +341,7 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
     if "low_kp" in compound_flags:
         return "🤷", "low kill participation"
 
-    # Very low neutral zone (−4 … +4)
+    # Very low neutral zone (−4 … +4) per your spec
     if -4 <= score_val <= 4:
         tier = "very_low"
         bank = _pick_title_bank("win" if won else "loss", tier)
@@ -355,8 +360,6 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
         tier, win_emoji, loss_emoji = "low", "🎯", "☠️"
     # Negative bands (mirrored)
     elif score_val <= -50:
-        tier, win_emoji, loss_emoji = "neg_legendary", "🎁", "🤡"
-    elif score_val <= -49 and score_val >= -50:  # kept for clarity but covered by previous
         tier, win_emoji, loss_emoji = "neg_legendary", "🎁", "🤡"
     elif score_val <= -35:
         tier, win_emoji, loss_emoji = "neg_high", "🧯", "💀"
