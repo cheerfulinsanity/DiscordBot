@@ -2,7 +2,7 @@ from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
 from bot.formatter import format_match_embed, build_discord_embed
 from bot.config import CONFIG
-from bot.throttle import throttle
+from bot.throttle import throttle, throttle_webhook
 import requests
 import json
 import time  # ✅ Added for inter-player delay
@@ -61,7 +61,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     Fetch and format the latest match for a player. Updates state if successful.
     Returns True if processing should continue, False if quota was exceeded.
     """
-    throttle()  # ✅ Rate-limit before each player's call
+    throttle()  # ✅ Stratz API rate-limit before each player's call
     match_bundle = get_latest_new_match(steam_id, last_posted_id)
 
     if isinstance(match_bundle, dict) and match_bundle.get("error") == "quota_exceeded":
@@ -95,6 +95,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         embed = build_discord_embed(result)
 
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
+            throttle_webhook()  # ✅ Enforce Discord post rate limit
             posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
             if posted:
                 print(f"✅ Posted embed for {player_name} match {match_id}")
