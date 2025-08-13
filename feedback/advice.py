@@ -295,12 +295,38 @@ def generate_advice(
     }
 
 
+# -------------------------
+# Title selection (mirrored IMP bands)
+# -------------------------
+
+def _pick_title_bank(result_side: str, tier: str) -> List[str]:
+    """
+    Retrieve title lines for a given side ('win'|'loss') and tier.
+    Falls back to legacy 'negative' bank if a new neg_* tier is missing.
+    """
+    side_book = TITLE_BOOK.get(result_side, {})
+    if not isinstance(side_book, dict):
+        return []
+    lines = side_book.get(tier, [])
+    if lines:
+        return lines
+    if tier in {"neg_low", "neg_mid", "neg_high", "neg_legendary"}:
+        return side_book.get("negative", []) or []
+    return lines or []
+
+
 def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str, str):
+    """
+    Return (emoji, phrase) tuple for title line based on
+    performance score, win/loss, and important flags.
+    Ensures score is numeric to avoid comparison errors.
+    """
     try:
         score_val = float(score)
     except (ValueError, TypeError):
         score_val = 0.0
 
+    # Priority: flags that override title
     if "fed_no_impact" in compound_flags:
         return "☠️", "fed hard and lost the game"
     if "farmed_did_nothing" in compound_flags:
@@ -310,34 +336,38 @@ def get_title_phrase(score: float, won: bool, compound_flags: List[str]) -> (str
     if "low_kp" in compound_flags:
         return "🤷", "low kill participation"
 
-    if won:
-        if score_val >= 30:
-            tier, emoji = "legendary", "🧨"
-        elif score_val >= 15:
-            tier, emoji = "high", "💥"
-        elif score_val >= 7:
-            tier, emoji = "mid", "🔥"
-        elif score_val >= 2:
-            tier, emoji = "low", "🎯"
-        elif score_val >= -5:
-            tier, emoji = "very_low", "🎲"
-        else:
-            tier, emoji = "negative", "🎁"
-        bank = TITLE_BOOK["win"].get(tier, [])
-    else:
-        if score_val >= 30:
-            tier, emoji = "legendary", "🧨"
-        elif score_val >= 15:
-            tier, emoji = "high", "💪"
-        elif score_val >= 7:
-            tier, emoji = "mid", "😓"
-        elif score_val >= 2:
-            tier, emoji = "low", "☠️"
-        elif score_val >= -5:
-            tier, emoji = "very_low", "💀"
-        else:
-            tier, emoji = "negative", "🤡"
-        bank = TITLE_BOOK["loss"].get(tier, [])
+    # Very low neutral zone (−4 … +4)
+    if -4 <= score_val <= 4:
+        tier = "very_low"
+        bank = _pick_title_bank("win" if won else "loss", tier)
+        emoji = "🎲" if won else "💀"
+        phrase = random.choice(bank) if bank else "played a game"
+        return emoji, phrase
 
+    # Positive bands
+    if score_val >= 50:
+        tier, win_emoji, loss_emoji = "legendary", "🧨", "🧨"
+    elif score_val >= 35:
+        tier, win_emoji, loss_emoji = "high", "💥", "💪"
+    elif score_val >= 20:
+        tier, win_emoji, loss_emoji = "mid", "🔥", "😓"
+    elif score_val >= 5:
+        tier, win_emoji, loss_emoji = "low", "🎯", "☠️"
+    # Negative bands (mirrored)
+    elif score_val <= -50:
+        tier, win_emoji, loss_emoji = "neg_legendary", "🎁", "🤡"
+    elif score_val <= -49 and score_val >= -50:  # kept for clarity but covered by previous
+        tier, win_emoji, loss_emoji = "neg_legendary", "🎁", "🤡"
+    elif score_val <= -35:
+        tier, win_emoji, loss_emoji = "neg_high", "🧯", "💀"
+    elif score_val <= -20:
+        tier, win_emoji, loss_emoji = "neg_mid", "🫠", "☠️"
+    elif score_val <= -5:
+        tier, win_emoji, loss_emoji = "neg_low", "😅", "😓"
+    else:
+        tier, win_emoji, loss_emoji = "very_low", "🎲", "💀"
+
+    bank = _pick_title_bank("win" if won else "loss", tier)
+    emoji = win_emoji if won else loss_emoji
     phrase = random.choice(bank) if bank else "played a game"
     return emoji, phrase
