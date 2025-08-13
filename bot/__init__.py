@@ -1,5 +1,3 @@
-# bot/formatter_pkg/__init__.py
-from .core import format_match_embed
-from .embed_builder import build_discord_embed
+# bot/__init__.py
 
-__all__ = ["format_match_embed", "build_discord_embed"]
+# Marks bot/ as a Python package.
