@@ -1,4 +1,3 @@
-# bot/formatter_pkg/embed_fields.py
 from __future__ import annotations
 from typing import Dict, List
 from .helpers import seconds_to_mmss
