@@ -8,15 +8,29 @@ from bot.throttle import throttle_webhook
 
 # --- Debug / webhook selection -------------------------------------------------
 
-def _is_truthy(v: str | None) -> bool:
-    return str(v).strip().lower() in {"1", "true", "yes", "on"}
+def _debug_level() -> int:
+    """
+    Parse DEBUG_MODE as an integer level:
+      0 = prod (post to DISCORD_WEBHOOK_URL)
+      1 = debug posting only (route to DISCORD_WEBHOOK_URL_DEBUG)
+      2 = debug posting + (elsewhere) payload dumps (stratz.py will gate on >=2)
+    Also accepts common truthy strings ("true","yes","on") as level 1.
+    """
+    raw = (os.getenv("DEBUG_MODE") or "0").strip().lower()
+    try:
+        return int(raw)
+    except Exception:
+        return 1 if raw in {"1", "true", "yes", "on"} else 0
 
-DEBUG_MODE = _is_truthy(os.getenv("DEBUG_MODE"))
-# When callers don't pass a webhook_url, we default to one of these:
+DEBUG_LEVEL = _debug_level()
+
+# When callers don't pass a webhook_url (or when we force override in debug),
+# we fall back to one of these:
 _DEFAULT_WEBHOOK_URL = (
-    os.getenv("DISCORD_WEBHOOK_URL_DEBUG") if DEBUG_MODE else os.getenv("DISCORD_WEBHOOK_URL")
+    os.getenv("DISCORD_WEBHOOK_URL_DEBUG") if DEBUG_LEVEL > 0 else os.getenv("DISCORD_WEBHOOK_URL")
 )
-# Log once so we know where we're posting when default is used
+
+# Log once so we know where we're posting when default/override is used
 _LOGGED_DEFAULT_TARGET = False
 
 # -------------------------------------------------------------------------------
@@ -88,19 +102,38 @@ def strip_query(url: str) -> str:
 
 def _ensure_webhook_url(webhook_url: str | None) -> str | None:
     """
-    If caller didn't provide a webhook_url, fall back to the environment-selected default.
-    This respects DEBUG_MODE by preferring DISCORD_WEBHOOK_URL_DEBUG when DEBUG_MODE=1.
+    Resolve the webhook to use.
+    • If DEBUG_LEVEL > 0 and DISCORD_WEBHOOK_URL_DEBUG is set, ALWAYS route to the debug webhook
+      (even if the caller provided a different URL). This guarantees debug isolation without
+      changing callers.
+    • Otherwise, use the caller-provided URL if present; else fall back to DISCORD_WEBHOOK_URL.
     """
     global _LOGGED_DEFAULT_TARGET
+
+    # Force override to DEBUG webhook if level > 0 and env present
+    if DEBUG_LEVEL > 0:
+        dbg = (os.getenv("DISCORD_WEBHOOK_URL_DEBUG") or "").strip()
+        if dbg:
+            # If caller passed a different URL, note the override once
+            if webhook_url and strip_query(webhook_url) != strip_query(dbg) and not _LOGGED_DEFAULT_TARGET:
+                print("📤 Overriding provided webhook → DEBUG webhook (DEBUG_MODE>0).")
+                _LOGGED_DEFAULT_TARGET = True
+            if not _LOGGED_DEFAULT_TARGET and not webhook_url:
+                print("📤 Using DEBUG webhook (default from env).")
+                _LOGGED_DEFAULT_TARGET = True
+            return dbg
+
+    # Not in debug (or no debug URL set) — use caller or prod default
     if webhook_url and webhook_url.strip():
         return webhook_url.strip()
-    # Use default if present
+
     if not _DEFAULT_WEBHOOK_URL:
         # No usable URL — caller must provide or env must be set
         print("❌ No Discord webhook configured. Set DISCORD_WEBHOOK_URL or DISCORD_WEBHOOK_URL_DEBUG.")
         return None
+
     if not _LOGGED_DEFAULT_TARGET:
-        print(f"📤 Using {'DEBUG' if DEBUG_MODE else 'PROD'} webhook (default from env).")
+        print(f"📤 Using {'DEBUG' if DEBUG_LEVEL > 0 else 'PROD'} webhook (default from env).")
         _LOGGED_DEFAULT_TARGET = True
     return _DEFAULT_WEBHOOK_URL.strip()
 
@@ -114,7 +147,7 @@ def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool =
       • Abort run on long cooldowns (set global cooldown).
     Returns (success, message_id) — message_id may be None if not requested or if 204/No Content.
 
-    NOTE: If webhook_url is None/empty, this will use the default selected by DEBUG_MODE.
+    NOTE: If webhook_url is None/empty, this will use the default selected by DEBUG_LEVEL.
     """
     global _HARD_BLOCKED
 
@@ -202,7 +235,7 @@ def edit_discord_message(message_id: str, embed: dict, webhook_url: str) -> bool
     Edit a previously-sent webhook message by ID.
     PATCH {webhookBase}/messages/{message_id} with {"embeds":[.]}
 
-    NOTE: If webhook_url is None/empty, this will use the default selected by DEBUG_MODE.
+    NOTE: If webhook_url is None/empty, this will use the default selected by DEBUG_LEVEL.
     """
     global _HARD_BLOCKED
 
