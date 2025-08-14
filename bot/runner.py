@@ -2,13 +2,13 @@
 
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
-from bot.formatter import format_match_embed, build_discord_embed, format_fallback_embed, build_fallback_embed  # ✅ Added fallback functions
+from bot.formatter import format_match_embed, build_discord_embed, format_fallback_embed, build_fallback_embed
 from bot.config import CONFIG
-from bot.throttle import throttle, throttle_webhook  # ✅ Added throttle_webhook
+from bot.throttle import throttle, throttle_webhook
 import requests
 import json
-import time  # ✅ Added for inter-player delay
-import random  # ✅ Jitter for post pacing
+import time
+import random
 
 # Global flag to stop the run if Cloudflare hard-blocks our IP
 _HARD_BLOCKED = False
@@ -63,11 +63,8 @@ def _set_webhook_cooldown(seconds: float):
 
 def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
     """
-    Post a single embed to Discord with safe handling:
-      • Respect 429 with Retry-After / reset-after.
-      • Detect Cloudflare 1015 HTML and mark hard-block.
-      • Throttle per webhook to avoid hitting limits.
-      • Abort run on long cooldowns (set global cooldown).
+    Post a single embed to Discord with safe handling and strict throttling.
+    Always calls throttle_webhook() before posting.
     """
     global _HARD_BLOCKED
 
@@ -76,6 +73,7 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
         print(f"⏸️ Webhook cooling down — {remaining:.1f}s remaining. Skipping post.")
         return False
 
+    # ✅ Enforce local webhook pacing limits
     throttle_webhook()
 
     payload = {"embeds": [embed]}
@@ -83,7 +81,8 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
         response = requests.post(webhook_url, json=payload, timeout=10)
 
         if response.status_code == 204:
-            time.sleep(1.0 + random.uniform(0.1, 0.6))
+            # Gentle pacing after success
+            throttle_webhook()
             return True
 
         if response.status_code == 429:
@@ -94,9 +93,10 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
                 print(f"⏩ Backoff {backoff:.2f}s too long — entering global cooldown and skipping further posts.")
                 return False
             time.sleep(backoff)
+            throttle_webhook()
             retry = requests.post(webhook_url, json=payload, timeout=10)
             if retry.status_code == 204:
-                time.sleep(1.0 + random.uniform(0.1, 0.6))
+                throttle_webhook()
                 return True
             if _looks_like_cloudflare_1015(retry):
                 _HARD_BLOCKED = True
@@ -131,7 +131,7 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     if _webhook_cooldown_active():
         return False
 
-    throttle()
+    throttle()  # Stratz-safe
     match_bundle = get_latest_new_match(steam_id, last_posted_id)
 
     if isinstance(match_bundle, dict) and match_bundle.get("error") == "quota_exceeded":
@@ -182,8 +182,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
             posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
             if posted:
-                print(f"✅ Posted embed for {player_name} match {match_id}")
                 state[str(steam_id)] = match_id
+                print(f"✅ Posted embed for {player_name} match {match_id}")
             else:
                 if _HARD_BLOCKED:
                     return False
