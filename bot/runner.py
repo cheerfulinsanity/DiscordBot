@@ -12,10 +12,20 @@ import random  # ✅ Jitter for post pacing
 
 # Global flag to stop the run if Cloudflare hard-blocks our IP
 _HARD_BLOCKED = False
+# Global cooldown (monotonic seconds) for Discord webhook bucket
+_WEBHOOK_COOLDOWN_UNTIL = 0.0
 
 
 def _parse_retry_after(response: requests.Response) -> float:
-    """Parse backoff seconds from Retry-After header or Discord JSON."""
+    """Parse backoff seconds from Retry-After header, JSON, or X-RateLimit-Reset-After."""
+    # Prefer Discord header if present
+    try:
+        xr = response.headers.get("X-RateLimit-Reset-After")
+        if xr is not None:
+            return max(0.5, float(xr))
+    except Exception:
+        pass
+
     ra = response.headers.get("Retry-After")
     if ra:
         try:
@@ -26,6 +36,7 @@ def _parse_retry_after(response: requests.Response) -> float:
         data = response.json()
         if isinstance(data, dict) and "retry_after" in data:
             val_f = float(data.get("retry_after"))
+            # Some APIs return milliseconds for tiny values; Discord uses seconds.
             if val_f > 0 and val_f < 0.2:
                 val_f = val_f * 1000.0
             return max(0.5, min(val_f, 60.0))
@@ -42,17 +53,33 @@ def _looks_like_cloudflare_1015(response: requests.Response) -> bool:
     return False
 
 
+def _webhook_cooldown_active() -> bool:
+    return time.monotonic() < _WEBHOOK_COOLDOWN_UNTIL
+
+
+def _set_webhook_cooldown(seconds: float):
+    global _WEBHOOK_COOLDOWN_UNTIL
+    seconds = max(1.0, float(seconds))
+    _WEBHOOK_COOLDOWN_UNTIL = time.monotonic() + seconds
+
+
 def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
     """
     Post a single embed to Discord with safe handling:
-      • Respect 429 with Retry-After / retry_after.
+      • Respect 429 with Retry-After / reset-after.
       • Detect Cloudflare 1015 HTML and mark hard-block.
       • Throttle per webhook to avoid hitting limits.
-      • Skip overly long backoffs (>10s).
+      • Abort run on long cooldowns (set global cooldown).
     """
     global _HARD_BLOCKED
 
-    # ✅ Webhook rate limiter before posting
+    # If we already know the bucket is cooling down, skip immediately.
+    if _webhook_cooldown_active():
+        remaining = max(0.0, _WEBHOOK_COOLDOWN_UNTIL - time.monotonic())
+        print(f"⏸️ Webhook cooling down — {remaining:.1f}s remaining. Skipping post.")
+        return False
+
+    # ✅ Webhook rate limiter before posting (per-second + per-minute)
     throttle_webhook()
 
     payload = {"embeds": [embed]}
@@ -60,15 +87,19 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
         response = requests.post(webhook_url, json=payload, timeout=10)
 
         if response.status_code == 204:
+            # Gentle pacing after a successful post
             time.sleep(1.0 + random.uniform(0.1, 0.6))
             return True
 
         if response.status_code == 429:
             backoff = _parse_retry_after(response)
             print(f"⚠️ Rate limited by Discord — retry_after = {backoff:.2f}s (raw)")
+            # If Discord is asking for a long backoff, set global cooldown and abort run.
             if backoff > 10:
-                print(f"⏩ Backoff {backoff:.2f}s too long — skipping this player for now.")
+                _set_webhook_cooldown(backoff)
+                print(f"⏩ Backoff {backoff:.2f}s too long — entering global cooldown and skipping further posts.")
                 return False
+            # Short backoff: wait and retry once
             time.sleep(backoff)
             retry = requests.post(webhook_url, json=payload, timeout=10)
             if retry.status_code == 204:
@@ -77,6 +108,12 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
             if _looks_like_cloudflare_1015(retry):
                 _HARD_BLOCKED = True
                 print("🛑 Cloudflare 1015 encountered on retry — aborting run to cool down.")
+                return False
+            # Secondary 429: respect its backoff and set cooldown
+            if retry.status_code == 429:
+                rb = _parse_retry_after(retry)
+                _set_webhook_cooldown(max(backoff, rb))
+                print(f"⏩ Secondary 429 — entering global cooldown for {max(backoff, rb):.2f}s.")
                 return False
             print(f"⚠️ Retry failed with status {retry.status_code}: {retry.text[:200]}")
             return False
@@ -98,6 +135,9 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     """Fetch and format the latest match for a player."""
     global _HARD_BLOCKED
     if _HARD_BLOCKED:
+        return False
+    if _webhook_cooldown_active():
+        # End run early to let webhook bucket recover
         return False
 
     throttle()  # Stratz-safe
@@ -137,6 +177,9 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
             else:
                 if _HARD_BLOCKED:
                     return False
+                if _webhook_cooldown_active():
+                    print("🧯 Ending run early due to webhook cooldown.")
+                    return False
                 print(f"⚠️ Failed to post embed for {player_name} match {match_id}")
         else:
             print("⚠️ Webhook disabled or misconfigured — printing instead.")
@@ -163,6 +206,10 @@ def run_bot():
         if _HARD_BLOCKED:
             print("🧯 Ending run early due to Cloudflare hard block.")
             break
+        if _webhook_cooldown_active():
+            remaining = max(0.0, _WEBHOOK_COOLDOWN_UNTIL - time.monotonic())
+            print(f"🧯 Ending run early — webhook cooling down for {remaining:.1f}s.")
+            break
 
         print(f"🔍 [{index}/{len(players)}] Checking {player_name} ({steam_id})...")
         last_posted_id = state.get(str(steam_id))
@@ -170,10 +217,14 @@ def run_bot():
         if not should_continue:
             if _HARD_BLOCKED:
                 print("🧯 Ending run early due to Cloudflare hard block.")
+            elif _webhook_cooldown_active():
+                remaining = max(0.0, _WEBHOOK_COOLDOWN_UNTIL - time.monotonic())
+                print(f"🧯 Ending run early due to webhook cooldown ({remaining:.1f}s).")
             else:
                 print("🧯 Ending run early to preserve API quota.")
             break
-        time.sleep(0.2)  # Soft cooldown between players
+        # Slightly larger inter-player delay to respect small-bucket limits
+        time.sleep(0.6)  # Soft cooldown between players
 
     save_state(state)
     print("📝 Updated state.json on GitHub Gist")
