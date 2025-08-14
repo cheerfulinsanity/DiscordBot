@@ -95,7 +95,8 @@ def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool =
         print(f"⏸️ Webhook cooling down — {remaining:.1f}s remaining. Skipping post.")
         return (False, None)
 
-    throttle_webhook()
+    # 🔧 Pass the base webhook URL so per-webhook pacing groups correctly
+    throttle_webhook(strip_query(webhook_url))
 
     url = _add_wait_param(webhook_url) if want_message_id else webhook_url
     payload = {"embeds": [embed]}
@@ -127,7 +128,7 @@ def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool =
                 print(f"⏩ Backoff {backoff:.2f}s too long — entering global cooldown and skipping further posts.")
                 return (False, None)
             time.sleep(backoff)
-            throttle_webhook()
+            throttle_webhook(strip_query(webhook_url))
             retry = requests.post(url, json=payload, timeout=10)
             if retry.status_code in (200, 204):
                 msg_id = None
@@ -167,14 +168,15 @@ def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool =
 def edit_discord_message(message_id: str, embed: dict, webhook_url: str) -> bool:
     """
     Edit a previously-sent webhook message by ID.
-    PATCH {webhookBase}/messages/{message_id} with {"embeds":[...]}
+    PATCH {webhookBase}/messages/{message_id} with {"embeds":[.]}
     """
     global _HARD_BLOCKED
 
     if _webhook_cooldown_active():
         return False
 
-    throttle_webhook()
+    # 🔧 Pass the base webhook URL so per-webhook pacing groups correctly
+    throttle_webhook(strip_query(webhook_url))
 
     base = strip_query(webhook_url)
     url = f"{base}/messages/{message_id}"
@@ -192,7 +194,7 @@ def edit_discord_message(message_id: str, embed: dict, webhook_url: str) -> bool
                 _set_webhook_cooldown(backoff)
                 return False
             time.sleep(backoff)
-            throttle_webhook()
+            throttle_webhook(strip_query(webhook_url))
             retry = requests.patch(url, json=payload, timeout=10)
             if retry.status_code in (200, 204):
                 return True
