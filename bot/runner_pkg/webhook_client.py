@@ -3,7 +3,23 @@
 import time
 import random
 import requests
+import os
 from bot.throttle import throttle_webhook
+
+# --- Debug / webhook selection -------------------------------------------------
+
+def _is_truthy(v: str | None) -> bool:
+    return str(v).strip().lower() in {"1", "true", "yes", "on"}
+
+DEBUG_MODE = _is_truthy(os.getenv("DEBUG_MODE"))
+# When callers don't pass a webhook_url, we default to one of these:
+_DEFAULT_WEBHOOK_URL = (
+    os.getenv("DISCORD_WEBHOOK_URL_DEBUG") if DEBUG_MODE else os.getenv("DISCORD_WEBHOOK_URL")
+)
+# Log once so we know where we're posting when default is used
+_LOGGED_DEFAULT_TARGET = False
+
+# -------------------------------------------------------------------------------
 
 # Global flag to stop the run if Cloudflare hard-blocks our IP
 _HARD_BLOCKED = False
@@ -70,6 +86,25 @@ def strip_query(url: str) -> str:
     return url if q == -1 else url[:q]
 
 
+def _ensure_webhook_url(webhook_url: str | None) -> str | None:
+    """
+    If caller didn't provide a webhook_url, fall back to the environment-selected default.
+    This respects DEBUG_MODE by preferring DISCORD_WEBHOOK_URL_DEBUG when DEBUG_MODE=1.
+    """
+    global _LOGGED_DEFAULT_TARGET
+    if webhook_url and webhook_url.strip():
+        return webhook_url.strip()
+    # Use default if present
+    if not _DEFAULT_WEBHOOK_URL:
+        # No usable URL — caller must provide or env must be set
+        print("❌ No Discord webhook configured. Set DISCORD_WEBHOOK_URL or DISCORD_WEBHOOK_URL_DEBUG.")
+        return None
+    if not _LOGGED_DEFAULT_TARGET:
+        print(f"📤 Using {'DEBUG' if DEBUG_MODE else 'PROD'} webhook (default from env).")
+        _LOGGED_DEFAULT_TARGET = True
+    return _DEFAULT_WEBHOOK_URL.strip()
+
+
 def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool = False) -> tuple[bool, str | None]:
     """
     Post a single embed to Discord with safe handling:
@@ -78,8 +113,14 @@ def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool =
       • Throttle per webhook to avoid hitting limits.
       • Abort run on long cooldowns (set global cooldown).
     Returns (success, message_id) — message_id may be None if not requested or if 204/No Content.
+
+    NOTE: If webhook_url is None/empty, this will use the default selected by DEBUG_MODE.
     """
     global _HARD_BLOCKED
+
+    webhook_url = _ensure_webhook_url(webhook_url)
+    if not webhook_url:
+        return (False, None)
 
     if _webhook_cooldown_active():
         remaining = max(0.0, _WEBHOOK_COOLDOWN_UNTIL - time.monotonic())
@@ -160,8 +201,14 @@ def edit_discord_message(message_id: str, embed: dict, webhook_url: str) -> bool
     """
     Edit a previously-sent webhook message by ID.
     PATCH {webhookBase}/messages/{message_id} with {"embeds":[.]}
+
+    NOTE: If webhook_url is None/empty, this will use the default selected by DEBUG_MODE.
     """
     global _HARD_BLOCKED
+
+    webhook_url = _ensure_webhook_url(webhook_url)
+    if not webhook_url:
+        return False
 
     if _webhook_cooldown_active():
         return False
