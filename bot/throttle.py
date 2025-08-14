@@ -17,6 +17,7 @@ MAX_CALLS_PER_HOUR = 2000
 discord_posts = deque()
 _webhook_lock = threading.Lock()
 MAX_DISCORD_POSTS_PER_MINUTE = 25  # keep a safe buffer below 30/minute
+MAX_DISCORD_POSTS_PER_SECOND = 1   # small-burst gate to avoid bucket trips
 
 
 def _now() -> float:
@@ -82,8 +83,8 @@ def throttle():
 def throttle_webhook():
     """
     Rate limiter for Discord webhook posts.
-    Discord enforces a hard cap of ~30 requests/minute per webhook.
-    We aim for <=25/minute for safety.
+    Discord enforces a hard cap of ~30 requests/minute per webhook, and small burst buckets.
+    We gate both per-minute and per-second to avoid tripping long cooldowns.
     """
     while True:
         with _webhook_lock:
@@ -96,6 +97,17 @@ def throttle_webhook():
 
             sleep_for = 0.0
 
+            # --- Per-second window (small burst bucket)
+            threshold_1s = now - 1.0
+            count_1s = 0
+            earliest_1s = None
+            for t in discord_posts:
+                if t >= threshold_1s:
+                    earliest_1s = t if earliest_1s is None else earliest_1s
+                    count_1s += 1
+            if count_1s >= MAX_DISCORD_POSTS_PER_SECOND and earliest_1s is not None:
+                sleep_for = max(sleep_for, (earliest_1s + 1.0) - now)
+
             # --- Per-minute window
             count_60s = len(discord_posts)
             if count_60s >= MAX_DISCORD_POSTS_PER_MINUTE and discord_posts:
@@ -106,4 +118,4 @@ def throttle_webhook():
                 discord_posts.append(now)
                 return
 
-        time.sleep(min(sleep_for + 0.005, 5.0))
+        time.sleep(min(sleep_for + 0.02, 5.0))
