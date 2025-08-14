@@ -89,10 +89,9 @@ def get_baseline(hero_name: str, mode: str) -> dict | None:
 
 # --- Main match analysis entrypoint ---
 def format_match_embed(player: dict, match: dict, stats_block: dict, player_name: str = "Player") -> dict:
-    game_mode_field = match.get("gameMode")  # may be int (ID) or str enum (e.g., "TURBO")
+    game_mode_field = match.get("gameMode")
     raw_label = (match.get("gameModeName") or "").upper()
 
-    # Resolve human-readable mode name without using "Mode " prefix
     if isinstance(game_mode_field, str) and game_mode_field:
         game_mode_name = (
             RAW_MODE_LABELS.get(game_mode_field.upper())
@@ -101,7 +100,6 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
             or "Unknown"
         )
     else:
-        # numeric ID path
         game_mode_name = (
             RAW_MODE_LABELS.get(raw_label)
             or GAME_MODE_NAMES.get(game_mode_field)
@@ -109,7 +107,6 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
             or "Unknown"
         )
 
-    # Hardened Turbo detection (supports both numeric IDs and string enums)
     is_turbo = (
         game_mode_field in (20, 23, "TURBO")
         or RAW_MODE_LABELS.get(raw_label) == "Turbo"
@@ -122,13 +119,9 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         if p.get("isRadiant") == player.get("isRadiant")
     )
 
-    # Extract player stats
     stats = extract_player_stats(player, stats_block, team_kills, mode)
-
-    # Ensure correct duration source from match-level field
     stats["durationSeconds"] = match.get("durationSeconds", 0)
 
-    # --- Defensive: replace None with safe defaults by expected type ---
     for k in list(stats.keys()):
         v = stats[k]
         if v is None:
@@ -137,7 +130,6 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
             elif k == "statsBlock":
                 stats[k] = {}
             else:
-                # default numeric-safe
                 stats[k] = 0
 
     engine = analyze_turbo if is_turbo else analyze_normal
@@ -146,7 +138,6 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     tags = result.get("feedback_tags", {})
     is_victory = player.get("isVictory", False)
 
-    # Deterministic phrasing
     try:
         seed_str = f"{match.get('id')}:{player.get('steamAccountId')}"
         random.seed(hashlib.md5(seed_str.encode()).hexdigest())
@@ -155,7 +146,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
 
     advice = generate_advice(tags, stats, mode=mode)
 
-    score = float(result.get("score") or 0.0)  # ✅ Ensure numeric
+    score = float(result.get("score") or 0.0)
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
     title = title[:1].lower() + title[1:]
 
@@ -176,6 +167,87 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         "flags": advice.get("flags", [])[:3],
         "tips": advice.get("tips", [])[:3],
         "matchId": match.get("id")
+    }
+
+# --- Minimal fallback embed for IMP-missing matches ---
+def format_fallback_embed(player: dict, match: dict, player_name: str = "Player") -> dict:
+    game_mode_field = match.get("gameMode")
+    raw_label = (match.get("gameModeName") or "").upper()
+
+    if isinstance(game_mode_field, str) and game_mode_field:
+        game_mode_name = (
+            RAW_MODE_LABELS.get(game_mode_field.upper())
+            or RAW_MODE_LABELS.get(raw_label)
+            or game_mode_field.replace("_", " ").title()
+            or "Unknown"
+        )
+    else:
+        game_mode_name = (
+            RAW_MODE_LABELS.get(raw_label)
+            or GAME_MODE_NAMES.get(game_mode_field)
+            or (raw_label.replace("_", " ").title() if raw_label else None)
+            or "Unknown"
+        )
+
+    is_turbo = (
+        game_mode_field in (20, 23, "TURBO")
+        or RAW_MODE_LABELS.get(raw_label) == "Turbo"
+        or raw_label == "MODE_TURBO"
+    )
+    mode = "TURBO" if is_turbo else "NON_TURBO"
+    is_victory = player.get("isVictory", False)
+
+    duration = match.get("durationSeconds", 0)
+    basic_stats = f"Level {player.get('level', 0)}"
+    if not is_turbo:
+        basic_stats += f" • {player.get('goldPerMinute', 0)} GPM • {player.get('experiencePerMinute', 0)} XPM"
+    else:
+        basic_stats += f" • {player.get('experiencePerMinute', 0)} XPM"
+
+    return {
+        "playerName": player_name,
+        "emoji": "⏳",
+        "title": "(Pending Stats)",
+        "score": None,
+        "mode": mode,
+        "gameModeName": game_mode_name,
+        "role": player.get("roleBasic", "unknown"),
+        "hero": player.get("hero", {}).get("displayName") or normalize_hero_name(player.get("hero", {}).get("name", "")),
+        "kda": f"{player.get('kills', 0)}/{player.get('deaths', 0)}/{player.get('assists', 0)}",
+        "duration": duration,
+        "isVictory": is_victory,
+        "basicStats": basic_stats,
+        "statusNote": "Impact score not yet processed by Stratz — detailed analysis will appear later.",
+        "matchId": match.get("id")
+    }
+
+def build_fallback_embed(result: dict) -> dict:
+    from datetime import datetime, timezone
+    hero = result.get("hero", "unknown")
+    kda = result.get("kda", "0/0/0")
+    victory = "Win" if result.get("isVictory") else "Loss"
+    title = f"{result.get('emoji', '')} {result.get('playerName', 'Player')} {result.get('title')} {kda} as {hero} — {victory}"
+
+    duration = result.get("duration", 0)
+    duration_str = f"{duration // 60}:{duration % 60:02d}"
+
+    now = datetime.now(timezone.utc).astimezone()
+    timestamp = now.isoformat()
+
+    fields = [
+        {"name": "⚙️ Mode", "value": result.get("gameModeName", "Unknown"), "inline": True},
+        {"name": "⏱️ Duration", "value": duration_str, "inline": True},
+        {"name": "🧭 Role", "value": result.get("role", "unknown").capitalize(), "inline": True},
+        {"name": "📊 Basic Stats", "value": result.get("basicStats", ""), "inline": False},
+        {"name": "⚠️ Status", "value": result.get("statusNote", ""), "inline": False},
+    ]
+
+    return {
+        "title": title,
+        "description": "",
+        "fields": fields,
+        "footer": {"text": f"Match ID: {result['matchId']} • {now.strftime('%b %d at %-I:%M %p')}"},
+        "timestamp": timestamp
     }
 
 # --- Embed formatting for Discord output ---
