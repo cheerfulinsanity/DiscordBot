@@ -7,6 +7,20 @@ from bot.throttle import throttle  # ✅ Enforce rate limit before each request
 
 STRATZ_URL = "https://api.stratz.com/graphql"
 
+def _debug_level() -> int:
+    """
+    Parse DEBUG_MODE as an integer level:
+      0 = prod (no payload dumps)
+      1 = debug posting only (no payload dumps)
+      2 = debug posting + payload dumps (enable verbose Stratz JSON logging)
+    Also accepts common truthy strings ("true","yes","on") as level 1.
+    """
+    raw = (os.getenv("DEBUG_MODE") or "0").strip().lower()
+    try:
+        return int(raw)
+    except Exception:
+        return 1 if raw in {"1", "true", "yes", "on"} else 0
+
 # --- Shared Stratz query runner ---
 def post_stratz_query(query: str, variables: dict, timeout: int = 10) -> dict | str | None:
     """
@@ -184,7 +198,8 @@ def fetch_full_match(match_id: int) -> dict | None:
     if not data:
         return None
 
-    if os.getenv("DEBUG_MODE") == "1":
+    # Only dump verbose Stratz payloads when DEBUG_MODE >= 2
+    if _debug_level() >= 2:
         print("🔎 Full match response:")
         print(json.dumps(data, indent=2))
 
