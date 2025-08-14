@@ -2,7 +2,7 @@
 
 from bot.fetch import get_latest_new_match
 from bot.gist_state import load_state, save_state
-from bot.formatter import format_match_embed, build_discord_embed
+from bot.formatter import format_match_embed, build_discord_embed, format_fallback_embed, build_fallback_embed  # ✅ Added fallback functions
 from bot.config import CONFIG
 from bot.throttle import throttle, throttle_webhook  # ✅ Added throttle_webhook
 import requests
@@ -18,7 +18,6 @@ _WEBHOOK_COOLDOWN_UNTIL = 0.0
 
 def _parse_retry_after(response: requests.Response) -> float:
     """Parse backoff seconds from Retry-After header, JSON, or X-RateLimit-Reset-After."""
-    # Prefer Discord header if present
     try:
         xr = response.headers.get("X-RateLimit-Reset-After")
         if xr is not None:
@@ -36,7 +35,6 @@ def _parse_retry_after(response: requests.Response) -> float:
         data = response.json()
         if isinstance(data, dict) and "retry_after" in data:
             val_f = float(data.get("retry_after"))
-            # Some APIs return milliseconds for tiny values; Discord uses seconds.
             if val_f > 0 and val_f < 0.2:
                 val_f = val_f * 1000.0
             return max(0.5, min(val_f, 60.0))
@@ -73,13 +71,11 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
     """
     global _HARD_BLOCKED
 
-    # If we already know the bucket is cooling down, skip immediately.
     if _webhook_cooldown_active():
         remaining = max(0.0, _WEBHOOK_COOLDOWN_UNTIL - time.monotonic())
         print(f"⏸️ Webhook cooling down — {remaining:.1f}s remaining. Skipping post.")
         return False
 
-    # ✅ Webhook rate limiter before posting (per-second + per-minute)
     throttle_webhook()
 
     payload = {"embeds": [embed]}
@@ -87,19 +83,16 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
         response = requests.post(webhook_url, json=payload, timeout=10)
 
         if response.status_code == 204:
-            # Gentle pacing after a successful post
             time.sleep(1.0 + random.uniform(0.1, 0.6))
             return True
 
         if response.status_code == 429:
             backoff = _parse_retry_after(response)
             print(f"⚠️ Rate limited by Discord — retry_after = {backoff:.2f}s (raw)")
-            # If Discord is asking for a long backoff, set global cooldown and abort run.
             if backoff > 10:
                 _set_webhook_cooldown(backoff)
                 print(f"⏩ Backoff {backoff:.2f}s too long — entering global cooldown and skipping further posts.")
                 return False
-            # Short backoff: wait and retry once
             time.sleep(backoff)
             retry = requests.post(webhook_url, json=payload, timeout=10)
             if retry.status_code == 204:
@@ -109,7 +102,6 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
                 _HARD_BLOCKED = True
                 print("🛑 Cloudflare 1015 encountered on retry — aborting run to cool down.")
                 return False
-            # Secondary 429: respect its backoff and set cooldown
             if retry.status_code == 429:
                 rb = _parse_retry_after(retry)
                 _set_webhook_cooldown(max(backoff, rb))
@@ -137,10 +129,9 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     if _HARD_BLOCKED:
         return False
     if _webhook_cooldown_active():
-        # End run early to let webhook bucket recover
         return False
 
-    throttle()  # Stratz-safe
+    throttle()
     match_bundle = get_latest_new_match(steam_id, last_posted_id)
 
     if isinstance(match_bundle, dict) and match_bundle.get("error") == "quota_exceeded":
@@ -160,7 +151,26 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         return True
 
     if player_data.get("imp") is None:
-        print(f"⏳ IMP not ready for match {match_id} (player {steam_id}). Skipping for now; will retry on next run.")
+        print(f"⏳ IMP not ready for match {match_id} (player {steam_id}). Posting minimal fallback embed.")
+        try:
+            result = format_fallback_embed(player_data, match_data, player_name)
+            embed = build_fallback_embed(result)
+            if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
+                posted = post_to_discord_embed(embed, CONFIG["webhook_url"])
+                if posted:
+                    print(f"✅ Posted fallback embed for {player_name} match {match_id}")
+                else:
+                    if _HARD_BLOCKED:
+                        return False
+                    if _webhook_cooldown_active():
+                        print("🧯 Ending run early due to webhook cooldown.")
+                        return False
+                    print(f"⚠️ Failed to post fallback embed for {player_name} match {match_id}")
+            else:
+                print("⚠️ Webhook disabled or misconfigured — printing instead.")
+                print(json.dumps(embed, indent=2))
+        except Exception as e:
+            print(f"❌ Error formatting or posting fallback embed for {player_name}: {e}")
         return True
 
     print(f"🎮 {player_name} — processing match {match_id}")
@@ -223,8 +233,7 @@ def run_bot():
             else:
                 print("🧯 Ending run early to preserve API quota.")
             break
-        # Slightly larger inter-player delay to respect small-bucket limits
-        time.sleep(0.6)  # Soft cooldown between players
+        time.sleep(0.6)
 
     save_state(state)
     print("📝 Updated state.json on GitHub Gist")
