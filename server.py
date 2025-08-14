@@ -4,6 +4,7 @@ from flask import Flask
 from threading import Thread, Lock
 from bot.runner import run_bot
 import traceback
+import os
 
 app = Flask(__name__)
 run_lock = Lock()
@@ -37,3 +38,8 @@ def run():
     except Exception as e:
         print(f"❌ Error starting GuildBot thread: {e}", flush=True)
         return f"❌ Error: {str(e)}"
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
