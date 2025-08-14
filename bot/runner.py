@@ -44,34 +44,46 @@ def _parse_retry_after(response: requests.Response) -> float:
     Parse backoff seconds from:
       • X-RateLimit-Reset-After (seconds)
       • Retry-After header (seconds)
-      • JSON body retry_after (seconds; sometimes ms in bots API, guard for tiny values)
+      • JSON body retry_after (seconds OR milliseconds for webhooks)
+    Returns a sane seconds value in [0.5, 15.0].
     """
-    # Header: X-RateLimit-Reset-After
+    # Header: X-RateLimit-Reset-After (authoritative, already seconds)
     try:
         xr = response.headers.get("X-RateLimit-Reset-After")
         if xr is not None:
-            return max(0.5, float(xr))
+            val = float(xr)
+            return max(0.5, min(val, 15.0))
     except Exception:
         pass
 
-    # Header: Retry-After
+    # Header: Retry-After (seconds)
     try:
         ra = response.headers.get("Retry-After")
         if ra is not None:
-            return max(0.5, float(ra))
+            val = float(ra)
+            return max(0.5, min(val, 15.0))
     except Exception:
         pass
 
-    # JSON body: retry_after
+    # JSON body: retry_after (seconds OR milliseconds)
     try:
         data = response.json()
         if isinstance(data, dict) and "retry_after" in data:
-            val = float(data["retry_after"])
-            # If the value is suspiciously small (<0.2), assume it's in seconds but from a ms-based client.
-            # Clamp to 0.5s min and 60s max here; longer windows handled by headers.
-            if 0 < val < 0.2:
-                val = val * 1000.0  # be generous if it looked like milliseconds
-            return max(0.5, min(val, 60.0))
+            raw = data["retry_after"]
+            try:
+                val = float(raw)
+            except Exception:
+                val = 0.0
+
+            # Heuristic:
+            #  - < 60 → assume seconds
+            #  - >= 60 → treat as milliseconds (common webhook behavior)
+            if val < 60.0:
+                backoff = val
+            else:
+                backoff = val / 1000.0
+
+            return max(0.5, min(backoff, 15.0))
     except Exception:
         pass
 
@@ -82,6 +94,7 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
     """
     Post a single embed to Discord with strict pacing and defensive handling.
     - Always calls throttle_webhook(webhook_url) before posting
+    - Uses ?wait=true to receive rate-limit headers for accurate pacing
     - Handles 429 with backoff; long backoffs trigger process/webhook cooldowns
     - Detects Cloudflare HTML block (Error 1015) and aborts the run
     """
@@ -95,15 +108,30 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
 
     payload = {"embeds": [embed]}
     try:
-        response = requests.post(webhook_url, json=payload, timeout=10)
+        # Use wait=true to get a 200 with headers instead of silent 204
+        response = requests.post(webhook_url, params={"wait": "true"}, json=payload, timeout=10)
 
-        if response.status_code == 204:
+        if response.status_code in (200, 204):
             # Success — lightly pace the next post as well
             throttle_webhook(webhook_url)
             return True
 
         # Hard 429
         if response.status_code == 429:
+            # Helpful diagnostics
+            hdr = response.headers
+            try:
+                print(
+                    "⚠️ Webhook 429 — "
+                    f"bucket={hdr.get('X-RateLimit-Bucket')} "
+                    f"limit={hdr.get('X-RateLimit-Limit')} "
+                    f"remaining={hdr.get('X-RateLimit-Remaining')} "
+                    f"reset_after={hdr.get('X-RateLimit-Reset-After')} "
+                    f"global={hdr.get('X-RateLimit-Global')}"
+                )
+            except Exception:
+                pass
+
             backoff = _parse_retry_after(response)
             print(f"⚠️ Webhook 429 — retry_after={backoff:.2f}s")
             if backoff > 10:
@@ -116,8 +144,8 @@ def post_to_discord_embed(embed: dict, webhook_url: str) -> bool:
             # Short backoff — sleep, pace, and single retry
             time.sleep(backoff)
             throttle_webhook(webhook_url)
-            retry = requests.post(webhook_url, json=payload, timeout=10)
-            if retry.status_code == 204:
+            retry = requests.post(webhook_url, params={"wait": "true"}, json=payload, timeout=10)
+            if retry.status_code in (200, 204):
                 throttle_webhook(webhook_url)
                 return True
 
