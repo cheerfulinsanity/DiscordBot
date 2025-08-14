@@ -1,52 +1,77 @@
 import time
 import threading
-from collections import deque, defaultdict
+from collections import deque
 
-# Stratz API limits (unchanged)
+# Rolling tracker of timestamps for API calls (monotonic seconds)
 api_calls = deque()
 _lock = threading.Lock()
+
+# Stratz Free Tier Limits
 MAX_CALLS_PER_SECOND = 20
 MAX_CALLS_PER_MINUTE = 250
 MAX_CALLS_PER_HOUR = 2000
+# Note: No hard limit on daily quota enforced here
+
+# Discord webhook limits (per webhook, not per bot user)
+# Ref: ~30 requests/minute hard limit per webhook, but we stay well under
+discord_posts = deque()
+_webhook_lock = threading.Lock()
+MAX_DISCORD_POSTS_PER_MINUTE = 25  # keep a safe buffer below 30/minute
+MAX_DISCORD_POSTS_PER_SECOND = 1   # small-burst gate to avoid bucket trips
+
 
 def _now() -> float:
     """Monotonic time in seconds to avoid system clock jumps."""
     return time.monotonic()
 
+
 def throttle():
     """
     Global, process-wide rate limiter for Stratz API calls.
-    Blocks until issuing another Stratz API call would respect all caps.
+    Blocks until issuing another Stratz API call would respect all caps:
+      - 20 per 1 second (sliding window)
+      - 250 per 60 seconds (sliding window)
+      - 2000 per 3600 seconds (sliding window)
     """
     while True:
+        # Compute inside a lock to keep the deque consistent under concurrency
         with _lock:
             now = _now()
 
-            # Trim anything older than 1 hour
+            # Trim anything older than 1 hour (we only enforce up to hourly)
             cutoff_hour = now - 3600.0
             while api_calls and api_calls[0] < cutoff_hour:
                 api_calls.popleft()
 
             sleep_for = 0.0
 
-            # Per-second
+            # --- Per-second window (20/sec)
             threshold_1s = now - 1.0
-            count_1s = sum(1 for t in api_calls if t >= threshold_1s)
-            if count_1s >= MAX_CALLS_PER_SECOND:
-                earliest = min(t for t in api_calls if t >= threshold_1s)
-                sleep_for = max(sleep_for, (earliest + 1.0) - now)
+            count_1s = 0
+            earliest_1s = None
+            for t in api_calls:
+                if t >= threshold_1s:
+                    earliest_1s = t if earliest_1s is None else earliest_1s
+                    count_1s += 1
+            if count_1s >= MAX_CALLS_PER_SECOND and earliest_1s is not None:
+                sleep_for = max(sleep_for, (earliest_1s + 1.0) - now)
 
-            # Per-minute
+            # --- Per-minute window (250/min)
             threshold_60s = now - 60.0
-            count_60s = sum(1 for t in api_calls if t >= threshold_60s)
-            if count_60s >= MAX_CALLS_PER_MINUTE:
-                earliest = min(t for t in api_calls if t >= threshold_60s)
-                sleep_for = max(sleep_for, (earliest + 60.0) - now)
+            count_60s = 0
+            earliest_60s = None
+            for t in api_calls:
+                if t >= threshold_60s:
+                    earliest_60s = t if earliest_60s is None else earliest_60s
+                    count_60s += 1
+            if count_60s >= MAX_CALLS_PER_MINUTE and earliest_60s is not None:
+                sleep_for = max(sleep_for, (earliest_60s + 60.0) - now)
 
-            # Per-hour
-            if len(api_calls) >= MAX_CALLS_PER_HOUR:
-                earliest = api_calls[0]
-                sleep_for = max(sleep_for, (earliest + 3600.0) - now)
+            # --- Per-hour window (2000/hr)
+            count_3600 = len(api_calls)  # already trimmed to last hour
+            if count_3600 >= MAX_CALLS_PER_HOUR and api_calls:
+                earliest_3600 = api_calls[0]
+                sleep_for = max(sleep_for, (earliest_3600 + 3600.0) - now)
 
             if sleep_for <= 0:
                 api_calls.append(now)
@@ -54,92 +79,48 @@ def throttle():
 
         time.sleep(min(sleep_for + 0.005, 5.0))
 
-# ----------------- Discord webhook pacing -----------------
 
-# Per-webhook rolling windows and cooldowns
-_webhook_posts: dict[str, deque] = defaultdict(deque)
-_webhook_lock = threading.Lock()
-# Conservative caps: Discord docs suggest ~30/min; on shared IPs that’s optimistic.
-MAX_DISCORD_POSTS_PER_MINUTE = 15  # safer buffer
-MAX_DISCORD_POSTS_PER_SECOND = 1   # never burst above 1/sec
-MIN_WEBHOOK_SPACING_BASE = 2.8     # base spacing; we’ll add small jitter below
-
-# Global slow-mode
-_global_posts = deque()
-GLOBAL_MIN_SPACING_BASE = 3.5  # base delay between ANY posts
-GLOBAL_JITTER = 1.0            # add up to +1s jitter
-
-# Optional external cooldowns (e.g., from a 429 Retry-After). Runner can set these.
-_webhook_cooldown_until: dict[str, float] = defaultdict(float)
-
-def set_webhook_cooldown(webhook_url: str, seconds: float):
-    """Allow caller to force a cooldown for a specific webhook."""
-    try:
-        seconds = max(1.0, float(seconds))
-    except Exception:
-        seconds = 3.0
-    with _webhook_lock:
-        _webhook_cooldown_until[webhook_url] = _now() + seconds
-
-def throttle_webhook(webhook_url: str):
+def throttle_webhook(webhook_url: str | None = None):
     """
-    Rate limiter for Discord webhook posts (per webhook URL + global).
-    Enforces:
-      • Global min spacing between any posts (~3.5–4.5s)
-      • Max 15 posts/minute (rolling window) per webhook
-      • Max 1 post/sec per webhook
-      • Minimum spacing of ~2.8–3.6s between posts per webhook
-      • Honors externally imposed cooldowns via set_webhook_cooldown()
+    Rate limiter for Discord webhook posts.
+
+    NOTE: `webhook_url` is optional for backward compatibility with callers
+    that invoke `throttle_webhook()` without arguments. It is **ignored**
+    by this simple global limiter, which paces all webhook posts together.
+
+    Discord enforces a hard cap of ~30 requests/minute per webhook, and small burst buckets.
+    We gate both per-minute and per-second to avoid tripping long cooldowns.
     """
-    import random
     while True:
         with _webhook_lock:
             now = _now()
 
-            # Respect externally imposed cooldowns
-            until = _webhook_cooldown_until.get(webhook_url, 0.0)
-            if now < until:
-                sleep_for = until - now
-            else:
-                sleep_for = 0.0
+            # Trim anything older than 60 seconds
+            cutoff_minute = now - 60.0
+            while discord_posts and discord_posts[0] < cutoff_minute:
+                discord_posts.popleft()
 
-                # --- Global spacing ---
-                if _global_posts:
-                    min_next_global = _global_posts[-1] + GLOBAL_MIN_SPACING_BASE + random.uniform(0.0, GLOBAL_JITTER)
-                    if now < min_next_global:
-                        sleep_for = max(sleep_for, min_next_global - now)
+            sleep_for = 0.0
 
-                # --- Per-webhook checks ---
-                posts = _webhook_posts[webhook_url]
+            # --- Per-second window (small burst bucket)
+            threshold_1s = now - 1.0
+            count_1s = 0
+            earliest_1s = None
+            for t in discord_posts:
+                if t >= threshold_1s:
+                    earliest_1s = t if earliest_1s is None else earliest_1s
+                    count_1s += 1
+            if count_1s >= MAX_DISCORD_POSTS_PER_SECOND and earliest_1s is not None:
+                sleep_for = max(sleep_for, (earliest_1s + 1.0) - now)
 
-                # Trim older than 60s
-                cutoff_minute = now - 60.0
-                while posts and posts[0] < cutoff_minute:
-                    posts.popleft()
-
-                # Per-second burst cap
-                threshold_1s = now - 1.0
-                count_1s = sum(1 for t in posts if t >= threshold_1s)
-                if count_1s >= MAX_DISCORD_POSTS_PER_SECOND:
-                    earliest = min(t for t in posts if t >= threshold_1s)
-                    sleep_for = max(sleep_for, (earliest + 1.0) - now)
-
-                # Per-minute rolling cap
-                if len(posts) >= MAX_DISCORD_POSTS_PER_MINUTE:
-                    earliest = posts[0]
-                    sleep_for = max(sleep_for, (earliest + 60.0) - now)
-
-                # Minimum per-webhook spacing + jitter
-                if posts:
-                    last_post_time = posts[-1]
-                    min_next_time = last_post_time + MIN_WEBHOOK_SPACING_BASE + random.uniform(0.0, 0.8)
-                    if now < min_next_time:
-                        sleep_for = max(sleep_for, min_next_time - now)
+            # --- Per-minute window
+            count_60s = len(discord_posts)
+            if count_60s >= MAX_DISCORD_POSTS_PER_MINUTE and discord_posts:
+                earliest_60s = discord_posts[0]
+                sleep_for = max(sleep_for, (earliest_60s + 60.0) - now)
 
             if sleep_for <= 0:
-                now = _now()
-                _global_posts.append(now)
-                _webhook_posts[webhook_url].append(now)
+                discord_posts.append(now)
                 return
 
         time.sleep(min(sleep_for + 0.02, 5.0))
