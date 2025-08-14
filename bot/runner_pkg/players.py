@@ -2,6 +2,7 @@
 
 import json
 import time
+import os
 from bot.fetch import get_latest_new_match
 from bot.formatter import (
     format_match_embed,
@@ -20,6 +21,47 @@ from .webhook_client import (
 )
 
 
+def _debug_level() -> int:
+    raw = (os.getenv("DEBUG_MODE") or "0").strip().lower()
+    try:
+        return int(raw)
+    except Exception:
+        return 1 if raw in {"1", "true", "yes", "on"} else 0
+
+
+def _truthy(v: str | None) -> bool:
+    return str(v or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _force_fallback_for(steam_id: int) -> bool:
+    """
+    Test hook: force the fallback path even if IMP is ready.
+    Active only when DEBUG_MODE > 0 and TEST_FORCE_FALLBACK is truthy.
+    Optional scoping via TEST_FORCE_FALLBACK_ONLY_FOR=comma,separated,steam32Ids
+    """
+    if _debug_level() <= 0:
+        return False
+    if not _truthy(os.getenv("TEST_FORCE_FALLBACK")):
+        return False
+
+    allow = (os.getenv("TEST_FORCE_FALLBACK_ONLY_FOR") or "").strip()
+    if not allow:
+        return True
+
+    allow_set: set[int] = set()
+    for part in allow.split(","):
+        part = part.strip()
+        if part.isdigit():
+            try:
+                allow_set.add(int(part))
+            except Exception:
+                continue
+    try:
+        return int(steam_id) in allow_set
+    except Exception:
+        return False
+
+
 def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> bool:
     """Fetch and format the latest match for a player."""
     if is_hard_blocked():
@@ -28,12 +70,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         return False
 
     throttle()
+
     match_bundle = get_latest_new_match(steam_id, last_posted_id)
-
-    if isinstance(match_bundle, dict) and match_bundle.get("error") == "quota_exceeded":
-        print(f"🛑 Skipping remaining players — quota exceeded.")
-        return False
-
     if not match_bundle:
         print(f"⏩ No new match or failed to fetch for {player_name}. Skipping.")
         return True
@@ -50,7 +88,16 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     pending_map = state.setdefault("pending", {})
     pending_entry = pending_map.get(str(match_id))
 
-    if player_data.get("imp") is None:
+    # --- Test hook: force fallback even if IMP is ready ---
+    imp_value = player_data.get("imp")
+    try:
+        if _force_fallback_for(steam_id) and imp_value is not None:
+            imp_value = None
+            print(f"🧪 TEST_FORCE_FALLBACK active — forcing fallback for match {match_id} (player {steam_id}).")
+    except Exception:
+        pass
+
+    if imp_value is None:
         print(f"⏳ IMP not ready for match {match_id} (player {steam_id}). Posting minimal fallback embed.")
         try:
             result = format_fallback_embed(player_data, match_data, player_name)
@@ -89,7 +136,11 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
 
         if pending_entry and pending_entry.get("messageId") and CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
             # Upgrade existing fallback message via edit
-            ok = edit_discord_message(pending_entry["messageId"], embed, pending_entry.get("webhookBase") or CONFIG["webhook_url"])
+            ok = edit_discord_message(
+                pending_entry["messageId"],
+                embed,
+                pending_entry.get("webhookBase") or CONFIG["webhook_url"],
+            )
             if ok:
                 print(f"🔁 Upgraded fallback → full embed for {player_name} match {match_id}")
                 state[str(steam_id)] = match_id
