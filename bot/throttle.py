@@ -64,6 +64,11 @@ MAX_DISCORD_POSTS_PER_MINUTE = 15  # safer buffer
 MAX_DISCORD_POSTS_PER_SECOND = 1   # never burst above 1/sec
 MIN_WEBHOOK_SPACING_BASE = 2.8     # base spacing; we’ll add small jitter below
 
+# Global slow-mode
+_global_posts = deque()
+GLOBAL_MIN_SPACING_BASE = 3.5  # base delay between ANY posts
+GLOBAL_JITTER = 1.0            # add up to +1s jitter
+
 # Optional external cooldowns (e.g., from a 429 Retry-After). Runner can set these.
 _webhook_cooldown_until: dict[str, float] = defaultdict(float)
 
@@ -78,11 +83,12 @@ def set_webhook_cooldown(webhook_url: str, seconds: float):
 
 def throttle_webhook(webhook_url: str):
     """
-    Rate limiter for Discord webhook posts (per webhook URL).
+    Rate limiter for Discord webhook posts (per webhook URL + global).
     Enforces:
-      • Max 15 posts/minute (rolling window)
-      • Max 1 post/sec
-      • Minimum spacing of ~2.8–3.6s between posts (randomized)
+      • Global min spacing between any posts (~3.5–4.5s)
+      • Max 15 posts/minute (rolling window) per webhook
+      • Max 1 post/sec per webhook
+      • Minimum spacing of ~2.8–3.6s between posts per webhook
       • Honors externally imposed cooldowns via set_webhook_cooldown()
     """
     import random
@@ -95,14 +101,21 @@ def throttle_webhook(webhook_url: str):
             if now < until:
                 sleep_for = until - now
             else:
+                sleep_for = 0.0
+
+                # --- Global spacing ---
+                if _global_posts:
+                    min_next_global = _global_posts[-1] + GLOBAL_MIN_SPACING_BASE + random.uniform(0.0, GLOBAL_JITTER)
+                    if now < min_next_global:
+                        sleep_for = max(sleep_for, min_next_global - now)
+
+                # --- Per-webhook checks ---
                 posts = _webhook_posts[webhook_url]
 
                 # Trim older than 60s
                 cutoff_minute = now - 60.0
                 while posts and posts[0] < cutoff_minute:
                     posts.popleft()
-
-                sleep_for = 0.0
 
                 # Per-second burst cap
                 threshold_1s = now - 1.0
@@ -116,7 +129,7 @@ def throttle_webhook(webhook_url: str):
                     earliest = posts[0]
                     sleep_for = max(sleep_for, (earliest + 60.0) - now)
 
-                # Minimum spacing + jitter
+                # Minimum per-webhook spacing + jitter
                 if posts:
                     last_post_time = posts[-1]
                     min_next_time = last_post_time + MIN_WEBHOOK_SPACING_BASE + random.uniform(0.0, 0.8)
@@ -124,6 +137,8 @@ def throttle_webhook(webhook_url: str):
                         sleep_for = max(sleep_for, min_next_time - now)
 
             if sleep_for <= 0:
+                now = _now()
+                _global_posts.append(now)
                 _webhook_posts[webhook_url].append(now)
                 return
 
