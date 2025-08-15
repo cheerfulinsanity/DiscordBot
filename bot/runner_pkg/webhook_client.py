@@ -137,6 +137,16 @@ def _ensure_webhook_url(webhook_url: str | None) -> str | None:
         _LOGGED_DEFAULT_TARGET = True
     return _DEFAULT_WEBHOOK_URL.strip()
 
+# --- New: expose the resolved posting URL for callers that need to store it ----
+
+def resolve_webhook_for_post(webhook_url: str | None) -> str | None:
+    """
+    Return the exact webhook URL that will be used for a POST after applying
+    any DEBUG/webhook overrides. Callers can store strip_query(...) of this
+    so later edits hit the correct channel even if env changes.
+    """
+    return _ensure_webhook_url(webhook_url)
+
 
 def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool = False) -> tuple[bool, str | None]:
     """
@@ -230,26 +240,30 @@ def post_to_discord_embed(embed: dict, webhook_url: str, want_message_id: bool =
         return (False, None)
 
 
-def edit_discord_message(message_id: str, embed: dict, webhook_url: str) -> bool:
+def edit_discord_message(message_id: str, embed: dict, webhook_url: str, exact_base: bool = True) -> bool:
     """
     Edit a previously-sent webhook message by ID.
     PATCH {webhookBase}/messages/{message_id} with {"embeds":[.]}
 
-    NOTE: If webhook_url is None/empty, this will use the default selected by DEBUG_LEVEL.
+    exact_base=True → use the passed base exactly (no debug/prod override).
+    Set exact_base=False only if you intentionally want override behavior.
+
+    NOTE: If webhook_url is None/empty and exact_base=False, this will use the default selected by DEBUG_LEVEL.
     """
     global _HARD_BLOCKED
 
-    webhook_url = _ensure_webhook_url(webhook_url)
-    if not webhook_url:
+    # Honor exact base by default to avoid editing the wrong channel
+    base_url = webhook_url if exact_base else _ensure_webhook_url(webhook_url)
+    if not base_url:
         return False
 
     if _webhook_cooldown_active():
         return False
 
     # 🔧 Pass the base webhook URL so per-webhook pacing groups correctly
-    throttle_webhook(strip_query(webhook_url))
+    throttle_webhook(strip_query(base_url))
 
-    base = strip_query(webhook_url)
+    base = strip_query(base_url)
     url = f"{base}/messages/{message_id}"
     payload = {"embeds": [embed]}
 
@@ -265,7 +279,7 @@ def edit_discord_message(message_id: str, embed: dict, webhook_url: str) -> bool
                 _set_webhook_cooldown(backoff)
                 return False
             time.sleep(backoff)
-            throttle_webhook(strip_query(webhook_url))
+            throttle_webhook(strip_query(base_url))
             retry = requests.patch(url, json=payload, timeout=10)
             if retry.status_code in (200, 204):
                 return True
