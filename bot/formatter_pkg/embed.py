@@ -28,15 +28,12 @@ def build_fallback_embed(result: dict) -> dict:
         "timestamp": timestamp
     }
 
-    # 👤 Optional author block to show Steam avatar next to player name
-    # Will only be included if at least the name exists; icon_url attached if provided.
-    player_name = result.get("playerName")
+    # 🖼️ Optional Steam avatar as thumbnail (prominent inside the embed body)
     avatar_url = result.get("avatarUrl") or result.get("steamAvatarUrl")
-    if player_name:
-        author_obj = {"name": player_name}
-        if avatar_url:
-            author_obj["icon_url"] = avatar_url
-        embed["author"] = author_obj
+    if avatar_url:
+        embed["thumbnail"] = {"url": avatar_url}
+
+    # (Removed tiny author header to avoid duplicate/minuscule name row)
 
     return embed
 
@@ -117,14 +114,11 @@ def build_discord_embed(result: dict) -> dict:
         "timestamp": timestamp
     }
 
-    # 👤 Optional author block to show Steam avatar next to player name
-    # Uses result['playerName'] and result['avatarUrl'] (or 'steamAvatarUrl').
-    player_name = result.get("playerName")
+    # 🖼️ Optional Steam avatar as thumbnail (prominent inside the embed body)
     avatar_url = result.get("avatarUrl") or result.get("steamAvatarUrl")
-    if player_name:
-        author_obj = {"name": player_name}
-        if avatar_url:
-            author_obj["icon_url"] = avatar_url
-        embed["author"] = author_obj
+    if avatar_url:
+        embed["thumbnail"] = {"url": avatar_url}
+
+    # (Removed tiny author header to avoid duplicate/minuscule name row)
 
     return embed
