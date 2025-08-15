@@ -20,12 +20,19 @@ def build_fallback_embed(result: dict) -> dict:
         {"name": "⚠️ Status", "value": result.get("statusNote", ""), "inline": False},
     ]
 
-    return {
+    # Optional author with Steam avatar (if provided)
+    author = {"name": result.get("playerName", "Player")}
+    if result.get("avatarUrl"):
+        author["icon_url"] = result["avatarUrl"]
+
+    return:
+        {
         "title": title,
         "description": "",
         "fields": fields,
         "footer": {"text": f"Match ID: {result['matchId']} • {now.strftime('%b %d at %-I:%M %p')}"},
-        "timestamp": timestamp
+        "timestamp": timestamp,
+        "author": author
     }
 
 # --- Embed formatting for Discord output ---
@@ -94,6 +101,11 @@ def build_discord_embed(result: dict) -> dict:
             "inline": False
         })
 
+    # Optional author with Steam avatar (if provided)
+    author = {"name": result.get("playerName", "Player")}
+    if result.get("avatarUrl"):
+        author["icon_url"] = result["avatarUrl"]
+
     return {
         "title": title,
         "description": "",
@@ -101,5 +113,6 @@ def build_discord_embed(result: dict) -> dict:
         "footer": {
             "text": f"Match ID: {result['matchId']} • {now.strftime('%b %d at %-I:%M %p')}"
         },
-        "timestamp": timestamp
+        "timestamp": timestamp,
+        "author": author
     }
