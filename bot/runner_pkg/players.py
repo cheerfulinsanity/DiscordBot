@@ -76,6 +76,24 @@ def _private_ids() -> set[int]:
     return ids
 
 
+# --- Pending expiry helper (mirrors pending.py logic) ---
+_MIN_EXPIRY = 30 * 60
+_MAX_EXPIRY = 48 * 60 * 60
+_DEFAULT_EXPIRY = 12 * 60 * 60
+
+
+def _pending_expiry_seconds() -> int:
+    """Resolve the expiry (seconds) we stamp into new pending entries."""
+    raw = (os.getenv("PENDING_EXPIRY_SEC") or "").strip()
+    if raw.isdigit():
+        try:
+            v = int(raw)
+            return max(_MIN_EXPIRY, min(_MAX_EXPIRY, v))
+        except Exception:
+            pass
+    return _DEFAULT_EXPIRY
+
+
 def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> bool:
     """Fetch and format the latest match for a player."""
     if is_hard_blocked():
@@ -152,13 +170,14 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
                 posted, msg_id = post_to_discord_embed(embed, CONFIG["webhook_url"], want_message_id=True)
                 if posted:
                     print(f"✅ Posted fallback embed for {player_name} match {match_id}")
-                    # Track for upgrade/expiry
+                    # Track for upgrade/expiry (per-match pending, never overwritten by newer matches)
                     pending_map[str(match_id)] = {
                         "steamId": steam_id,
                         "messageId": msg_id,
                         "postedAt": time.time(),
                         "webhookBase": strip_query(CONFIG["webhook_url"]),
                         "snapshot": result,  # enough to rebuild "expired" or provide name
+                        "expiresAfterSec": _pending_expiry_seconds(),
                     }
                 else:
                     if is_hard_blocked():
