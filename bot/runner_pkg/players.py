@@ -99,9 +99,18 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         print(f"❌ Player data missing in match {match_id} for {player_name}")
         return True
 
-    # If there is a pending entry for this match, prefer editing that message when full stats are ready
+    # If there is a pending entry for this specific (match, player), prefer editing that message when full stats are ready
     pending_map = state.setdefault("pending", {})
-    pending_entry = pending_map.get(str(match_id))
+    composite_key = f"{match_id}:{steam_id}"
+    pending_entry = pending_map.get(composite_key)
+
+    # 🔄 Backward-compat: migrate legacy single-key (matchId-only) entries to composite keys when they match this player
+    if not pending_entry:
+        legacy = pending_map.get(str(match_id))
+        if legacy and legacy.get("steamId") == steam_id:
+            pending_entry = legacy
+            pending_map[composite_key] = legacy
+            pending_map.pop(str(match_id), None)
 
     # --- NEW: Private-data path (no pending/upgrade tracking, custom status, no '(Pending Stats)') ---
     if steam_id in _private_ids():
@@ -160,8 +169,9 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
                 posted, msg_id = post_to_discord_embed(embed, resolved, want_message_id=True)
                 if posted:
                     print(f"✅ Posted fallback embed for {player_name} match {match_id}")
-                    pending_map[str(match_id)] = {
+                    pending_map[composite_key] = {
                         "steamId": steam_id,
+                        "matchId": match_id,              # ✅ store explicitly for upgrade/expiry
                         "messageId": msg_id,
                         "postedAt": time.time(),
                         "webhookBase": strip_query(resolved),  # ✅ exact base used
@@ -199,6 +209,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
             if ok:
                 print(f"🔁 Upgraded fallback → full embed for {player_name} match {match_id}")
                 state[str(steam_id)] = match_id
+                # Remove both composite and any lingering legacy key for safety
+                pending_map.pop(composite_key, None)
                 pending_map.pop(str(match_id), None)
             else:
                 if is_hard_blocked():
