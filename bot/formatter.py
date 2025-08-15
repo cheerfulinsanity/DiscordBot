@@ -80,9 +80,9 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         # Only attempt lookup when an API key is present
         if os.getenv("STEAM_API_KEY"):
             try:
-                from bot.steam_user import get_avatar_url  # local helper you added
+                from bot.steam_user import get_avatar_url  # local helper
             except Exception:
-                # Support flat module name if placed at project root as per your snippet
+                # Support flat module name if placed at project root (dev convenience)
                 from steam_user import get_avatar_url  # type: ignore
             steam32 = player.get("steamAccountId")
             if isinstance(steam32, int):
