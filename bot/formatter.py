@@ -9,6 +9,7 @@ from feedback.advice import generate_advice, get_title_phrase
 from feedback.extract import extract_player_stats
 from datetime import datetime
 import os
+from bot.steam_user import get_avatar_url  # ✅ Steam avatar helper (env: STEAM_API_KEY)
 
 # Public surface re-exported from formatter_pkg
 from bot.formatter_pkg.stats_sets import NORMAL_STATS, TURBO_STATS
@@ -87,7 +88,7 @@ def _cloak_player_name(name: str, match_id, steam_id) -> str:
     if " " in out:
         parts = []
         for ch in out:
-            if ch == " ":
+            if ch == " "":
                 parts.append(rng.choice(_SPACE_VARIANTS))
             else:
                 parts.append(ch)
@@ -163,6 +164,16 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     safe_name = player_name if isinstance(player_name, str) else "Player"
     cloaked_name = _cloak_player_name(safe_name, match_id, steam_id)
 
+    # 🎯 Steam avatar URL (optional, safe-fail)
+    avatar_url = None
+    try:
+        if isinstance(steam_id, int):
+            avatar_url = get_avatar_url(steam_id)
+        else:
+            avatar_url = get_avatar_url(int(steam_id))  # may raise → handled
+    except Exception:
+        avatar_url = None
+
     return {
         "playerName": cloaked_name,
         "emoji": emoji,
@@ -179,7 +190,8 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         "negatives": advice.get("negatives", [])[:3],
         "flags": advice.get("flags", [])[:3],
         "tips": advice.get("tips", [])[:3],
-        "matchId": match.get("id")
+        "matchId": match.get("id"),
+        "avatarUrl": avatar_url,  # ← thread to embed builder
     }
 
 # --- Minimal fallback embed for IMP-missing matches ---
@@ -214,6 +226,16 @@ def format_fallback_embed(player: dict, match: dict, player_name: str = "Player"
     safe_name = player_name if isinstance(player_name, str) else "Player"
     cloaked_name = _cloak_player_name(safe_name, match_id, steam_id)
 
+    # 🎯 Steam avatar URL (optional, safe-fail)
+    avatar_url = None
+    try:
+        if isinstance(steam_id, int):
+            avatar_url = get_avatar_url(steam_id)
+        else:
+            avatar_url = get_avatar_url(int(steam_id))
+    except Exception:
+        avatar_url = None
+
     return {
         "playerName": cloaked_name,
         "emoji": emoji,
@@ -228,5 +250,6 @@ def format_fallback_embed(player: dict, match: dict, player_name: str = "Player"
         "isVictory": is_victory,
         "basicStats": basic_stats,
         "statusNote": status_note,
-        "matchId": match.get("id")
+        "matchId": match.get("id"),
+        "avatarUrl": avatar_url,  # ← thread to fallback embed builder
     }
