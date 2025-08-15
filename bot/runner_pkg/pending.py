@@ -111,7 +111,7 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
             try:
                 if CONFIG.get("webhook_enabled") and webhook_base and message_id:
                     expired_embed = _expire_pending_entry(entry)
-                    ok = edit_discord_message(message_id, expired_embed, webhook_base)
+                    ok = edit_discord_message(message_id, expired_embed, webhook_base, exact_base=True)  # ✅
                     if not ok:
                         if is_hard_blocked() or webhook_cooldown_active():
                             return False
@@ -151,7 +151,7 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
                 display_name = snap.get("playerName", "Player")
                 result = format_match_embed(player_data, full, player_data.get("stats", {}), display_name)
                 embed = build_discord_embed(result)
-                ok = edit_discord_message(message_id, embed, webhook_base)
+                ok = edit_discord_message(message_id, embed, webhook_base, exact_base=True)  # ✅
                 if ok:
                     print(f"🔁 Upgraded fallback → full embed for match {match_id} (steam {steam_id})")
                     state[str(steam_id)] = match_id
