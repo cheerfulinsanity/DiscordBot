@@ -73,6 +73,58 @@ def _expire_pending_entry(entry: dict) -> dict:
     return build_fallback_embed(expired)
 
 
+def _normalize_pending_keys(pending_map: dict) -> None:
+    """
+    One-time in-place migration to support multiple players per match:
+    - Legacy shape keyed by 'matchId' only → re-key to 'matchId:steamId' if steamId present.
+    - If postedAt is missing, initialize it to now() to avoid immediate expiry glitches.
+    Idempotent across runs.
+    """
+    if not isinstance(pending_map, dict):
+        return
+
+    # Collect changes to avoid modifying while iterating
+    rekeys: list[tuple[str, str]] = []
+    init_times: list[str] = []
+    for k, entry in list(pending_map.items()):
+        # Initialize missing postedAt defensively
+        if isinstance(entry, dict) and not entry.get("postedAt"):
+            init_times.append(k)
+
+        if ":" in str(k):
+            # Already composite key
+            continue
+
+        # Try to build composite key using stored steamId
+        steam_id = None
+        try:
+            steam_id = int((entry or {}).get("steamId"))
+        except Exception:
+            steam_id = None
+        if steam_id:
+            new_key = f"{k}:{steam_id}"
+            # Only re-key if target doesn't already exist
+            if new_key not in pending_map:
+                rekeys.append((str(k), new_key))
+
+    # Apply postedAt inits
+    now = time.time()
+    for k in init_times:
+        try:
+            if isinstance(pending_map.get(k), dict) and not pending_map[k].get("postedAt"):
+                pending_map[k]["postedAt"] = now
+        except Exception:
+            continue
+
+    # Apply rekeys
+    for old, new in rekeys:
+        try:
+            pending_map[new] = pending_map.pop(old)
+        except Exception:
+            # If anything odd happens, leave the old key in place
+            continue
+
+
 def process_pending_upgrades_and_expiry(state: dict) -> bool:
     """
     Pass 0: try to upgrade or expire any pending fallback messages.
@@ -85,21 +137,37 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
     if not pending_map:
         return True
 
+    # 🔧 Migrate legacy keys ('matchId' only) → 'matchId:steamId' so
+    # multiple players can share a match without overwriting each other.
+    _normalize_pending_keys(pending_map)
+
     now = time.time()
     items = list(pending_map.items())
 
-    for match_id_str, entry in items:
+    for key, entry in items:
         if is_hard_blocked() or webhook_cooldown_active():
             return False
 
+        # Key may be either "matchId:steamId" (preferred) or legacy "matchId"
+        match_id = None
+        steam_id_from_key = None
         try:
-            match_id = int(match_id_str)
+            if ":" in str(key):
+                a, b = str(key).split(":", 1)
+                match_id = int(a)
+                steam_id_from_key = int(b) if b.isdigit() else None
+            else:
+                match_id = int(str(key))
         except Exception:
             # Bad key — drop it
-            pending_map.pop(match_id_str, None)
+            pending_map.pop(key, None)
             continue
 
         steam_id = entry.get("steamId")
+        if steam_id_from_key and steam_id != steam_id_from_key:
+            # Trust the stored entry but keep awareness; no-op beyond this
+            pass
+
         webhook_base = entry.get("webhookBase") or CONFIG.get("webhook_url")
         message_id = entry.get("messageId")
 
@@ -107,7 +175,7 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
         posted_at = float(entry.get("postedAt") or 0)
         expiry_seconds = _entry_expiry_seconds(entry)
         if posted_at and (now - posted_at) >= expiry_seconds:
-            print(f"⏳ Pending match {match_id} expired — marking message and removing from state.")
+            print(f"⏳ Pending match {match_id} (steam {steam_id}) expired — marking message and removing from state.")
             try:
                 if CONFIG.get("webhook_enabled") and webhook_base and message_id:
                     expired_embed = _expire_pending_entry(entry)
@@ -115,13 +183,13 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
                     if not ok:
                         if is_hard_blocked() or webhook_cooldown_active():
                             return False
-                        print(f"⚠️ Failed to mark expired for match {match_id} — will retry next run")
+                        print(f"⚠️ Failed to mark expired for match {match_id} (steam {steam_id}) — will retry next run")
                         continue
                 # Remove from pending after attempting expiry
-                pending_map.pop(match_id_str, None)
+                pending_map.pop(key, None)
             except Exception as e:
-                print(f"❌ Error expiring pending match {match_id}: {e}")
-                pending_map.pop(match_id_str, None)
+                print(f"❌ Error expiring pending match {match_id} (steam {steam_id}): {e}")
+                pending_map.pop(key, None)
             continue
 
         # Try to upgrade — re-fetch match and check IMP
@@ -155,13 +223,13 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
                 if ok:
                     print(f"🔁 Upgraded fallback → full embed for match {match_id} (steam {steam_id})")
                     state[str(steam_id)] = match_id
-                    pending_map.pop(match_id_str, None)
+                    pending_map.pop(key, None)
                 else:
                     if is_hard_blocked() or webhook_cooldown_active():
                         return False
-                    print(f"⚠️ Failed to upgrade (edit) for match {match_id} — will retry later")
+                    print(f"⚠️ Failed to upgrade (edit) for match {match_id} (steam {steam_id}) — will retry later")
             except Exception as e:
-                print(f"❌ Error building/upgrading embed for match {match_id}: {e}")
+                print(f"❌ Error building/upgrading embed for match {match_id} (steam {steam_id}): {e}")
                 # Leave pending for retry
 
         # Pace between items to be gentle on Discord + Stratz
