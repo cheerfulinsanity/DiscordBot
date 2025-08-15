@@ -1,19 +1,6 @@
 # bot/formatter_pkg/embed.py
 def build_fallback_embed(result: dict) -> dict:
     from datetime import datetime, timezone
-    # ✅ Steam avatar support (optional, fail-safe)
-    author = {"name": result.get("playerName", "Player")}
-    try:
-        steam_id = result.get("steamAccountId") or result.get("steamId") or result.get("steam_id")
-        if steam_id is not None:
-            from bot.steam_user import get_avatar_url  # local, lightweight, cached
-            avatar_url = get_avatar_url(int(steam_id))
-            if avatar_url:
-                author["icon_url"] = avatar_url
-    except Exception as _e:
-        # Non-fatal: simply omit icon_url on any failure
-        pass
-
     hero = result.get("hero", "unknown")
     kda = result.get("kda", "0/0/0")
     victory = "Win" if result.get("isVictory") else "Loss"
@@ -33,30 +20,30 @@ def build_fallback_embed(result: dict) -> dict:
         {"name": "⚠️ Status", "value": result.get("statusNote", ""), "inline": False},
     ]
 
-    return {
+    embed = {
         "title": title,
         "description": "",
         "fields": fields,
         "footer": {"text": f"Match ID: {result['matchId']} • {now.strftime('%b %d at %-I:%M %p')}"},
-        "timestamp": timestamp,
-        "author": author,
+        "timestamp": timestamp
     }
+
+    # 👤 Optional author block to show Steam avatar next to player name
+    # Will only be included if at least the name exists; icon_url attached if provided.
+    player_name = result.get("playerName")
+    avatar_url = result.get("avatarUrl") or result.get("steamAvatarUrl")
+    if player_name:
+        author_obj = {"name": player_name}
+        if avatar_url:
+            author_obj["icon_url"] = avatar_url
+        embed["author"] = author_obj
+
+    return embed
+
 
 # --- Embed formatting for Discord output ---
 def build_discord_embed(result: dict) -> dict:
     from datetime import datetime, timezone
-    # ✅ Steam avatar support (optional, fail-safe)
-    author = {"name": result.get("playerName", "Player")}
-    try:
-        steam_id = result.get("steamAccountId") or result.get("steamId") or result.get("steam_id")
-        if steam_id is not None:
-            from bot.steam_user import get_avatar_url  # local, lightweight, cached
-            avatar_url = get_avatar_url(int(steam_id))
-            if avatar_url:
-                author["icon_url"] = avatar_url
-    except Exception as _e:
-        # Non-fatal: simply omit icon_url on any failure
-        pass
 
     hero = result.get("hero", "unknown")
     kda = result.get("kda", "0/0/0")
@@ -120,13 +107,24 @@ def build_discord_embed(result: dict) -> dict:
             "inline": False
         })
 
-    return {
+    embed = {
         "title": title,
         "description": "",
         "fields": fields,
         "footer": {
             "text": f"Match ID: {result['matchId']} • {now.strftime('%b %d at %-I:%M %p')}"
         },
-        "timestamp": timestamp,
-        "author": author,
+        "timestamp": timestamp
     }
+
+    # 👤 Optional author block to show Steam avatar next to player name
+    # Uses result['playerName'] and result['avatarUrl'] (or 'steamAvatarUrl').
+    player_name = result.get("playerName")
+    avatar_url = result.get("avatarUrl") or result.get("steamAvatarUrl")
+    if player_name:
+        author_obj = {"name": player_name}
+        if avatar_url:
+            author_obj["icon_url"] = avatar_url
+        embed["author"] = author_obj
+
+    return embed
