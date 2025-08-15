@@ -18,6 +18,7 @@ from .webhook_client import (
     webhook_cooldown_active,
     is_hard_blocked,
     strip_query,
+    resolve_webhook_for_post,  # ✅ NEW: get the actual posting URL
 )
 
 
@@ -114,11 +115,13 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
             result["statusNote"] = "Public Match Data not exposed — Detailed analysis unavailable."
 
             embed = build_fallback_embed(result)
-            if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
-                posted, _ = post_to_discord_embed(embed, CONFIG["webhook_url"], want_message_id=False)
+
+            # 🔐 Use the exact webhook used for posting (after overrides) when storing state
+            resolved = resolve_webhook_for_post(CONFIG.get("webhook_url"))
+            if CONFIG.get("webhook_enabled") and resolved:
+                posted, _ = post_to_discord_embed(embed, resolved, want_message_id=False)
                 if posted:
                     print(f"✅ Posted private-data fallback for {player_name} match {match_id}")
-                    # ✅ Track in state to prevent repeat posting of the same match
                     state[str(steam_id)] = match_id
                 else:
                     if is_hard_blocked():
@@ -130,10 +133,8 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
             else:
                 print("⚠️ Webhook disabled or misconfigured — printing instead.")
                 print(json.dumps(embed, indent=2))
-                # ✅ Treat as successful for de-duplication
                 state[str(steam_id)] = match_id
 
-            # Do NOT add to pending for private players (no upgrade path)
         except Exception as e:
             print(f"❌ Error formatting or posting private-data fallback for {player_name}: {e}")
         return True
@@ -152,19 +153,20 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         try:
             result = format_fallback_embed(player_data, match_data, player_name)
             embed = build_fallback_embed(result)
-            if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
-                posted, msg_id = post_to_discord_embed(embed, CONFIG["webhook_url"], want_message_id=True)
+
+            # 🔐 Resolve actual posting URL and store it with the pending entry
+            resolved = resolve_webhook_for_post(CONFIG.get("webhook_url"))
+            if CONFIG.get("webhook_enabled") and resolved:
+                posted, msg_id = post_to_discord_embed(embed, resolved, want_message_id=True)
                 if posted:
                     print(f"✅ Posted fallback embed for {player_name} match {match_id}")
-                    # Track for upgrade/expiry
                     pending_map[str(match_id)] = {
                         "steamId": steam_id,
                         "messageId": msg_id,
                         "postedAt": time.time(),
-                        "webhookBase": strip_query(CONFIG["webhook_url"]),
-                        "snapshot": result,  # enough to rebuild "expired" or provide name
+                        "webhookBase": strip_query(resolved),  # ✅ exact base used
+                        "snapshot": result,
                     }
-                    # ✅ Also pin state to this match to avoid duplicate fallback posts
                     state[str(steam_id)] = match_id
                 else:
                     if is_hard_blocked():
@@ -176,7 +178,6 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
             else:
                 print("⚠️ Webhook disabled or misconfigured — printing instead.")
                 print(json.dumps(embed, indent=2))
-                # ✅ Treat as successful and pin state to avoid re-posting
                 state[str(steam_id)] = match_id
         except Exception as e:
             print(f"❌ Error formatting or posting fallback embed for {player_name}: {e}")
@@ -188,12 +189,12 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
         result = format_match_embed(player_data, match_data, player_data.get("stats", {}), player_name)
         embed = build_discord_embed(result)
 
-        if pending_entry and pending_entry.get("messageId") and CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
-            # Upgrade existing fallback message via edit
+        if pending_entry and pending_entry.get("messageId") and CONFIG.get("webhook_enabled"):
             ok = edit_discord_message(
                 pending_entry["messageId"],
                 embed,
-                pending_entry.get("webhookBase") or CONFIG["webhook_url"],
+                pending_entry.get("webhookBase") or CONFIG.get("webhook_url"),
+                exact_base=True,  # ✅ honor stored base; do NOT override
             )
             if ok:
                 print(f"🔁 Upgraded fallback → full embed for {player_name} match {match_id}")
@@ -208,8 +209,9 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
                 print(f"⚠️ Failed to upgrade fallback for {player_name} match {match_id} — will retry later")
         else:
             # Normal fresh post path
-            if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
-                posted, _ = post_to_discord_embed(embed, CONFIG["webhook_url"], want_message_id=False)
+            resolved = resolve_webhook_for_post(CONFIG.get("webhook_url"))
+            if CONFIG.get("webhook_enabled") and resolved:
+                posted, _ = post_to_discord_embed(embed, resolved, want_message_id=False)
                 if posted:
                     print(f"✅ Posted embed for {player_name} match {match_id}")
                     state[str(steam_id)] = match_id
