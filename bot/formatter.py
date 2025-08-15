@@ -74,6 +74,23 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     emoji, title = get_title_phrase(score, is_victory, tags.get("compound_flags", []))
     title = title[:1].lower() + title[1:]
 
+    # 🔗 Steam avatar (optional)
+    avatar_url = None
+    try:
+        # Only attempt lookup when an API key is present
+        if os.getenv("STEAM_API_KEY"):
+            try:
+                from bot.steam_user import get_avatar_url  # local helper you added
+            except Exception:
+                # Support flat module name if placed at project root as per your snippet
+                from steam_user import get_avatar_url  # type: ignore
+            steam32 = player.get("steamAccountId")
+            if isinstance(steam32, int):
+                avatar_url = get_avatar_url(steam32) or None
+    except Exception as _e:
+        # Non-fatal; just skip avatar on any error
+        avatar_url = None
+
     return {
         "playerName": player_name,
         "emoji": emoji,
@@ -90,7 +107,8 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
         "negatives": advice.get("negatives", [])[:3],
         "flags": advice.get("flags", [])[:3],
         "tips": advice.get("tips", [])[:3],
-        "matchId": match.get("id")
+        "matchId": match.get("id"),
+        "avatarUrl": avatar_url,  # ← new, optional
     }
 
 # --- Minimal fallback embed for IMP-missing matches ---
@@ -119,6 +137,20 @@ def format_fallback_embed(player: dict, match: dict, player_name: str = "Player"
         title = "(Pending Stats)"
         status_note = "Impact score not yet processed by Stratz — detailed analysis will appear later."
 
+    # 🔗 Steam avatar (optional) for fallback too (non-breaking)
+    avatar_url = None
+    try:
+        if os.getenv("STEAM_API_KEY"):
+            try:
+                from bot.steam_user import get_avatar_url
+            except Exception:
+                from steam_user import get_avatar_url  # type: ignore
+            steam32 = player.get("steamAccountId")
+            if isinstance(steam32, int):
+                avatar_url = get_avatar_url(steam32) or None
+    except Exception:
+        avatar_url = None
+
     return {
         "playerName": player_name,
         "emoji": emoji,
@@ -133,5 +165,6 @@ def format_fallback_embed(player: dict, match: dict, player_name: str = "Player"
         "isVictory": is_victory,
         "basicStats": basic_stats,
         "statusNote": status_note,
-        "matchId": match.get("id")
+        "matchId": match.get("id"),
+        "avatarUrl": avatar_url,  # ← new, optional
     }
