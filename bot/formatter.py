@@ -170,7 +170,7 @@ def format_match_embed(player: dict, match: dict, stats_block: dict, player_name
     }
 
 # --- Minimal fallback embed for IMP-missing matches ---
-def format_fallback_embed(player: dict, match: dict, player_name: str = "Player") -> dict:
+def format_fallback_embed(player: dict, match: dict, player_name: str = "Player", private_data_blocked: bool = False) -> dict:
     game_mode_field = match.get("gameMode")
     raw_label = (match.get("gameModeName") or "").upper()
 
@@ -204,10 +204,19 @@ def format_fallback_embed(player: dict, match: dict, player_name: str = "Player"
     else:
         basic_stats += f" • {player.get('experiencePerMinute', 0)} XPM"
 
+    if private_data_blocked:
+        emoji = "🔒"
+        title = ""
+        status_note = "Public Match Data not exposed — Detailed analysis unavailable."
+    else:
+        emoji = "⏳"
+        title = "(Pending Stats)"
+        status_note = "Impact score not yet processed by Stratz — detailed analysis will appear later."
+
     return {
         "playerName": player_name,
-        "emoji": "⏳",
-        "title": "(Pending Stats)",
+        "emoji": emoji,
+        "title": title,
         "score": None,
         "mode": mode,
         "gameModeName": game_mode_name,
@@ -217,7 +226,7 @@ def format_fallback_embed(player: dict, match: dict, player_name: str = "Player"
         "duration": duration,
         "isVictory": is_victory,
         "basicStats": basic_stats,
-        "statusNote": "Impact score not yet processed by Stratz — detailed analysis will appear later.",
+        "statusNote": status_note,
         "matchId": match.get("id")
     }
 
@@ -226,7 +235,7 @@ def build_fallback_embed(result: dict) -> dict:
     hero = result.get("hero", "unknown")
     kda = result.get("kda", "0/0/0")
     victory = "Win" if result.get("isVictory") else "Loss"
-    title = f"{result.get('emoji', '')} {result.get('playerName', 'Player')} {result.get('title')} {kda} as {hero} — {victory}"
+    title = f"{result.get('emoji', '')} {result.get('playerName', 'Player')} {result.get('title')} {kda} as {hero} — {victory}".strip()
 
     duration = result.get("duration", 0)
     duration_str = f"{duration // 60}:{duration % 60:02d}"
