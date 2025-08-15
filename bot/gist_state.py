@@ -31,6 +31,49 @@ def load_state():
         return {}
 
     if isinstance(parsed, dict):
+        # 🔁 Migration: pending keys from legacy "<matchId>" → composite "<matchId>:<steamId>"
+        # This allows multiple pending messages per match (one per player) without overwriting.
+        try:
+            pending = parsed.get("pending")
+            if isinstance(pending, dict) and pending:
+                migrated = {}
+                changed = False
+                for k, entry in list(pending.items()):
+                    # Keep already-composite keys as-is
+                    if ":" in str(k):
+                        migrated[str(k)] = entry
+                        continue
+
+                    # Legacy numeric key — re-key using embedded steamId if present
+                    if str(k).isdigit():
+                        steam = None
+                        try:
+                            steam = int((entry or {}).get("steamId"))
+                        except Exception:
+                            steam = None
+
+                        if steam is not None:
+                            new_key = f"{int(k)}:{steam}"
+                            # Only re-key if target not already present
+                            if new_key not in pending and new_key not in migrated:
+                                migrated[new_key] = entry
+                                changed = True
+                            else:
+                                # If collision, keep legacy key to avoid data loss
+                                migrated[str(k)] = entry
+                        else:
+                            # No steamId — keep legacy key
+                            migrated[str(k)] = entry
+                    else:
+                        # Unknown key shape — keep as-is
+                        migrated[str(k)] = entry
+
+                if changed:
+                    parsed["pending"] = migrated
+                    print(f"🔁 Migrated pending keys → composite matchId:steamId (count={len(migrated)})")
+        except Exception as e:
+            print(f"⚠️ Pending migration skipped due to error: {type(e).__name__}: {e}")
+
         return parsed
 
     print(f"⚠️ state.json contained a {type(parsed).__name__}, expected dict. Overwriting.")
