@@ -1,6 +1,7 @@
 # bot/runner_pkg/pending.py
 
 import time
+import os
 from bot.config import CONFIG
 from bot.throttle import throttle
 from bot.stratz import fetch_full_match
@@ -16,8 +17,50 @@ from .webhook_client import (
     is_hard_blocked,
 )
 
-# --- Constants ---
-PENDING_EXPIRY_SECONDS = 24 * 60 * 60  # 24 hours
+# --- Defaults & bounds ---
+# Historical default was 24h; we now honor an env override with a default of 12h.
+# Bounds protect against misconfiguration (30m–48h).
+PENDING_EXPIRY_SECONDS = 24 * 60 * 60  # legacy constant (fallback only)
+_MIN_EXPIRY = 30 * 60                  # 30 minutes
+_MAX_EXPIRY = 48 * 60 * 60            # 48 hours
+_DEFAULT_EXPIRY = 12 * 60 * 60        # 12 hours
+
+
+def _env_expiry_seconds() -> int:
+    """Resolve expiry seconds from env with sane bounds, falling back to 12h."""
+    raw = (os.getenv("PENDING_EXPIRY_SEC") or "").strip()
+    if raw.isdigit():
+        try:
+            v = int(raw)
+            return max(_MIN_EXPIRY, min(_MAX_EXPIRY, v))
+        except Exception:
+            pass
+    return _DEFAULT_EXPIRY
+
+
+def _entry_expiry_seconds(entry: dict) -> int:
+    """
+    Determine the expiry for a specific pending entry:
+      1) entry['expiresAfterSec'] if present (bounded)
+      2) env PENDING_EXPIRY_SEC (bounded)
+      3) legacy constant PENDING_EXPIRY_SECONDS (bounded to max/min for safety)
+    """
+    try:
+        v = int(entry.get("expiresAfterSec"))
+        return max(_MIN_EXPIRY, min(_MAX_EXPIRY, v))
+    except Exception:
+        pass
+
+    # Env override
+    env_v = _env_expiry_seconds()
+    if env_v:
+        return env_v
+
+    # Legacy fallback (kept for backward compatibility)
+    try:
+        return max(_MIN_EXPIRY, min(_MAX_EXPIRY, int(PENDING_EXPIRY_SECONDS)))
+    except Exception:
+        return _DEFAULT_EXPIRY
 
 
 def _expire_pending_entry(entry: dict) -> dict:
@@ -60,9 +103,10 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
         webhook_base = entry.get("webhookBase") or CONFIG.get("webhook_url")
         message_id = entry.get("messageId")
 
-        # Expiry check
+        # Expiry check (per-entry or env-driven)
         posted_at = float(entry.get("postedAt") or 0)
-        if posted_at and (now - posted_at) >= PENDING_EXPIRY_SECONDS:
+        expiry_seconds = _entry_expiry_seconds(entry)
+        if posted_at and (now - posted_at) >= expiry_seconds:
             print(f"⏳ Pending match {match_id} expired — marking message and removing from state.")
             try:
                 if CONFIG.get("webhook_enabled") and webhook_base and message_id:
@@ -85,6 +129,7 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
         full = fetch_full_match(match_id)
         if not full:
             # transient miss — skip this one for now
+            time.sleep(0.5)
             continue
         if isinstance(full, dict) and full.get("error") == "quota_exceeded":
             print("🛑 Quota exceeded during pending upgrade pass — aborting early.")
@@ -96,6 +141,7 @@ def process_pending_upgrades_and_expiry(state: dict) -> bool:
                 player_data = p
                 break
         if not player_data:
+            time.sleep(0.5)
             continue
 
         if player_data.get("imp") is not None and CONFIG.get("webhook_enabled") and webhook_base and message_id:
