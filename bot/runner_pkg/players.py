@@ -62,6 +62,20 @@ def _force_fallback_for(steam_id: int) -> bool:
         return False
 
 
+def _private_ids() -> set[int]:
+    """Return a set of Steam32 IDs that should use the private-data path."""
+    ids = set()
+    try:
+        for _, sid in (CONFIG.get("players_private") or {}).items():
+            try:
+                ids.add(int(sid))
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return ids
+
+
 def process_player(player_name: str, steam_id: int, last_posted_id: str | None, state: dict) -> bool:
     """Fetch and format the latest match for a player."""
     if is_hard_blocked():
@@ -87,6 +101,38 @@ def process_player(player_name: str, steam_id: int, last_posted_id: str | None, 
     # If there is a pending entry for this match, prefer editing that message when full stats are ready
     pending_map = state.setdefault("pending", {})
     pending_entry = pending_map.get(str(match_id))
+
+    # --- NEW: Private-data path (no pending/upgrade tracking, custom status, no '(Pending Stats)') ---
+    if steam_id in _private_ids():
+        print(f"🔒 Private-data player detected for {player_name} ({steam_id}) — posting one-off fallback.")
+        try:
+            # Build standard fallback then mutate title/status per private-data rules
+            result = format_fallback_embed(player_data, match_data, player_name)
+
+            # Remove "(Pending Stats)" and set final status message
+            result["title"] = ""  # no pending wording
+            result["statusNote"] = "Public Match Data not exposed — Detailed analysis unavailable."
+
+            embed = build_fallback_embed(result)
+            if CONFIG.get("webhook_enabled") and CONFIG.get("webhook_url"):
+                posted, _ = post_to_discord_embed(embed, CONFIG["webhook_url"], want_message_id=False)
+                if posted:
+                    print(f"✅ Posted private-data fallback for {player_name} match {match_id}")
+                else:
+                    if is_hard_blocked():
+                        return False
+                    if webhook_cooldown_active():
+                        print("🧯 Ending run early due to webhook cooldown.")
+                        return False
+                    print(f"⚠️ Failed to post private-data fallback for {player_name} match {match_id}")
+            else:
+                print("⚠️ Webhook disabled or misconfigured — printing instead.")
+                print(json.dumps(embed, indent=2))
+
+            # Do NOT track in state or pending for private players
+        except Exception as e:
+            print(f"❌ Error formatting or posting private-data fallback for {player_name}: {e}")
+        return True
 
     # --- Test hook: force fallback even if IMP is ready ---
     imp_value = player_data.get("imp")
